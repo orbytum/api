@@ -5,7 +5,6 @@ import jakarta.persistence.*;
 import lombok.Getter;
 
 @Entity
-@Table
 public class Grupo {
 
     @Id
@@ -15,5 +14,8 @@ public class Grupo {
 
     @Nonnull
     private String nome;
+
+    @Nonnull
+    private boolean isAtivo;
 
 }

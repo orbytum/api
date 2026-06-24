@@ -2,29 +2,31 @@ package com.orbytum.api.model.entity;
 
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
-import lombok.Getter;
 
-import java.util.UUID;
+import java.time.LocalDateTime;
 
 @Entity
-public class GrupoXUsuario {
+public class Publicacao {
 
     @Id
-    @Getter
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private UUID id;
+    private int id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
     @Nonnull
-    private Grupo grupo;
+    private String titulo;
 
-    @ManyToOne(fetch = FetchType.LAZY)
     @Nonnull
-    private Usuario usuario;
+    private String descricao;
 
-    @ManyToOne(fetch = FetchType.LAZY)
     @Nonnull
-    private Role role;
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Projeto projeto;
+
+    @Nonnull
+    private String url;
+
+    @Nonnull
+    private LocalDateTime dthRegistro;
 
     @Nonnull
     private boolean isAtivo;

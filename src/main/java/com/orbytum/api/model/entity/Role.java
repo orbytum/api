@@ -9,7 +9,6 @@ import lombok.Getter;
 import java.util.List;
 
 @Entity
-@Table
 public class Role {
 
     @Id

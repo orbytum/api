@@ -1,34 +1,32 @@
 package com.orbytum.api.model.entity;
 
+import com.orbytum.api.configuration.data.converter.ProjetoStatusAttributeConverter;
+import com.orbytum.api.model.enums.ProjetoStatus;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
-import lombok.Getter;
 
 import java.time.LocalDateTime;
 
 @Entity
-public class Usuario {
+public class Projeto {
 
     @Id
-    @Getter
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
     @Nonnull
-    @Getter
-    private String nome;
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Grupo grupo;
 
     @Nonnull
-    @Getter
-    private String email;
+    @Convert(converter = ProjetoStatusAttributeConverter.class)
+    private ProjetoStatus status;
 
     @Nonnull
-    @Getter
-    private String telefone;
-
-    @Nonnull
-    @Getter
     private String titulo;
+
+    @Nonnull
+    private String assunto;
 
     @Nonnull
     private LocalDateTime dthRegistro;
