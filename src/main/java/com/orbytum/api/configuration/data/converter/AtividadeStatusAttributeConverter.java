@@ -1,8 +1,6 @@
 package com.orbytum.api.configuration.data.converter;
 
-import com.orbytum.api.model.entity.Atividade;
-import com.orbytum.api.model.enums.AtividadeStatus;
-import com.orbytum.api.model.enums.ProjetoStatus;
+import com.orbytum.api.models.enums.AtividadeStatus;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 

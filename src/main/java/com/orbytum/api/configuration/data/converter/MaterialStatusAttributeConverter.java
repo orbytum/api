@@ -1,7 +1,6 @@
 package com.orbytum.api.configuration.data.converter;
 
-import com.orbytum.api.model.enums.MaterialStatus;
-import com.orbytum.api.model.enums.ProjetoStatus;
+import com.orbytum.api.models.enums.MaterialStatus;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
