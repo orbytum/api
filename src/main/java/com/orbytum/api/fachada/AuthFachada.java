@@ -1,52 +1,53 @@
-package com.orbytum.api.service;
+package com.orbytum.api.fachada;
 
 import com.orbytum.api.models.dto.response.AuthResponse;
 import com.orbytum.api.models.dto.request.LoginRequest;
 import com.orbytum.api.models.dto.request.RegisterRequest;
-import com.orbytum.api.util.JwtUtil;
-import com.orbytum.api.models.exceptions.ContaDesativadaErro;
-import com.orbytum.api.models.exceptions.CrenciaisInvalidas;
-import com.orbytum.api.models.exceptions.EmailJaCadastradoErro;
 import com.orbytum.api.models.entity.CredenciaisLogin;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.enums.Permissao;
-import com.orbytum.api.repository.CredenciaisLoginRepository;
-import com.orbytum.api.repository.GrupoXUsuarioRepository;
-import com.orbytum.api.repository.UsuarioRepository;
+import com.orbytum.api.models.exceptions.ContaDesativadaErro;
+import com.orbytum.api.models.exceptions.CrenciaisInvalidas;
+import com.orbytum.api.models.exceptions.EmailJaCadastradoErro;
+import com.orbytum.api.service.CredenciaisLoginService;
+import com.orbytum.api.service.GrupoXUsuarioService;
+import com.orbytum.api.service.UsuarioService;
+import com.orbytum.api.util.JwtUtil;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.List;
 
-@Service
+@Component
 @RequiredArgsConstructor
-public class AuthService {
+public class AuthFachada {
 
-    private final CredenciaisLoginRepository credenciaisLoginRepository;
-    private final UsuarioRepository usuarioRepository;
-    private final GrupoXUsuarioRepository grupoXUsuarioRepository;
+    private final CredenciaisLoginService credenciaisLoginService;
+    private final UsuarioService usuarioService;
+    private final GrupoXUsuarioService grupoXUsuarioService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
     public AuthResponse login(LoginRequest request) {
-        CredenciaisLogin credenciais = credenciaisLoginRepository
+        CredenciaisLogin credenciais = credenciaisLoginService
                 .findByEmail(request.email())
-                .orElseThrow(() -> new RuntimeException("Credenciais invÃ¡lidas"));
+                .orElseThrow(() -> new RuntimeException("Credenciais inválidas"));
 
         if (!credenciais.isAtivo()) {
             throw new ContaDesativadaErro("Conta desativada");
         }
 
         if (!passwordEncoder.matches(request.senha(), credenciais.getSenha())) {
-            throw new CrenciaisInvalidas("Credenciais invÃ¡lidas");
+            throw new CrenciaisInvalidas("Credenciais inválidas");
         }
 
-        List<Permissao> permissoes = grupoXUsuarioRepository
+        List<Permissao> permissoes = grupoXUsuarioService
                 .findPermissoesByUsuario(credenciais.getUsuario());
 
         UserDetails userDetails = User.builder()
@@ -59,9 +60,10 @@ public class AuthService {
         return new AuthResponse(token, "Bearer");
     }
 
+    @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (credenciaisLoginRepository.existsByEmail(request.email())) {
-            throw new EmailJaCadastradoErro("Email jÃ¡ cadastrado");
+        if (credenciaisLoginService.existsByEmail(request.email())) {
+            throw new EmailJaCadastradoErro("Email já cadastrado");
         }
 
         Usuario usuario = new Usuario(
@@ -70,9 +72,10 @@ public class AuthService {
                 request.telefone(),
                 request.titulo()
         );
-        usuario = usuarioRepository.save(usuario);
 
-        AccessLevel accessLevel = usuarioRepository.count() == 1
+        usuario = usuarioService.save(usuario);
+
+        AccessLevel accessLevel = usuarioService.count() == 1
                 ? AccessLevel.ADMIN
                 : AccessLevel.USER;
 
@@ -83,7 +86,7 @@ public class AuthService {
                 usuario,
                 null
         );
-        credenciaisLoginRepository.save(credenciais);
+        credenciaisLoginService.save(credenciais);
 
         UserDetails userDetails = User.builder()
                 .username(request.email())
