@@ -1,4 +1,4 @@
-﻿@ApplicationModule(
+@ApplicationModule(
         type = ApplicationModule.Type.CLOSED
 )
 package com.orbytum.api.repository;

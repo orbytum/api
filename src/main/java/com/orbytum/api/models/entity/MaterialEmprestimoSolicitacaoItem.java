@@ -1,18 +1,16 @@
 package com.orbytum.api.models.entity;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 
 @Entity
 public class MaterialEmprestimoSolicitacaoItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
     @Nonnull
     private Material material;
 

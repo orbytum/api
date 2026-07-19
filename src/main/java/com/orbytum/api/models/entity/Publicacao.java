@@ -2,6 +2,7 @@ package com.orbytum.api.models.entity;
 
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 
@@ -10,7 +11,7 @@ public class Publicacao {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
     @Nonnull
     private String titulo;
@@ -30,5 +31,9 @@ public class Publicacao {
 
     @Nonnull
     private boolean isAtivo;
+
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JoinColumn(name = "documentoId", referencedColumnName = "id")
+    private Documento documento;
 
 }

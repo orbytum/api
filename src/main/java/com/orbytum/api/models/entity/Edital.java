@@ -1,5 +1,6 @@
 package com.orbytum.api.models.entity;
 
+import com.orbytum.api.models.entity.joinColumns.EditalXProjeto;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
@@ -13,7 +14,7 @@ public class Edital {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
     @Nonnull
     private String titulo;
@@ -33,10 +34,8 @@ public class Edital {
     @Nonnull
     private LocalDateTime dthEncerramento;
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "EditalXProjeto")
-    private List<Projeto> projetos;
+    @OneToMany(mappedBy = "edital", fetch = FetchType.LAZY)
+    private List<EditalXProjeto> editaisProjetos;
 
     @Nonnull
     private boolean isAtivo;

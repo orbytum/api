@@ -1,4 +1,4 @@
-﻿package com.orbytum.api.models.entity;
+package com.orbytum.api.models.entity;
 
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
@@ -14,7 +14,7 @@ public class CredenciaisLogin {
     @Id
     @Getter
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
     @Nonnull
     @Getter

@@ -1,18 +1,20 @@
 package com.orbytum.api.models.entity;
 
-import com.orbytum.api.configuration.data.converter.ProjetoStatusAttributeConverter;
+import com.orbytum.api.models.converter.ProjetoStatusAttributeConverter;
+import com.orbytum.api.models.entity.joinColumns.EditalXProjeto;
 import com.orbytum.api.models.enums.ProjetoStatus;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 public class Projeto {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
     @Nonnull
     @ManyToOne(fetch = FetchType.LAZY)
@@ -33,5 +35,8 @@ public class Projeto {
 
     @Nonnull
     private boolean isAtivo;
+
+    @OneToMany(mappedBy = "projeto", fetch = FetchType.LAZY)
+    private List<EditalXProjeto> editaisProjetos;
 
 }

@@ -18,6 +18,6 @@ public enum AccessLevel {
                 return level;
             }
         }
-        throw new IllegalArgumentException("Nível de acesso inválido: " + key);
+        throw new IllegalArgumentException("NÃ­vel de acesso invÃ¡lido: " + key);
     }
 }

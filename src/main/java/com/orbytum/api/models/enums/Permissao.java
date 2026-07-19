@@ -16,6 +16,6 @@ public enum Permissao {
                 return p;
             }
         }
-        throw new IllegalArgumentException("Chave de permissão inválida: " + key);
+        throw new IllegalArgumentException("Chave de permissÃ£o invÃ¡lida: " + key);
     }
 }

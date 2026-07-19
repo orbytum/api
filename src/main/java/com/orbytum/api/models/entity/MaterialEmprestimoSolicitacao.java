@@ -1,5 +1,6 @@
 package com.orbytum.api.models.entity;
 
+import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
 
@@ -11,7 +12,7 @@ public class MaterialEmprestimoSolicitacao {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
     @OneToOne
     private GrupoXUsuario usuario;

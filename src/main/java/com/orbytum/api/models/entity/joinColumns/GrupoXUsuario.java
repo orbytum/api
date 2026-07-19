@@ -1,5 +1,8 @@
-package com.orbytum.api.models.entity;
+package com.orbytum.api.models.entity.joinColumns;
 
+import com.orbytum.api.models.entity.Grupo;
+import com.orbytum.api.models.entity.Role;
+import com.orbytum.api.models.entity.Usuario;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
 import lombok.Getter;

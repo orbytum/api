@@ -1,6 +1,6 @@
 package com.orbytum.api.models.entity;
 
-import com.orbytum.api.configuration.data.converter.PermissaoAttributeConverter;
+import com.orbytum.api.models.converter.PermissaoAttributeConverter;
 import com.orbytum.api.models.enums.Permissao;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
@@ -14,7 +14,7 @@ public class Role {
     @Id
     @Getter
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
     @Nonnull
     @Getter

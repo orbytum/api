@@ -25,7 +25,7 @@ public class RequiresPermissionAspect {
         Method method = ((MethodSignature) joinPoint.getSignature()).getMethod();
 
         if (!abacPermissionEvaluator.evaluateMethodPermission(authentication, method)) {
-            throw new AccessDeniedException("Acesso negado: permissão " + requiresPermission.value().getKey() + " necessária");
+            throw new AccessDeniedException("Acesso negado: permissÃ£o " + requiresPermission.value().getKey() + " necessÃ¡ria");
         }
 
         return joinPoint.proceed();

@@ -1,6 +1,6 @@
 package com.orbytum.api.models.entity;
 
-import com.orbytum.api.configuration.data.converter.MaterialStatusAttributeConverter;
+import com.orbytum.api.models.converter.MaterialStatusAttributeConverter;
 import com.orbytum.api.models.enums.MaterialStatus;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
@@ -13,7 +13,7 @@ public class Material {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
     @Nonnull
     private String nome;
@@ -43,7 +43,7 @@ public class Material {
     @Nonnull
     private boolean isAtivo;
 
-    @OneToMany(fetch = FetchType.LAZY)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "material")
     private List<MaterialEmprestimo> emprestimos;
 
 }

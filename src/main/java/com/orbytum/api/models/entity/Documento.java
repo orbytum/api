@@ -5,17 +5,20 @@ import jakarta.persistence.*;
 import lombok.Getter;
 
 @Entity
-public class Grupo {
-
+public class Documento {
     @Id
-    @Getter
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     @Nonnull
+    @Getter
     private String nome;
-
     @Nonnull
-    private boolean isAtivo;
+    @Getter
+    private String extensao;
+    @Lob
+    @Nonnull
+    private byte[] documento;
 
+    @OneToOne(mappedBy = "documento")
+    private Publicacao publicacao;
 }

@@ -13,6 +13,7 @@ import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
 @EnableWebSecurity
@@ -22,6 +23,20 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final AbacPermissionEvaluator abacPermissionEvaluator;
+    @Value("${security.password.saltLength}")
+    private int saltLength;
+
+    @Value("${security.password.hashLength}")
+    private int hashLength;
+
+    @Value("${security.password.parallelism}")
+    private int parallelism;
+
+    @Value("${security.password.memory}")
+    private int memory;
+
+    @Value("${security.password.iterations}")
+    private int iterations;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -29,7 +44,11 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers(
+                        "/auth/**",
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**",
+                        "/swagger/**").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -44,6 +63,12 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new Argon2PasswordEncoder();
+        return new Argon2PasswordEncoder(
+                saltLength,
+                hashLength,
+                parallelism,
+                memory,
+                iterations
+        );
     }
 }

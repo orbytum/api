@@ -1,5 +1,6 @@
 package com.orbytum.api.models.entity;
 
+import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.enums.AtividadeStatus;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
@@ -13,9 +14,10 @@ public class Atividade {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn
     private Projeto projeto;
 
     @Nonnull
@@ -35,12 +37,6 @@ public class Atividade {
 
     @Nonnull
     private LocalDate dthRegistro;
-
-    @ManyToMany(fetch = FetchType.LAZY)
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "GrupoXUsuarioXProjetoXAtividade")
-    private List<GrupoXUsuario> responsaveis;
-
     @Nonnull
     private boolean isAtivo;
 

@@ -16,7 +16,7 @@ public class Usuario {
     @Id
     @Getter
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
     @Nonnull
     @Getter

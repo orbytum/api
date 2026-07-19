@@ -11,15 +11,10 @@ public class Convite {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Long id;
 
     @ManyToOne
     private Grupo grupo;
-
-    @ManyToMany(fetch = FetchType.LAZY)
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "ConviteXProjeto")
-    private List<Projeto> projetos;
 
     @Nonnull
     private LocalDateTime dthExpiracao;

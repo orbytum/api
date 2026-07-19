@@ -1,4 +1,4 @@
-﻿package com.orbytum.api.models.exceptions;
+package com.orbytum.api.models.exceptions;
 
 public class CrenciaisInvalidas extends RuntimeException {
     public CrenciaisInvalidas(String message) {

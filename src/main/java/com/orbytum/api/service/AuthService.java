@@ -36,14 +36,14 @@ public class AuthService {
     public AuthResponse login(LoginRequest request) {
         CredenciaisLogin credenciais = credenciaisLoginRepository
                 .findByEmail(request.email())
-                .orElseThrow(() -> new RuntimeException("Credenciais inválidas"));
+                .orElseThrow(() -> new RuntimeException("Credenciais invÃ¡lidas"));
 
         if (!credenciais.isAtivo()) {
             throw new ContaDesativadaErro("Conta desativada");
         }
 
         if (!passwordEncoder.matches(request.senha(), credenciais.getSenha())) {
-            throw new CrenciaisInvalidas("Credenciais inválidas");
+            throw new CrenciaisInvalidas("Credenciais invÃ¡lidas");
         }
 
         List<Permissao> permissoes = grupoXUsuarioRepository
@@ -61,7 +61,7 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest request) {
         if (credenciaisLoginRepository.existsByEmail(request.email())) {
-            throw new EmailJaCadastradoErro("Email já cadastrado");
+            throw new EmailJaCadastradoErro("Email jÃ¡ cadastrado");
         }
 
         Usuario usuario = new Usuario(
