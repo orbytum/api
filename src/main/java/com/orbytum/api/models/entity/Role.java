@@ -20,6 +20,7 @@ public class Role {
     @Getter
     private String nome;
 
+    @Getter
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "RoleXPermissao")
     @Convert(converter = PermissaoAttributeConverter.class)
