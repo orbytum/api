@@ -20,8 +20,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(erro);
     }
 
-    @ExceptionHandler(SemPermissaoConvidarErro.class)
-    public ResponseEntity<ErroResponse> handleSemPermissaoConvidar(SemPermissaoConvidarErro ex) {
+    @ExceptionHandler({SemPermissaoConvidarErro.class, IngressoRestritoErro.class})
+    public ResponseEntity<ErroResponse> handleForbidden(RuntimeException ex) {
         ErroResponse erro = new ErroResponse(
                 HttpStatus.FORBIDDEN.value(),
                 ex.getMessage(),
@@ -30,8 +30,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(erro);
     }
 
-    @ExceptionHandler(UsuarioJaNoGrupoErro.class)
-    public ResponseEntity<ErroResponse> handleUsuarioJaNoGrupo(UsuarioJaNoGrupoErro ex) {
+    @ExceptionHandler(ConviteInvalidoOuExpiradoErro.class)
+    public ResponseEntity<ErroResponse> handleBadRequest(ConviteInvalidoOuExpiradoErro ex) {
+        ErroResponse erro = new ErroResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                System.currentTimeMillis()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(erro);
+    }
+
+    @ExceptionHandler({UsuarioJaNoGrupoErro.class, ProjetoNaoPertenceAoGrupoErro.class})
+    public ResponseEntity<ErroResponse> handleConflitoOuInvalido(RuntimeException ex) {
         ErroResponse erro = new ErroResponse(
                 HttpStatus.CONFLICT.value(),
                 ex.getMessage(),
@@ -40,7 +50,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(erro);
     }
 
-    @ExceptionHandler({UsuarioNaoEncontradoErro.class, GrupoNaoEncontradoErro.class})
+    @ExceptionHandler({UsuarioNaoEncontradoErro.class, GrupoNaoEncontradoErro.class, ProjetoNaoEncontradoErro.class})
     public ResponseEntity<ErroResponse> handleNaoEncontrado(RuntimeException ex) {
         ErroResponse erro = new ErroResponse(
                 HttpStatus.NOT_FOUND.value(),

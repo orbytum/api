@@ -28,5 +28,7 @@ public class Grupo {
         this.nome = nome;
         this.isAtivo = isAtivo;
     }
+
 }
+
 

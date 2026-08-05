@@ -5,11 +5,17 @@ import com.orbytum.api.models.entity.joinColumns.EditalXProjeto;
 import com.orbytum.api.models.enums.ProjetoStatus;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Projeto {
 
     @Id
@@ -40,3 +46,4 @@ public class Projeto {
     private List<EditalXProjeto> editaisProjetos;
 
 }
+
