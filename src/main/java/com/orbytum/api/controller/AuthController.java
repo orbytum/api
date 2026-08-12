@@ -1,10 +1,10 @@
 package com.orbytum.api.controller;
 
 import com.orbytum.api.fachada.AuthFachada;
-import com.orbytum.api.model.dto.request.LoginRequest;
-import com.orbytum.api.model.dto.request.RegisterAdminRequest;
-import com.orbytum.api.model.dto.request.RegisterRequest;
-import com.orbytum.api.model.dto.response.AuthResponse;
+import com.orbytum.api.models.dto.request.RegisterAdminRequest;
+import com.orbytum.api.models.dto.response.AuthResponse;
+import com.orbytum.api.models.dto.request.LoginRequest;
+import com.orbytum.api.models.dto.request.RegisterRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

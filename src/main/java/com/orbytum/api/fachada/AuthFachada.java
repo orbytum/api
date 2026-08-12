@@ -1,16 +1,16 @@
 package com.orbytum.api.fachada;
 
-import com.orbytum.api.model.dto.request.LoginRequest;
-import com.orbytum.api.model.dto.request.RegisterAdminRequest;
-import com.orbytum.api.model.dto.request.RegisterRequest;
-import com.orbytum.api.model.dto.response.AuthResponse;
-import com.orbytum.api.model.entity.CredenciaisLogin;
-import com.orbytum.api.model.entity.Usuario;
-import com.orbytum.api.model.enums.AccessLevel;
-import com.orbytum.api.model.enums.Permissao;
-import com.orbytum.api.model.exceptions.ContaDesativadaErro;
-import com.orbytum.api.model.exceptions.CrenciaisInvalidas;
-import com.orbytum.api.model.exceptions.EmailJaCadastradoErro;
+import com.orbytum.api.models.dto.request.RegisterAdminRequest;
+import com.orbytum.api.models.dto.response.AuthResponse;
+import com.orbytum.api.models.dto.request.LoginRequest;
+import com.orbytum.api.models.dto.request.RegisterRequest;
+import com.orbytum.api.models.entity.CredenciaisLogin;
+import com.orbytum.api.models.entity.Usuario;
+import com.orbytum.api.models.enums.AccessLevel;
+import com.orbytum.api.models.enums.Permissao;
+import com.orbytum.api.models.exceptions.ContaDesativadaErro;
+import com.orbytum.api.models.exceptions.CrenciaisInvalidas;
+import com.orbytum.api.models.exceptions.EmailJaCadastradoErro;
 import com.orbytum.api.service.CredenciaisLoginService;
 import com.orbytum.api.service.GrupoXUsuarioService;
 import com.orbytum.api.service.UsuarioService;
@@ -82,10 +82,14 @@ public class AuthFachada {
 
         usuario = usuarioService.save(usuario);
 
+        AccessLevel accessLevel = usuarioService.count() == 1
+                ? AccessLevel.ADMIN
+                : AccessLevel.USER;
+
         CredenciaisLogin credenciais = new CredenciaisLogin(
                 request.email(),
                 passwordEncoder.encode(request.senha()),
-                AccessLevel.USER,
+                accessLevel,
                 usuario,
                 null
         );

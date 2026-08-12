@@ -1,8 +1,8 @@
 package com.orbytum.api.configuration;
 
-import com.orbytum.api.model.entity.CredenciaisLogin;
-import com.orbytum.api.model.entity.Usuario;
-import com.orbytum.api.model.enums.AccessLevel;
+import com.orbytum.api.models.entity.CredenciaisLogin;
+import com.orbytum.api.models.entity.Usuario;
+import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.service.CredenciaisLoginService;
 import com.orbytum.api.service.UsuarioService;
 import lombok.RequiredArgsConstructor;

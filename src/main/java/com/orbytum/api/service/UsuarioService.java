@@ -1,6 +1,6 @@
 package com.orbytum.api.service;
 
-import com.orbytum.api.model.entity.Usuario;
+import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;

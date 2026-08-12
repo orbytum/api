@@ -1,7 +1,7 @@
 package com.orbytum.api.repository;
 
-import com.orbytum.api.model.entity.CredenciaisLogin;
-import com.orbytum.api.model.enums.AccessLevel;
+import com.orbytum.api.models.entity.CredenciaisLogin;
+import com.orbytum.api.models.enums.AccessLevel;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

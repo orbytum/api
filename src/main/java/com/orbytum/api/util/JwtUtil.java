@@ -1,7 +1,7 @@
 package com.orbytum.api.util;
 
-import com.orbytum.api.model.enums.AccessLevel;
-import com.orbytum.api.model.enums.Permissao;
+import com.orbytum.api.models.enums.AccessLevel;
+import com.orbytum.api.models.enums.Permissao;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;

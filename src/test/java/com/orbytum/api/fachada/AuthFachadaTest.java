@@ -1,10 +1,10 @@
 package com.orbytum.api.fachada;
 
-import com.orbytum.api.model.dto.request.RegisterAdminRequest;
-import com.orbytum.api.model.dto.response.AuthResponse;
-import com.orbytum.api.model.entity.CredenciaisLogin;
-import com.orbytum.api.model.entity.Usuario;
-import com.orbytum.api.model.enums.AccessLevel;
+import com.orbytum.api.models.dto.request.RegisterAdminRequest;
+import com.orbytum.api.models.dto.response.AuthResponse;
+import com.orbytum.api.models.entity.CredenciaisLogin;
+import com.orbytum.api.models.entity.Usuario;
+import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.service.CredenciaisLoginService;
 import com.orbytum.api.service.GrupoXUsuarioService;
 import com.orbytum.api.service.UsuarioService;

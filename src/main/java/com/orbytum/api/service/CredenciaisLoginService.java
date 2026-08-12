@@ -1,7 +1,7 @@
 package com.orbytum.api.service;
 
-import com.orbytum.api.model.entity.CredenciaisLogin;
-import com.orbytum.api.model.enums.AccessLevel;
+import com.orbytum.api.models.entity.CredenciaisLogin;
+import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.repository.CredenciaisLoginRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
