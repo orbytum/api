@@ -25,6 +25,6 @@ services:
       - JWT_SECRET=AYqQdMQcnW6JOCMyBS24A8GFbeRk4VTth6o8FlSDNIs
       - JWT_EXPIRATION=86400000
     ports:
-      - "8055:8055"
+      - "8080:8080"
     volumes:
       - ./:/app
