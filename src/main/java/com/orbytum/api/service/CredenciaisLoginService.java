@@ -1,6 +1,7 @@
 package com.orbytum.api.service;
 
 import com.orbytum.api.models.entity.CredenciaisLogin;
+import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.repository.CredenciaisLoginRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
@@ -24,8 +25,25 @@ public class CredenciaisLoginService {
         return credenciaisLoginRepository.existsByEmail(email);
     }
 
+    public boolean existsByAccessLevel(AccessLevel accessLevel) {
+        return credenciaisLoginRepository.existsByAccessLevel(accessLevel);
+    }
+
+    public Optional<CredenciaisLogin> findByAccessLevel(AccessLevel accessLevel) {
+        return credenciaisLoginRepository.findByAccessLevel(accessLevel);
+    }
+
+    public long countByAccessLevel(AccessLevel accessLevel) {
+        return credenciaisLoginRepository.countByAccessLevel(accessLevel);
+    }
+
     @Transactional
     public CredenciaisLogin save(CredenciaisLogin credenciais) {
         return credenciaisLoginRepository.save(credenciais);
+    }
+
+    @Transactional
+    public void delete(CredenciaisLogin credenciais) {
+        credenciaisLoginRepository.delete(credenciais);
     }
 }

@@ -22,11 +22,8 @@ ext {
 }
 
 dependencies {
-
 	// Source: https://mvnrepository.com/artifact/jakarta.validation/jakarta.validation-api
 	implementation 'jakarta.validation:jakarta.validation-api:4.0.0-M1'
-
-	// Backend & Core
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -44,7 +41,6 @@ dependencies {
 
 	// Database & DevTools
 	runtimeOnly 'org.postgresql:postgresql'
-	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
 	runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 
@@ -65,6 +61,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'
 
 	testCompileOnly 'org.projectlombok:lombok'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testAnnotationProcessor 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

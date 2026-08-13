@@ -16,21 +16,21 @@ import java.util.stream.Collectors;
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret}")
+    @Value("${jwt.secret:defaultSecretKeyForJWTTokenGenerationShouldBeLongEnough32Bytes}")
     private String secret;
 
-    @Value("${jwt.expiration}")
+    @Value("${jwt.expiration:86400000}")
     private long expiration;
 
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(java.util.Base64.getEncoder().encodeToString(secret.getBytes()));
+        byte[] keyBytes = Decoders.BASE64.decode(Base64.getEncoder().encodeToString(secret.getBytes()));
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String generateToken(UserDetails userDetails, AccessLevel accessLevel, List<Permissao> permissoes) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("accessLevel", accessLevel.getKey());
-        claims.put("permissoes", permissoes.stream().map(Permissao::getKey).collect(Collectors.toList()));
+        claims.put("accessLevel", accessLevel != null ? accessLevel.getKey() : AccessLevel.USER.getKey());
+        claims.put("permissoes", permissoes != null ? permissoes.stream().map(Permissao::getKey).collect(Collectors.toList()) : Collections.emptyList());
         return createToken(claims, userDetails.getUsername());
     }
 

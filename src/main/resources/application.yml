@@ -2,26 +2,10 @@ spring:
   application:
     name: api
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: jdbc:postgresql://postgres:5432/postgres
+    username: admin
+    password: password
     driver-class-name: org.postgresql.Driver
-
-# JWT (extracted from .env)
-jwt:
-  secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION}
-
-# Password Configuration
-security:
-  password:
-    saltLength: 16
-    hashLength: 32
-    parallelism: 1
-    memory: 16384
-    iterations: 2
-
-# JPA, ORM Configuration
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
@@ -31,6 +15,17 @@ security:
       hibernate:
         format_sql: true
         use_sql_comments: true
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION}
+
+security:
+  password:
+    saltLength: 16
+    hashLength: 32
+    parallelism: 1
+    memory: 16384
+    iterations: 2
 
 logging:
   level:
