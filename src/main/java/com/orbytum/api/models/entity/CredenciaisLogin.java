@@ -1,12 +1,16 @@
 package com.orbytum.api.models.entity;
 
+import com.orbytum.api.models.enums.AccessLevel;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 public class CredenciaisLogin {
@@ -30,7 +34,7 @@ public class CredenciaisLogin {
     @Nonnull
     @Getter
     @Enumerated(EnumType.STRING)
-    private com.orbytum.api.models.enums.AccessLevel accessLevel;
+    private AccessLevel accessLevel;
 
     @Nonnull
     @Getter
@@ -45,7 +49,7 @@ public class CredenciaisLogin {
     public CredenciaisLogin(
             @Nonnull String email,
             @Nonnull String senha,
-            @Nonnull com.orbytum.api.models.enums.AccessLevel accessLevel,
+            @Nonnull AccessLevel accessLevel,
             @Nonnull Usuario usuario,
             Usuario criador
     ) {

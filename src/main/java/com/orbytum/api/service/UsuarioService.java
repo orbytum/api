@@ -25,6 +25,11 @@ public class UsuarioService {
         return usuarioRepository.save(usuario);
     }
 
+    @Transactional
+    public void delete(Usuario usuario) {
+        usuarioRepository.delete(usuario);
+    }
+
     public long count() {
         return usuarioRepository.count();
     }

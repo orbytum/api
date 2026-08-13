@@ -7,17 +7,18 @@ import lombok.Getter;
 public enum AccessLevel {
 
     ADMIN("admin"),
-    USER("user");
+    USER("user"),
+    INITIAL_ADMIN("initial_admin");
 
     @Getter
     private String key;
 
     public static AccessLevel fromKey(String key) {
         for (AccessLevel level : AccessLevel.values()) {
-            if (level.getKey().equals(key)) {
+            if (level.getKey().equalsIgnoreCase(key)) {
                 return level;
             }
         }
-        throw new IllegalArgumentException("NÃ­vel de acesso invÃ¡lido: " + key);
+        throw new IllegalArgumentException("Nível de acesso inválido: " + key);
     }
 }
