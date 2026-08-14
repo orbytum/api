@@ -2,7 +2,7 @@ spring:
   application:
     name: api
   datasource:
-    url: jdbc:postgresql://postgres:5432/postgres
+    url: ${JDBC_URL}
     username: admin
     password: password
     driver-class-name: org.postgresql.Driver

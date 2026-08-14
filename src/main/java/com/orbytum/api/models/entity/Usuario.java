@@ -44,8 +44,8 @@ public class Usuario {
 
     @Nonnull
     @Getter
-    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JoinColumn(name = "credenciaisLoginId")
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @JoinColumn(name = "id")
     private CredenciaisLogin credenciaisLogin;
 
     public Usuario(

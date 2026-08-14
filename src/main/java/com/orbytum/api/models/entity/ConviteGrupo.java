@@ -14,7 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Convite {
+public class ConviteGrupo {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,9 +22,6 @@ public class Convite {
 
     @Column(unique = true)
     private String token;
-
-    @Enumerated(EnumType.STRING)
-    private TipoConvite tipo;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "grupo_id")
@@ -38,6 +35,10 @@ public class Convite {
     @JoinColumn(name = "usuario_remetente_id")
     private Usuario usuarioRemetente;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id")
+    private Role role;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "ConviteXProjeto",
@@ -45,6 +46,11 @@ public class Convite {
             inverseJoinColumns = @JoinColumn(name = "projeto_id")
     )
     private List<Projeto> projetos;
+
+    private Integer limiteUso;
+
+    @Builder.Default
+    private Integer usos = 0;
 
     @Nonnull
     private LocalDateTime dthExpiracao;
@@ -55,25 +61,31 @@ public class Convite {
     @Nonnull
     private boolean isAtivo;
 
-    public Convite(Grupo grupo, Usuario usuarioConvidado, Usuario usuarioRemetente, List<Projeto> projetos, LocalDateTime dthExpiracao) {
+    public ConviteGrupo(Grupo grupo, Usuario usuarioConvidado, Usuario usuarioRemetente, List<Projeto> projetos, LocalDateTime dthExpiracao) {
         this.grupo = grupo;
         this.usuarioConvidado = usuarioConvidado;
         this.usuarioRemetente = usuarioRemetente;
         this.projetos = projetos;
-        this.tipo = TipoConvite.DIRETO;
         this.dthRegistro = LocalDateTime.now();
         this.dthExpiracao = dthExpiracao;
+        this.usos = 0;
         this.isAtivo = true;
     }
 
-    public Convite(Grupo grupo, Usuario usuarioRemetente, String token, List<Projeto> projetos, LocalDateTime dthExpiracao) {
+    public ConviteGrupo(Grupo grupo, Usuario usuarioRemetente, String token, List<Projeto> projetos, LocalDateTime dthExpiracao) {
+        this(grupo, usuarioRemetente, token, projetos, dthExpiracao, null, null);
+    }
+
+    public ConviteGrupo(Grupo grupo, Usuario usuarioRemetente, String token, List<Projeto> projetos, LocalDateTime dthExpiracao, Role role, Integer limiteUso) {
         this.grupo = grupo;
         this.usuarioRemetente = usuarioRemetente;
         this.token = token;
-        this.tipo = TipoConvite.LINK_EXCLUSIVO;
         this.projetos = projetos;
         this.dthRegistro = LocalDateTime.now();
         this.dthExpiracao = dthExpiracao;
+        this.role = role;
+        this.limiteUso = limiteUso;
+        this.usos = 0;
         this.isAtivo = true;
     }
 }

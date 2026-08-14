@@ -1,21 +1,20 @@
 package com.orbytum.api.service;
 
-import com.orbytum.api.models.dto.request.GerarLinkConviteRequest;
-import com.orbytum.api.models.dto.response.ConviteEnviadoResponse;
-import com.orbytum.api.models.dto.response.ConviteLinkResponse;
-import com.orbytum.api.models.entity.Convite;
-import com.orbytum.api.models.entity.Grupo;
-import com.orbytum.api.models.entity.Projeto;
-import com.orbytum.api.models.entity.Role;
-import com.orbytum.api.models.entity.Usuario;
+import com.orbytum.api.models.dto.request.GerarConviteCadastroRequest;
+import com.orbytum.api.models.dto.request.GerarConviteGrupoRequest;
+import com.orbytum.api.models.dto.response.ConviteCadastroResponse;
+import com.orbytum.api.models.dto.response.ConviteGrupoEnviadoResponse;
+import com.orbytum.api.models.dto.response.ConviteGrupoResponse;
+import com.orbytum.api.models.entity.*;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.enums.AccessLevel;
-import com.orbytum.api.models.enums.Permissao;
 import com.orbytum.api.models.exceptions.*;
-import com.orbytum.api.repository.ConviteRepository;
+import com.orbytum.api.repository.ConviteCadastroRepository;
+import com.orbytum.api.repository.ConviteGrupoRepository;
 import com.orbytum.api.repository.GrupoXUsuarioRepository;
 import com.orbytum.api.repository.RoleRepository;
 import jakarta.transaction.Transactional;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -25,9 +24,11 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@AllArgsConstructor
 public class ConviteService {
 
-    private final ConviteRepository conviteRepository;
+    private final ConviteGrupoRepository conviteGrupoRepository;
+    private final ConviteCadastroRepository conviteCadastroRepository;
     private final GrupoService grupoService;
     private final UsuarioService usuarioService;
     private final GrupoXUsuarioService grupoXUsuarioService;
@@ -35,28 +36,12 @@ public class ConviteService {
     private final ProjetoService projetoService;
     private final RoleRepository roleRepository;
 
-    public ConviteService(ConviteRepository conviteRepository,
-                          GrupoService grupoService,
-                          UsuarioService usuarioService,
-                          GrupoXUsuarioService grupoXUsuarioService,
-                          GrupoXUsuarioRepository grupoXUsuarioRepository,
-                          ProjetoService projetoService,
-                          RoleRepository roleRepository) {
-        this.conviteRepository = conviteRepository;
-        this.grupoService = grupoService;
-        this.usuarioService = usuarioService;
-        this.grupoXUsuarioService = grupoXUsuarioService;
-        this.grupoXUsuarioRepository = grupoXUsuarioRepository;
-        this.projetoService = projetoService;
-        this.roleRepository = roleRepository;
-    }
-
     @Transactional
-    public ConviteEnviadoResponse enviarConvite(Usuario remetente, Long grupoId, String emailConvidado, List<Long> projetoIds) {
+    public ConviteGrupoEnviadoResponse enviarConviteGrupo(Usuario remetente, Long grupoId, String emailConvidado, List<Long> projetoIds) {
         Grupo grupo = grupoService.findById(grupoId)
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo não encontrado com ID: " + grupoId));
 
-        validarPermissaoConvite(remetente, grupoId);
+        validarPermissaoConviteGrupo(remetente, grupoId);
 
         Usuario convidado = usuarioService.findByEmail(emailConvidado)
                 .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário convidado não encontrado com e-mail: " + emailConvidado));
@@ -68,95 +53,157 @@ public class ConviteService {
         List<Projeto> projetos = validarProjetos(grupoId, projetoIds);
 
         LocalDateTime dthExpiracao = LocalDateTime.now().plusDays(7);
-        Convite convite = new Convite(grupo, convidado, remetente, projetos, dthExpiracao);
-        convite = conviteRepository.save(convite);
+        ConviteGrupo conviteGrupo = new ConviteGrupo(grupo, convidado, remetente, projetos, dthExpiracao);
+        conviteGrupo = conviteRepository.save(conviteGrupo);
 
-        List<Long> idsProjetosSalvos = convite.getProjetos() != null
-                ? convite.getProjetos().stream().map(Projeto::getId).collect(Collectors.toList())
+        List<Long> idsProjetosSalvos = conviteGrupo.getProjetos() != null
+                ? conviteGrupo.getProjetos().stream().map(Projeto::getId).collect(Collectors.toList())
                 : List.of();
 
-        return new ConviteEnviadoResponse(
-                convite.getId(),
+        return new ConviteGrupoEnviadoResponse(
+                conviteGrupo.getId(),
                 grupo.getId(),
                 grupo.getNome(),
                 convidado.getEmail(),
                 idsProjetosSalvos,
-                convite.getDthRegistro(),
-                convite.getDthExpiracao(),
-                convite.isAtivo()
+                conviteGrupo.getDthRegistro(),
+                conviteGrupo.getDthExpiracao(),
+                conviteGrupo.isAtivo()
         );
     }
 
     @Transactional
-    public ConviteLinkResponse gerarLinkConvite(Usuario remetente, GerarLinkConviteRequest request) {
+    public ConviteGrupoResponse gerarConviteGrupo(Usuario remetente, GerarConviteGrupoRequest request) {
         Grupo grupo = grupoService.findById(request.idGrupo())
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo não encontrado com ID: " + request.idGrupo()));
 
-        validarPermissaoConvite(remetente, request.idGrupo());
+        validarPermissaoConviteGrupo(remetente, request.idGrupo());
 
         List<Projeto> projetos = validarProjetos(request.idGrupo(), request.idsProjeto());
+
+        Role role = null;
+        if (request.idRole() != null) {
+            role = roleRepository.findById(request.idRole())
+                    .orElseThrow(() -> new IllegalArgumentException("Cargo não encontrado com ID: " + request.idRole()));
+        }
+
+        Integer limiteUso = request.limiteUso();
+        if (role != null && isLiderRole(role)) {
+            limiteUso = 1;
+        }
 
         String token = UUID.randomUUID().toString();
         int diasValidade = (request.diasValidade() != null && request.diasValidade() > 0) ? request.diasValidade() : 7;
         LocalDateTime dthExpiracao = LocalDateTime.now().plusDays(diasValidade);
 
-        Convite convite = new Convite(grupo, remetente, token, projetos, dthExpiracao);
-        convite = conviteRepository.save(convite);
+        ConviteGrupo conviteGrupo = new ConviteGrupo(grupo, remetente, token, projetos, dthExpiracao, role, limiteUso);
+        conviteGrupo = conviteGrupoRepository.save(conviteGrupo);
 
-        List<Long> idsProjetosSalvos = convite.getProjetos() != null
-                ? convite.getProjetos().stream().map(Projeto::getId).collect(Collectors.toList())
+        List<Long> idsProjetosSalvos = conviteGrupo.getProjetos() != null
+                ? conviteGrupo.getProjetos().stream().map(Projeto::getId).collect(Collectors.toList())
                 : List.of();
 
-        String urlConvite = "/convites/aceitar-link/" + token;
+        String urlConvite = "/convites/aceitar/grupo/" + token;
+        String nomeCargo = role != null ? role.getNome() : null;
 
-        return new ConviteLinkResponse(
-                convite.getId(),
+        return new ConviteGrupoResponse(
+                conviteGrupo.getId(),
                 token,
                 urlConvite,
                 grupo.getId(),
                 grupo.getNome(),
                 idsProjetosSalvos,
-                convite.getDthRegistro(),
-                convite.getDthExpiracao(),
-                convite.isAtivo()
+                conviteGrupo.getDthRegistro(),
+                conviteGrupo.getDthExpiracao(),
+                conviteGrupo.isAtivo(),
+                nomeCargo,
+                conviteGrupo.getLimiteUso(),
+                conviteGrupo.getUsos()
         );
     }
 
     @Transactional
-    public ConviteEnviadoResponse aceitarConvitePorLink(String token, Usuario usuarioLogado) {
-        Convite convite = conviteRepository.findByTokenAndIsAtivoTrue(token)
+    public ConviteCadastroResponse gerarConviteCadastro(Usuario remetente, GerarConviteCadastroRequest request) {
+
+        if(remetente.getCredenciaisLogin().getAccessLevel() != AccessLevel.ADMIN) {
+            throw new SemPermissaoConvidarErro("Você não tem permissão para enviar convites de cadastro.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        String token = UUID.randomUUID().toString();
+
+        ConviteCadastro convite = new ConviteCadastro(
+                null,
+                token,
+                request.email(),
+                now.plusDays(request.diasValidade()),
+                now,
+                true
+        );
+
+        convite = conviteCadastroRepository.save(convite);
+
+        String url = "/convites/aceitar/cadastro/" + token;
+
+        return new ConviteCadastroResponse(
+                convite.getId(),
+                token,
+                url,
+                convite.getDthExpiracao()
+        );
+    }
+
+    @Transactional
+    public ConviteGrupoEnviadoResponse aceitarConviteGrupo(String token, Usuario usuarioLogado) {
+        ConviteGrupo conviteGrupo = conviteRepository.findByTokenAndIsAtivoTrue(token)
                 .orElseThrow(() -> new ConviteInvalidoOuExpiradoErro("Convite por link inválido ou inativo"));
 
-        if (convite.getDthExpiracao().isBefore(LocalDateTime.now())) {
-            convite.setAtivo(false);
-            conviteRepository.save(convite);
+        if (conviteGrupo.getDthExpiracao().isBefore(LocalDateTime.now())) {
+            conviteGrupo.setAtivo(false);
+            conviteRepository.save(conviteGrupo);
             throw new ConviteInvalidoOuExpiradoErro("Este convite por link já expirou");
         }
 
-        Grupo grupo = convite.getGrupo();
+        if (conviteGrupo.getLimiteUso() != null && conviteGrupo.getUsos() != null && conviteGrupo.getUsos() >= conviteGrupo.getLimiteUso()) {
+            conviteGrupo.setAtivo(false);
+            conviteRepository.save(conviteGrupo);
+            throw new ConviteInvalidoOuExpiradoErro("Este convite por link já atingiu o limite de usos");
+        }
+
+        Grupo grupo = conviteGrupo.getGrupo();
         if (grupoXUsuarioService.isUsuarioNoGrupo(grupo.getId(), usuarioLogado.getId())) {
             throw new UsuarioJaNoGrupoErro("Você já pertence a este grupo");
         }
 
-        Role rolePadrao = roleRepository.findByNome("Membro")
-                .orElseGet(() -> roleRepository.findAll().stream().findFirst().orElse(null));
+        Role role = conviteGrupo.getRole();
+        if (role == null) {
+            role = roleRepository.findByNome("Membro")
+                    .orElseGet(() -> roleRepository.findAll().stream().findFirst().orElse(null));
+        }
 
-        GrupoXUsuario gxu = new GrupoXUsuario(grupo, usuarioLogado, rolePadrao, true);
+        GrupoXUsuario gxu = new GrupoXUsuario(grupo, usuarioLogado, role, true);
         grupoXUsuarioRepository.save(gxu);
 
-        List<Long> idsProjetos = convite.getProjetos() != null
-                ? convite.getProjetos().stream().map(Projeto::getId).collect(Collectors.toList())
+        int novosUsos = (conviteGrupo.getUsos() == null ? 0 : conviteGrupo.getUsos()) + 1;
+        conviteGrupo.setUsos(novosUsos);
+        if (conviteGrupo.getLimiteUso() != null && novosUsos >= conviteGrupo.getLimiteUso()) {
+            conviteGrupo.setAtivo(false);
+        }
+        conviteRepository.save(conviteGrupo);
+
+        List<Long> idsProjetos = conviteGrupo.getProjetos() != null
+                ? conviteGrupo.getProjetos().stream().map(Projeto::getId).collect(Collectors.toList())
                 : List.of();
 
-        return new ConviteEnviadoResponse(
-                convite.getId(),
+        return new ConviteGrupoEnviadoResponse(
+                conviteGrupo.getId(),
                 grupo.getId(),
                 grupo.getNome(),
                 usuarioLogado.getEmail(),
                 idsProjetos,
-                convite.getDthRegistro(),
-                convite.getDthExpiracao(),
-                convite.isAtivo()
+                conviteGrupo.getDthRegistro(),
+                conviteGrupo.getDthExpiracao(),
+                conviteGrupo.isAtivo()
         );
     }
 
@@ -176,7 +223,7 @@ public class ConviteService {
         return projetos;
     }
 
-    private void validarPermissaoConvite(Usuario remetente, Long grupoId) {
+    private void validarPermissaoConviteGrupo(Usuario remetente, Long grupoId) {
         boolean isAdmin = remetente.getCredenciaisLogin() != null &&
                 remetente.getCredenciaisLogin().getAccessLevel() == AccessLevel.ADMIN;
 
@@ -190,12 +237,15 @@ public class ConviteService {
         }
 
         GrupoXUsuario gxu = gxuOpt.get();
-        boolean temPermissao = gxu.getRole() != null &&
-                gxu.getRole().getPermissoes() != null &&
-                gxu.getRole().getPermissoes().contains(Permissao.PROJETO_CONVITE_CRIAR);
-
-        if (!temPermissao) {
-            throw new SemPermissaoConvidarErro("Você não possui permissão para enviar convites para este grupo");
+        if (!isLiderRole(gxu.getRole())) {
+            throw new SemPermissaoConvidarErro("Você não possui permissão para enviar convites para este grupo. É necessário ser líder do grupo.");
         }
+    }
+
+    private boolean isLiderRole(Role role) {
+        if (role == null) {
+            return false;
+        }
+        return role.isLider();
     }
 }

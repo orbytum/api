@@ -1,7 +1,7 @@
 package com.orbytum.api.repository;
 
-import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.entity.Usuario;
+import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

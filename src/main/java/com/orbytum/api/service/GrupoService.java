@@ -1,14 +1,7 @@
 package com.orbytum.api.service;
 
 import com.orbytum.api.models.entity.Grupo;
-import com.orbytum.api.models.entity.Usuario;
-import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
-import com.orbytum.api.models.enums.AccessLevel;
-import com.orbytum.api.models.enums.Permissao;
-import com.orbytum.api.models.exceptions.GrupoNaoEncontradoErro;
-import com.orbytum.api.models.exceptions.SemPermissaoConvidarErro;
 import com.orbytum.api.repository.GrupoRepository;
-import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;

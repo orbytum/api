@@ -1,7 +1,5 @@
 package com.orbytum.api.fachada;
 
-import com.orbytum.api.models.entity.Usuario;
-import com.orbytum.api.models.exceptions.UsuarioNaoEncontradoErro;
 import com.orbytum.api.service.GrupoService;
 import com.orbytum.api.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
