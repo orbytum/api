@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bem-vindo ao Orbytum</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #1e293b;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        }
+        .header {
+            background: linear-gradient(135deg, oklch(77.239% 0.17274 65.36) 0%, oklch(0.828 0.189 84.429) 100%);
+            color: #ffffff;
+            padding: 36px 24px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 26px;
+            font-weight: 700;
+        }
+        .content {
+            padding: 32px 24px;
+            line-height: 1.6;
+        }
+        .button-container {
+            text-align: center;
+            margin: 32px 0;
+        }
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, oklch(77.239% 0.17274 65.36) 0%, oklch(0.828 0.189 84.429) 100%);
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 15px;
+            box-shadow: 0 4px 12px oklch(91.936% 0.10402 90.284);
+        }
+        .footer {
+            background-color: #f8fafc;
+            padding: 20px 24px;
+            text-align: center;
+            font-size: 13px;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Orbytum</h1>
+        </div>
+        <div class="content">
+            <h2>Olá!</h2>
+            <p>O administrador da organização <span th:text="${nomeOrganizacao}"></span> te convidou para de cadastrar na plataforma Orbytum. Clique no botão abaixo para criar sua conta e começar a utilizar o Orbytum.</p>
+            <div class="button-container">
+                <a th:href="${loginUrl != null ? loginUrl : '#'}" class="btn">Criar minha conta</a>
+            </div>
+
+            <p style="font-size: 14px; color: #64748b;">Entre em contato com o administrador de sua organização para eventuais problemas.</p>
+        </div>
+        <div class="footer">
+            <p>© Orbytum. Todos os direitos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>
