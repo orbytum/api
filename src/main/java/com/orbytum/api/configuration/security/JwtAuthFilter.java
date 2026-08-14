@@ -42,10 +42,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             CredenciaisLogin credenciais = credenciaisLoginRepository.findByEmail(email).orElse(null);
 
             if (credenciais != null && credenciais.isAtivo()) {
+                java.util.List<org.springframework.security.core.GrantedAuthority> authorities = credenciais.getAccessLevel() != null
+                        ? java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority(credenciais.getAccessLevel().name()))
+                        : java.util.Collections.emptyList();
+
                 UserDetails userDetails = new org.springframework.security.core.userdetails.User(
                         credenciais.getEmail(),
                         credenciais.getSenha(),
-                        java.util.Collections.emptyList()
+                        authorities
                 );
 
                 if (jwtUtil.validateToken(jwt, userDetails)) {
