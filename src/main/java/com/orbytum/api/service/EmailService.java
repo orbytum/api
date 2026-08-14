@@ -33,7 +33,7 @@ public class EmailService {
     public EmailService(
             JavaMailSender mailSender,
             SpringTemplateEngine templateEngine,
-            @Value("${orbytum.mail.from:no-reply@orbytum.com}") String defaultFromAddress,
+            @Value("${orbytum.mail.from:controlemanutencao984@gmail.com}") String defaultFromAddress,
             @Value("${orbytum.mail.from-name:Orbytum System}") String defaultFromName
     ) {
         this.mailSender = mailSender;
@@ -120,7 +120,11 @@ public class EmailService {
             if (request.variaveis() != null) {
                 context.setVariables(request.variaveis());
             }
-            return templateEngine.process(request.templateName(), context);
+            String template = request.templateName();
+            if (!template.startsWith("email/") && !template.startsWith("templates/")) {
+                template = "email/" + template;
+            }
+            return templateEngine.process(template, context);
         }
 
         if (request.corpoHtml() != null) {
