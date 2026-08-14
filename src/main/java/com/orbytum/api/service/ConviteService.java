@@ -3,6 +3,8 @@ package com.orbytum.api.service;
 import com.orbytum.api.models.dto.request.EmailRequest;
 import com.orbytum.api.models.dto.request.GerarConviteCadastroRequest;
 import com.orbytum.api.models.dto.request.GerarConviteGrupoRequest;
+import com.orbytum.api.models.dto.request.RegisterRequest;
+import com.orbytum.api.models.dto.response.AuthResponse;
 import com.orbytum.api.models.dto.response.ConviteCadastroResponse;
 import com.orbytum.api.models.dto.response.ConviteGrupoEnviadoResponse;
 import com.orbytum.api.models.dto.response.ConviteGrupoResponse;
@@ -14,15 +16,16 @@ import com.orbytum.api.repository.ConviteCadastroRepository;
 import com.orbytum.api.repository.ConviteGrupoRepository;
 import com.orbytum.api.repository.GrupoXUsuarioRepository;
 import com.orbytum.api.repository.RoleRepository;
+import com.orbytum.api.util.JwtUtil;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,6 +34,7 @@ public class ConviteService {
 
     private final ConviteGrupoRepository conviteGrupoRepository;
     private final ConviteCadastroRepository conviteCadastroRepository;
+    private final CredenciaisLoginService credenciaisLoginService;
     private final GrupoService grupoService;
     private final UsuarioService usuarioService;
     private final GrupoXUsuarioService grupoXUsuarioService;
@@ -38,6 +42,8 @@ public class ConviteService {
     private final ProjetoService projetoService;
     private final RoleRepository roleRepository;
     private final EmailService emailService;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
     @Transactional
     public ConviteGrupoEnviadoResponse enviarConviteGrupo(Usuario remetente, Long grupoId, String emailConvidado, List<Long> projetoIds) {
@@ -219,6 +225,44 @@ public class ConviteService {
                 conviteGrupo.getDthExpiracao(),
                 conviteGrupo.isAtivo()
         );
+    }
+
+    @Transactional
+    public AuthResponse aceitarConviteCadastro(String token, RegisterRequest request) {
+
+        ConviteCadastro c = conviteCadastroRepository.findByTokenAndIsAtivoTrue(token)
+                .orElseThrow(() -> new ConviteInvalidoOuExpiradoErro("Convite não encontrado."));
+
+        Usuario usuario = new Usuario(
+                request.nome(),
+                c.getEmail(),
+                request.telefone(),
+                request.titulo()
+        );
+
+        usuario = usuarioService.save(usuario);
+
+        AccessLevel accessLevel = usuarioService.count() == 1
+                ? AccessLevel.ADMIN
+                : AccessLevel.USER;
+
+        CredenciaisLogin credenciais = new CredenciaisLogin(
+                c.getEmail(),
+                passwordEncoder.encode(request.senha()),
+                accessLevel,
+                usuario,
+                null
+        );
+        credenciaisLoginService.save(credenciais);
+
+        UserDetails userDetails = User.builder()
+                .username(c.getEmail())
+                .password(credenciais.getSenha())
+                .authorities(Collections.emptyList())
+                .build();
+
+        String bearerToken = jwtUtil.generateToken(userDetails, AccessLevel.USER, Collections.emptyList());
+        return new AuthResponse(bearerToken, "Bearer");
     }
 
     private List<Projeto> validarProjetos(Long grupoId, List<Long> idsProjeto) {

@@ -31,9 +31,6 @@ public class ConviteFachada {
 
     private final ConviteService conviteService;
     private final UsuarioService usuarioService;
-    private final CredenciaisLoginService credenciaisLoginService;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
 
     public ConviteGrupoEnviadoResponse enviarConvite(EnviarConviteRequest request, String emailLogado) {
         Usuario remetente = usuarioService.findByEmail(emailLogado)
@@ -65,41 +62,7 @@ public class ConviteFachada {
     }
 
     public AuthResponse aceitarConviteCadastro(String token, RegisterRequest request) {
-
-        if (credenciaisLoginService.existsByEmail(request.email())) {
-            throw new EmailJaCadastradoErro("Email já cadastrado");
-        }
-
-        Usuario usuario = new Usuario(
-                request.nome(),
-                request.email(),
-                request.telefone(),
-                request.titulo()
-        );
-
-        usuario = usuarioService.save(usuario);
-
-        AccessLevel accessLevel = usuarioService.count() == 1
-                ? AccessLevel.ADMIN
-                : AccessLevel.USER;
-
-        CredenciaisLogin credenciais = new CredenciaisLogin(
-                request.email(),
-                passwordEncoder.encode(request.senha()),
-                accessLevel,
-                usuario,
-                null
-        );
-        credenciaisLoginService.save(credenciais);
-
-        UserDetails userDetails = User.builder()
-                .username(request.email())
-                .password(credenciais.getSenha())
-                .authorities(Collections.emptyList())
-                .build();
-
-        String bearerToken = jwtUtil.generateToken(userDetails, AccessLevel.USER, Collections.emptyList());
-        return new AuthResponse(bearerToken, "Bearer");
+        return conviteService.aceitarConviteCadastro(token, request);
     }
 
 }
