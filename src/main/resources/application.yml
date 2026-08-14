@@ -15,9 +15,26 @@ spring:
       hibernate:
         format_sql: true
         use_sql_comments: true
+  mail:
+    host: ${SPRING_MAIL_HOST}
+    port: ${SPRING_MAIL_PORT}
+    username: ${SPRING_MAIL_USERNAME}
+    password: ${SPRING_MAIL_PASSWORD}
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+orbytum:
+  mail:
+    from: ${ORBYTUM_MAIL_FROM:${spring.mail.username}}
+    from-name: ${ORBYTUM_MAIL_FROM_NAME:Orbytum}
 jwt:
   secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION}
+  expiration: 86400000
 
 security:
   password:
