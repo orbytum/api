@@ -73,11 +73,11 @@ public class EmailService {
 
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
-            boolean isMultipart = (request.anexos() != null && !request.anexos().isEmpty());
+            boolean temAnexos = (request.anexos() != null && !request.anexos().isEmpty());
 
             MimeMessageHelper helper = new MimeMessageHelper(
                     mimeMessage,
-                    isMultipart,
+                    true,
                     StandardCharsets.UTF_8.name()
             );
 
@@ -93,9 +93,11 @@ public class EmailService {
                     : defaultFromName;
 
             helper.setFrom(remetenteEmail, remetenteNome);
-            helper.setText(htmlContent, true);
 
-            if (isMultipart) {
+            String textFallback = htmlContent.replaceAll("<[^>]*>", " ").replaceAll("\\s+", " ").trim();
+            helper.setText(textFallback, htmlContent);
+
+            if (temAnexos) {
                 for (EmailAnexo anexo : request.anexos()) {
                     if (anexo.contentType() != null) {
                         helper.addAttachment(anexo.nomeArquivo(), anexo.conteudo(), anexo.contentType());

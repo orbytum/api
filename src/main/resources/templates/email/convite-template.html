@@ -21,7 +21,7 @@
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
         }
         .header {
-            background: linear-gradient(135deg, oklch(77.239% 0.17274 65.36) 0%, oklch(0.828 0.189 84.429) 100%);
+            background: linear-gradient(135deg, #fe9a00 0%, #ffb900 100%);
             color: #ffffff;
             padding: 36px 24px;
             text-align: center;
@@ -32,6 +32,8 @@
             font-weight: 700;
         }
         .content {
+            color: white;
+            background-color: #1e293b;
             padding: 32px 24px;
             line-height: 1.6;
         }
@@ -40,23 +42,23 @@
             margin: 32px 0;
         }
         .btn {
+            cursor: pointer;
             display: inline-block;
-            background: linear-gradient(135deg, oklch(77.239% 0.17274 65.36) 0%, oklch(0.828 0.189 84.429) 100%);
+            background: linear-gradient(135deg, #fe9a00 0%, #ffb900 100%);
             color: #ffffff !important;
             text-decoration: none;
             padding: 14px 32px;
             border-radius: 8px;
             font-weight: 600;
             font-size: 15px;
-            box-shadow: 0 4px 12px oklch(91.936% 0.10402 90.284);
+            box-shadow: 0 4px 12px #5e4505;
         }
         .footer {
-            background-color: #f8fafc;
+            background: linear-gradient(135deg, #fe9a00 0%, #ffb900 100%);
             padding: 20px 24px;
             text-align: center;
             font-size: 13px;
-            color: #64748b;
-            border-top: 1px solid #e2e8f0;
+            color: white;
         }
     </style>
 </head>
@@ -67,7 +69,7 @@
         </div>
         <div class="content">
             <h2>Olá!</h2>
-            <p>O administrador da organização <span th:text="${nomeOrganizacao}"></span> te convidou para de cadastrar na plataforma Orbytum. Clique no botão abaixo para criar sua conta e começar a utilizar o Orbytum.</p>
+            <p>O administrador da organização <span th:text="${nomeOrganizacao != null ? nomeOrganizacao : 'Orbytum'}">Orbytum</span> te convidou para se cadastrar na plataforma Orbytum. Clique no botão abaixo para criar sua conta e começar a utilizar o Orbytum.</p>
             <div class="button-container">
                 <a th:href="${loginUrl != null ? loginUrl : '#'}" class="btn">Criar minha conta</a>
             </div>
