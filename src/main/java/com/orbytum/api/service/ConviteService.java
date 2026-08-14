@@ -1,5 +1,6 @@
 package com.orbytum.api.service;
 
+import com.orbytum.api.models.dto.request.EmailRequest;
 import com.orbytum.api.models.dto.request.GerarConviteCadastroRequest;
 import com.orbytum.api.models.dto.request.GerarConviteGrupoRequest;
 import com.orbytum.api.models.dto.response.ConviteCadastroResponse;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -35,6 +37,7 @@ public class ConviteService {
     private final GrupoXUsuarioRepository grupoXUsuarioRepository;
     private final ProjetoService projetoService;
     private final RoleRepository roleRepository;
+    private final EmailService emailService;
 
     @Transactional
     public ConviteGrupoEnviadoResponse enviarConviteGrupo(Usuario remetente, Long grupoId, String emailConvidado, List<Long> projetoIds) {
@@ -54,7 +57,7 @@ public class ConviteService {
 
         LocalDateTime dthExpiracao = LocalDateTime.now().plusDays(7);
         ConviteGrupo conviteGrupo = new ConviteGrupo(grupo, convidado, remetente, projetos, dthExpiracao);
-        conviteGrupo = conviteRepository.save(conviteGrupo);
+        conviteGrupo = conviteGrupoRepository.save(conviteGrupo);
 
         List<Long> idsProjetosSalvos = conviteGrupo.getProjetos() != null
                 ? conviteGrupo.getProjetos().stream().map(Projeto::getId).collect(Collectors.toList())
@@ -145,6 +148,17 @@ public class ConviteService {
 
         String url = "/convites/aceitar/cadastro/" + token;
 
+        String assunto = "Você foi convidado para se juntar ao Orbytum";
+        String templateName = "convite-template";
+        Map<String, Object> variaveis = Map.of(
+                "nomeOrganizacao", "Orbytum",
+                "loginUrl", "http://localhost:8080" + url
+        );
+
+        EmailRequest emailReq = EmailRequest.comTemplate(request.email(), assunto, templateName, variaveis);
+
+        emailService.sendEmail(emailReq);
+
         return new ConviteCadastroResponse(
                 convite.getId(),
                 token,
@@ -155,18 +169,18 @@ public class ConviteService {
 
     @Transactional
     public ConviteGrupoEnviadoResponse aceitarConviteGrupo(String token, Usuario usuarioLogado) {
-        ConviteGrupo conviteGrupo = conviteRepository.findByTokenAndIsAtivoTrue(token)
+        ConviteGrupo conviteGrupo = conviteGrupoRepository.findByTokenAndIsAtivoTrue(token)
                 .orElseThrow(() -> new ConviteInvalidoOuExpiradoErro("Convite por link inválido ou inativo"));
 
         if (conviteGrupo.getDthExpiracao().isBefore(LocalDateTime.now())) {
             conviteGrupo.setAtivo(false);
-            conviteRepository.save(conviteGrupo);
+            conviteGrupoRepository.save(conviteGrupo);
             throw new ConviteInvalidoOuExpiradoErro("Este convite por link já expirou");
         }
 
         if (conviteGrupo.getLimiteUso() != null && conviteGrupo.getUsos() != null && conviteGrupo.getUsos() >= conviteGrupo.getLimiteUso()) {
             conviteGrupo.setAtivo(false);
-            conviteRepository.save(conviteGrupo);
+            conviteGrupoRepository.save(conviteGrupo);
             throw new ConviteInvalidoOuExpiradoErro("Este convite por link já atingiu o limite de usos");
         }
 
@@ -189,7 +203,7 @@ public class ConviteService {
         if (conviteGrupo.getLimiteUso() != null && novosUsos >= conviteGrupo.getLimiteUso()) {
             conviteGrupo.setAtivo(false);
         }
-        conviteRepository.save(conviteGrupo);
+        conviteGrupoRepository.save(conviteGrupo);
 
         List<Long> idsProjetos = conviteGrupo.getProjetos() != null
                 ? conviteGrupo.getProjetos().stream().map(Projeto::getId).collect(Collectors.toList())

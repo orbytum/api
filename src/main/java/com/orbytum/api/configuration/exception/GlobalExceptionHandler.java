@@ -20,6 +20,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(erro);
     }
 
+    @ExceptionHandler(com.orbytum.api.models.exceptions.EmailSendingException.class)
+    public ResponseEntity<ErroResponse> handleEmailSendingException(com.orbytum.api.models.exceptions.EmailSendingException ex) {
+        ErroResponse erro = new ErroResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Falha ao enviar e-mail: " + ex.getMessage(),
+                System.currentTimeMillis()
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(erro);
+    }
+
     @ExceptionHandler({SemPermissaoConvidarErro.class, IngressoRestritoErro.class})
     public ResponseEntity<ErroResponse> handleForbidden(RuntimeException ex) {
         ErroResponse erro = new ErroResponse(

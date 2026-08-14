@@ -22,9 +22,13 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      - JDBC_URL=jdbc:postgresql://postgres:5432/postgres
-      - JWT_SECRET=AYqQdMQcnW6JOCMyBS24A8GFbeRk4VTth6o8FlSDNIs
-      - JWT_EXPIRATION=86400000
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+      - JWT_SECRET=${JWT_SECRET}
+      - SPRING_MAIL_HOST=${SPRING_MAIL_HOST}
+      - SPRING_MAIL_PORT=${SPRING_MAIL_PORT}
+      - SPRING_MAIL_USERNAME=${SPRING_MAIL_USERNAME}
+      - SPRING_MAIL_PASSWORD=${SPRING_MAIL_PASSWORD}
     ports:
       - "8080:8080"
     volumes:
