@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @NoArgsConstructor
@@ -18,10 +19,12 @@ public class Grupo {
     private Long id;
 
     @Getter
+    @Setter
     @Nonnull
     private String nome;
 
     @Getter
+    @Setter
     @Nonnull
     private boolean isAtivo;
 

@@ -33,4 +33,8 @@ public class UsuarioService {
     public long count() {
         return usuarioRepository.count();
     }
+
+    public Optional<Usuario> findById(Long id) {
+        return usuarioRepository.findById(id);
+    }
 }
