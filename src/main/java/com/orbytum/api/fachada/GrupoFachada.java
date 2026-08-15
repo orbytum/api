@@ -2,8 +2,10 @@ package com.orbytum.api.fachada;
 
 import java.util.List;
 
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.security.access.AccessDeniedException;
 
 import com.orbytum.api.models.dto.request.CreateGroupRequest;
 import com.orbytum.api.models.dto.request.CreateLeaderRequest;
@@ -20,6 +22,7 @@ import com.orbytum.api.repository.GrupoXUsuarioRepository;
 import com.orbytum.api.service.CredenciaisLoginService;
 import com.orbytum.api.service.GrupoService;
 import com.orbytum.api.service.UsuarioService;
+
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +42,10 @@ public class GrupoFachada {
             throw new IllegalArgumentException("Já existe um grupo de pesquisa cadastrado com este nome");
         }
 
-        Grupo novoGrupo = new Grupo(request.nome());
+        String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
+        Usuario adminCriador = usuarioService.findByEmail(emailAdminLogado).orElse(null);
+
+        Grupo novoGrupo = new Grupo(request.nome(), adminCriador);
         Grupo grupoSalvo = grupoService.save(novoGrupo);
 
         return new GrupoResponse(grupoSalvo.getId(), grupoSalvo.getNome(), grupoSalvo.isAtivo());
@@ -49,6 +55,19 @@ public class GrupoFachada {
     public GrupoResponse atualizarGrupo(Long id, EditGroupRequest request) {
         Grupo grupo = grupoService.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Grupo de pesquisa não encontrado com ID: " + id));
+
+        String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
+        CredenciaisLogin adminLogado = credenciaisLoginService.findByEmail(emailAdminLogado)
+            .orElseThrow(() -> new IllegalArgumentException("Administrador não autenticado"));
+
+        // permitindo que o admin inicial também edite
+        boolean isInitialAdmin = adminLogado.getAccessLevel() == AccessLevel.INITIAL_ADMIN;
+        boolean isAdminCriador = grupo.getCriador() != null                                                                                                                                                                                                                      
+                    && grupo.getCriador().getEmail().equalsIgnoreCase(emailAdminLogado);
+
+        if (!isInitialAdmin && !isAdminCriador) {
+            throw new AccessDeniedException("Apenas o administrador que criou o grupo pode editar");
+        }
 
         if (!grupo.getNome().equalsIgnoreCase(request.nome()) && grupoService.existsByNome(request.nome())) {
             throw new IllegalArgumentException("Já existe outro grupo de pesquisa cadastrado com este nome");
@@ -73,6 +92,9 @@ public class GrupoFachada {
             throw new IllegalArgumentException("Já existe um usuário cadastrado com este e-mail");
         }
 
+        String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
+        Usuario adminCriador = usuarioService.findByEmail(emailAdminLogado).orElse(null);
+
         Usuario usuario = new Usuario(
                 request.nome(),
                 request.email(),
@@ -85,7 +107,7 @@ public class GrupoFachada {
                 passwordEncoder.encode(request.senha()),
                 AccessLevel.USER,
                 usuario,
-                null);
+                adminCriador);
         credenciaisLoginService.save(credenciais);
 
         GrupoXUsuario vinculo = new GrupoXUsuario(grupo, usuario, null);
@@ -111,6 +133,21 @@ public class GrupoFachada {
 
         if (!grupoXUsuarioRepository.existsByGrupoAndUsuario(grupo, usuario)) {
             throw new IllegalArgumentException("Este usuário não está vinculado como líder deste grupo de pesquisa");
+        }
+
+        String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
+        CredenciaisLogin adminLogado = credenciaisLoginService.findByEmail(emailAdminLogado)                                                                                                                                                                                        
+            .orElseThrow(() -> new AccessDeniedException("Administrador não autenticado"));
+
+        CredenciaisLogin credenciaisLider = credenciaisLoginService.findByEmail(usuario.getEmail())                                                                                                                                                                                 
+            .orElseThrow(() -> new IllegalArgumentException("Credenciais do líder não encontradas"));
+
+        boolean isAdminInicial = adminLogado.getAccessLevel() == AccessLevel.INITIAL_ADMIN;
+        boolean isAdminCriador = credenciaisLider.getCriador() != null                                                                                                                                                                                                           
+            && credenciaisLider.getCriador().getEmail().equalsIgnoreCase(emailAdminLogado);
+
+        if (!isAdminInicial && !isAdminCriador) {
+            throw new AccessDeniedException("Apenas o administrador que cadastrou o líder pode editar");
         }
 
         usuario.setNome(request.nome());
