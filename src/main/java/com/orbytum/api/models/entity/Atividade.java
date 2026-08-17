@@ -1,13 +1,11 @@
 package com.orbytum.api.models.entity;
 
-import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.enums.AtividadeStatus;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 public class Atividade {

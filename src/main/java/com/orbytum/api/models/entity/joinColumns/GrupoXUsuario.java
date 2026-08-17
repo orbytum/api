@@ -5,36 +5,37 @@ import com.orbytum.api.models.entity.Role;
 import com.orbytum.api.models.entity.Usuario;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
 @Entity
+@Getter
+@Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class GrupoXUsuario {
 
     @Id
-    @Getter
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @Nonnull
-    @Getter
     private Grupo grupo;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @Nonnull
-    @Getter
     private Usuario usuario;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @Getter
+    @Nonnull
     private Role role;
 
     @Nonnull
-    @Getter
     private boolean isAtivo;
 
     public GrupoXUsuario(@Nonnull Grupo grupo, @Nonnull Usuario usuario, Role role) {
@@ -42,5 +43,11 @@ public class GrupoXUsuario {
         this.usuario = usuario;
         this.role = role;
         this.isAtivo = true;
+    }
+    public GrupoXUsuario(@Nonnull Grupo grupo, @Nonnull Usuario usuario, @Nonnull Role role, boolean isAtivo) {
+        this.grupo = grupo;
+        this.usuario = usuario;
+        this.role = role;
+        this.isAtivo = isAtivo;
     }
 }

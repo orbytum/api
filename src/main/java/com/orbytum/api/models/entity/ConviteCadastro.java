@@ -2,19 +2,27 @@ package com.orbytum.api.models.entity;
 
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
-public class Convite {
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class ConviteCadastro {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    private Grupo grupo;
+    @Column(unique = true)
+    private String token;
+
+    @Nonnull
+    private String email;
 
     @Nonnull
     private LocalDateTime dthExpiracao;

@@ -2,7 +2,6 @@ package com.orbytum.api.models.entity;
 
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
-import lombok.Getter;
 
 import java.time.LocalDateTime;
 

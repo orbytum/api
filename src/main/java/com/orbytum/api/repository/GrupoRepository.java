@@ -12,7 +12,7 @@ public interface GrupoRepository extends JpaRepository<Grupo, Long> {
     
     boolean existsByNome(String nome);
 
-    Optional<Grupo> findByNome(String nome);                                                                                                                                                                 
-                                                                                                                                                                                                                                                                                                                                                                        
+    Optional<Grupo> findByNome(String nome);
+
     List<Grupo> findAllByIsAtivoTrue();
 }

@@ -62,7 +62,7 @@ public class GrupoFachada {
 
         // permitindo que o admin inicial também edite
         boolean isInitialAdmin = adminLogado.getAccessLevel() == AccessLevel.INITIAL_ADMIN;
-        boolean isAdminCriador = grupo.getCriador() != null                                                                                                                                                                                                                      
+        boolean isAdminCriador = grupo.getCriador() != null
                     && grupo.getCriador().getEmail().equalsIgnoreCase(emailAdminLogado);
 
         if (!isInitialAdmin && !isAdminCriador) {
@@ -136,14 +136,14 @@ public class GrupoFachada {
         }
 
         String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
-        CredenciaisLogin adminLogado = credenciaisLoginService.findByEmail(emailAdminLogado)                                                                                                                                                                                        
+        CredenciaisLogin adminLogado = credenciaisLoginService.findByEmail(emailAdminLogado)
             .orElseThrow(() -> new AccessDeniedException("Administrador não autenticado"));
 
-        CredenciaisLogin credenciaisLider = credenciaisLoginService.findByEmail(usuario.getEmail())                                                                                                                                                                                 
+        CredenciaisLogin credenciaisLider = credenciaisLoginService.findByEmail(usuario.getEmail())
             .orElseThrow(() -> new IllegalArgumentException("Credenciais do líder não encontradas"));
 
         boolean isAdminInicial = adminLogado.getAccessLevel() == AccessLevel.INITIAL_ADMIN;
-        boolean isAdminCriador = credenciaisLider.getCriador() != null                                                                                                                                                                                                           
+        boolean isAdminCriador = credenciaisLider.getCriador() != null
             && credenciaisLider.getCriador().getEmail().equalsIgnoreCase(emailAdminLogado);
 
         if (!isAdminInicial && !isAdminCriador) {

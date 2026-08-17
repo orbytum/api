@@ -5,6 +5,7 @@ import com.orbytum.api.models.enums.Permissao;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
 import lombok.Getter;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.util.List;
 
@@ -20,9 +21,14 @@ public class Role {
     @Getter
     private String nome;
 
+    @Getter
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "RoleXPermissao")
     @Convert(converter = PermissaoAttributeConverter.class)
     private List<Permissao> permissoes;
+
+    @Getter
+    @Nonnull
+    private boolean isLider = true;
 
 }

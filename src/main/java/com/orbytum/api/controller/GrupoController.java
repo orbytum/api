@@ -10,10 +10,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import com.orbytum.api.fachada.GrupoFachada;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.orbytum.api.fachada.GrupoFachada;
 import com.orbytum.api.models.dto.request.CreateGroupRequest;
 import com.orbytum.api.models.dto.request.CreateLeaderRequest;
 import com.orbytum.api.models.dto.request.EditGroupRequest;
