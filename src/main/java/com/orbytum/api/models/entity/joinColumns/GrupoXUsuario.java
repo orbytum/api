@@ -7,8 +7,8 @@ import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
@@ -20,7 +20,7 @@ import java.util.UUID;
 public class GrupoXUsuario {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -38,6 +38,12 @@ public class GrupoXUsuario {
     @Nonnull
     private boolean isAtivo;
 
+    public GrupoXUsuario(@Nonnull Grupo grupo, @Nonnull Usuario usuario, Role role) {
+        this.grupo = grupo;
+        this.usuario = usuario;
+        this.role = role;
+        this.isAtivo = true;
+    }
     public GrupoXUsuario(@Nonnull Grupo grupo, @Nonnull Usuario usuario, @Nonnull Role role, boolean isAtivo) {
         this.grupo = grupo;
         this.usuario = usuario;

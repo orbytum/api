@@ -26,11 +26,6 @@ public class AuthController {
         return ResponseEntity.ok(authFachada.login(request));
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(authFachada.register(request));
-    }
-
     @PostMapping("/register-admin")
     public ResponseEntity<AuthResponse> registerAdmin(
             @Valid @RequestBody RegisterAdminRequest request,
