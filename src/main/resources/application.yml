@@ -2,9 +2,9 @@ spring:
   application:
     name: api
   datasource:
-    url: ${JDBC_URL}
-    username: admin
-    password: password
+    url: ${DB_URL}
+    username: ${DB_USERNAME:admin}
+    password: ${DB_PASSWORD:password}
     driver-class-name: org.postgresql.Driver
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -20,8 +20,8 @@ spring:
   mail:
     host: ${SPRING_MAIL_HOST:smtp.gmail.com}
     port: ${SPRING_MAIL_PORT:587}
-    username: ${SPRING_MAIL_USERNAME}
-    password: ${SPRING_MAIL_PASSWORD}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
     default-encoding: UTF-8
     properties:
       mail:
