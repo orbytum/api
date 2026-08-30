@@ -10,11 +10,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import com.orbytum.api.fachada.GrupoFachada;
-import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.orbytum.api.fachada.GrupoFachada;
 import com.orbytum.api.models.dto.request.CreateGroupRequest;
 import com.orbytum.api.models.dto.request.CreateLeaderRequest;
 import com.orbytum.api.models.dto.request.EditGroupRequest;
@@ -49,9 +48,17 @@ public class GrupoController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'INITIAL_ADMIN')")
     public ResponseEntity<List<GrupoResponse>> listarGrupos() {
         List<GrupoResponse> grupos = grupoFachada.listarGrupos();
         return ResponseEntity.ok(grupos);
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'INITIAL_ADMIN')")
+    public ResponseEntity<GrupoResponse> buscarGrupoPorId(@PathVariable Long id) {
+        GrupoResponse response = grupoFachada.buscarPorId(id);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{grupoId}/lideres")
