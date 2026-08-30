@@ -189,7 +189,7 @@ public class GrupoFachada {
 
     public GrupoResponse buscarPorId(Long id) {
         Grupo grupo = grupoService.findById(id)
-            .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + id));
+                .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + id));
 
         String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
         CredenciaisLogin adminLogado = credenciaisLoginService.findByEmail(emailAdminLogado)
@@ -204,5 +204,26 @@ public class GrupoFachada {
         }
 
         return new GrupoResponse(grupo.getId(), grupo.getNome(), grupo.isAtivo());
+    }
+
+    @Transactional
+    public void removerGrupo(Long id) {
+        Grupo grupo = grupoService.findById(id)
+                .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + id));
+
+        String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
+        CredenciaisLogin adminLogado = credenciaisLoginService.findByEmail(emailAdminLogado)
+                .orElseThrow(() -> new AccessDeniedException("Administrador não autenticado"));
+
+        boolean isInitialAdmin = adminLogado.getAccessLevel() == AccessLevel.INITIAL_ADMIN;
+        boolean isAdminCriador = grupo.getCriador() != null
+                && grupo.getCriador().getEmail().equalsIgnoreCase(emailAdminLogado);
+
+        if (!isInitialAdmin && !isAdminCriador) {
+            throw new AccessDeniedException("Apenas o administrador que criou o grupo pode removê-lo");
+        }
+
+        grupo.setAtivo(false);
+        grupoService.save(grupo);
     }
 }

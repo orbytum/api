@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -59,6 +60,13 @@ public class GrupoController {
     public ResponseEntity<GrupoResponse> buscarGrupoPorId(@PathVariable Long id) {
         GrupoResponse response = grupoFachada.buscarPorId(id);
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'INITIAL_ADMIN')")
+    public ResponseEntity<Void> removerGrupo(@PathVariable Long id) {
+        grupoFachada.removerGrupo(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{grupoId}/lideres")
