@@ -20,6 +20,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(erro);
     }
 
+    @ExceptionHandler(CrenciaisInvalidas.class)
+    public ResponseEntity<ErroResponse> handleCrenciaisInvalidas(CrenciaisInvalidas ex) {
+        ErroResponse erro = new ErroResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Ops! " + ex.getMessage(),
+                System.currentTimeMillis()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(erro);
+    }
+
     @ExceptionHandler(com.orbytum.api.models.exceptions.EmailSendingException.class)
     public ResponseEntity<ErroResponse> handleEmailSendingException(com.orbytum.api.models.exceptions.EmailSendingException ex) {
         ErroResponse erro = new ErroResponse(
