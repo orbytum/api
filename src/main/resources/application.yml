@@ -38,6 +38,7 @@ orbytum:
   mail:
     from: ${ORBYTUM_MAIL_FROM:${spring.mail.username}}
     from-name: ${ORBYTUM_MAIL_FROM_NAME:Orbytum}
+  front-end: ${FRONT_END_URL:http://localhost:3000}
 jwt:
   secret: ${JWT_SECRET}
   expiration: 86400000
