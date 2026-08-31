@@ -13,12 +13,14 @@ import com.orbytum.api.models.dto.request.EditGroupRequest;
 import com.orbytum.api.models.dto.request.EditLeaderRequest;
 import com.orbytum.api.models.dto.response.GrupoResponse;
 import com.orbytum.api.models.dto.response.LiderResponse;
+import com.orbytum.api.models.dto.response.PesquisadorResponse;
 import com.orbytum.api.models.entity.CredenciaisLogin;
 import com.orbytum.api.models.entity.Grupo;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.exceptions.GrupoNaoEncontradoErro;
+import com.orbytum.api.models.exceptions.UsuarioNaoEncontradoErro;
 import com.orbytum.api.repository.GrupoXUsuarioRepository;
 import com.orbytum.api.service.CredenciaisLoginService;
 import com.orbytum.api.service.GrupoService;
@@ -225,5 +227,85 @@ public class GrupoFachada {
 
         grupo.setAtivo(false);
         grupoService.save(grupo);
+    }
+
+    public List<PesquisadorResponse> listarPesquisadores(Long grupoId) {
+        Grupo grupo = grupoService.findById(grupoId)
+                .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + grupoId));
+
+        validarPermissaoAdminCriador(grupo);
+
+        List<GrupoXUsuario> vinculos = grupoXUsuarioRepository.findAllByGrupoIdAndIsAtivoTrue(grupoId);
+
+        return vinculos.stream()
+                .map(v -> new PesquisadorResponse(
+                        v.getUsuario().getId(),
+                        v.getUsuario().getNome(),
+                        v.getUsuario().getEmail(),
+                        v.getUsuario().getTelefone(),
+                        v.getUsuario().getTitulo(),
+                        grupo.getId(),
+                        v.getRole() != null ? v.getRole().getNome() : "Membro",
+                        v.getRole() != null && v.getRole().isLider()
+                ))
+                .toList();
+    }
+
+    @Transactional
+    public PesquisadorResponse atualizarPesquisador(Long grupoId, Long usuarioId, EditLeaderRequest request) {
+        Grupo grupo = grupoService.findById(grupoId)
+                .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + grupoId));
+
+        validarPermissaoAdminCriador(grupo);
+
+        Usuario usuario = usuarioService.findById(usuarioId)
+                .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário não encontrado com ID: " + usuarioId));
+
+        GrupoXUsuario vinculo = grupoXUsuarioRepository.findByGrupoIdAndUsuarioIdAndIsAtivoTrue(grupoId, usuarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Este usuário não está vinculado a este grupo de pesquisa"));
+
+        usuario.setNome(request.nome());
+        usuario.setTelefone(request.telefone());
+        usuario.setTitulo(request.titulo());
+        Usuario usuarioAtualizado = usuarioService.save(usuario);
+
+        return new PesquisadorResponse(
+                usuarioAtualizado.getId(),
+                usuarioAtualizado.getNome(),
+                usuarioAtualizado.getEmail(),
+                usuarioAtualizado.getTelefone(),
+                usuarioAtualizado.getTitulo(),
+                grupo.getId(),
+                vinculo.getRole() != null ? vinculo.getRole().getNome() : "Membro",
+                vinculo.getRole() != null && vinculo.getRole().isLider()
+        );
+    }
+
+    @Transactional
+    public void removerPesquisador(Long grupoId, Long usuarioId) {
+        Grupo grupo = grupoService.findById(grupoId)
+                .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + grupoId));
+
+        validarPermissaoAdminCriador(grupo);
+
+        GrupoXUsuario vinculo = grupoXUsuarioRepository.findByGrupoIdAndUsuarioIdAndIsAtivoTrue(grupoId, usuarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Este usuário não está vinculado a este grupo de pesquisa"));
+
+        vinculo.setAtivo(false);
+        grupoXUsuarioRepository.save(vinculo);
+    }
+
+    private void validarPermissaoAdminCriador(Grupo grupo) {
+        String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
+        CredenciaisLogin adminLogado = credenciaisLoginService.findByEmail(emailAdminLogado)
+                .orElseThrow(() -> new AccessDeniedException("Administrador não autenticado"));
+
+        boolean isInitialAdmin = adminLogado.getAccessLevel() == AccessLevel.INITIAL_ADMIN;
+        boolean isAdminCriador = grupo.getCriador() != null
+                && grupo.getCriador().getEmail().equalsIgnoreCase(emailAdminLogado);
+
+        if (!isInitialAdmin && !isAdminCriador) {
+            throw new AccessDeniedException("Apenas o administrador que criou o grupo possui permissão para esta operação");
+        }
     }
 }

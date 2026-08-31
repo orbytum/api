@@ -21,6 +21,7 @@ import com.orbytum.api.models.dto.request.EditGroupRequest;
 import com.orbytum.api.models.dto.request.EditLeaderRequest;
 import com.orbytum.api.models.dto.response.GrupoResponse;
 import com.orbytum.api.models.dto.response.LiderResponse;
+import com.orbytum.api.models.dto.response.PesquisadorResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -86,5 +87,31 @@ public class GrupoController {
             @Valid @RequestBody EditLeaderRequest request) {
         LiderResponse response = grupoFachada.atualizarLider(grupoId, usuarioId, request);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{grupoId}/pesquisadores")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'INITIAL_ADMIN')")
+    public ResponseEntity<List<PesquisadorResponse>> listarPesquisadores(@PathVariable Long grupoId) {
+        List<PesquisadorResponse> response = grupoFachada.listarPesquisadores(grupoId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{grupoId}/pesquisadores/{usuarioId}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'INITIAL_ADMIN')")
+    public ResponseEntity<PesquisadorResponse> atualizarPesquisador(
+            @PathVariable Long grupoId,
+            @PathVariable Long usuarioId,
+            @Valid @RequestBody EditLeaderRequest request) {
+        PesquisadorResponse response = grupoFachada.atualizarPesquisador(grupoId, usuarioId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{grupoId}/pesquisadores/{usuarioId}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'INITIAL_ADMIN')")
+    public ResponseEntity<Void> removerPesquisador(
+            @PathVariable Long grupoId,
+            @PathVariable Long usuarioId) {
+        grupoFachada.removerPesquisador(grupoId, usuarioId);
+        return ResponseEntity.noContent().build();
     }
 }
