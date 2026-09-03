@@ -1,13 +1,16 @@
 package com.orbytum.api.service;
 
-import lombok.AllArgsConstructor;
-import org.springframework.stereotype.Service;
-import com.orbytum.api.models.entity.Grupo;
-import com.orbytum.api.repository.GrupoRepository;
-import jakarta.transaction.Transactional;
-
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+
+import com.orbytum.api.models.entity.Grupo;
+import com.orbytum.api.models.entity.Usuario;
+import com.orbytum.api.repository.GrupoRepository;
+
+import jakarta.transaction.Transactional;
+import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
 @Service
@@ -32,5 +35,9 @@ public class GrupoService {
 
     public List<Grupo> findAllAtivos() {
         return grupoRepository.findAllByIsAtivoTrue();
+    }
+
+    public List<Grupo> findAllByCriador(Usuario criador) {
+        return grupoRepository.findAllByCriadorAndIsAtivoTrue(criador);
     }
 }

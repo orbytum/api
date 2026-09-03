@@ -26,4 +26,6 @@ public interface GrupoXUsuarioRepository extends JpaRepository<GrupoXUsuario, UU
     boolean existsByGrupoIdAndUsuarioIdAndIsAtivoTrue(Long grupoId, Long usuarioId);
 
     boolean existsByGrupoIdAndUsuarioEmailAndIsAtivoTrue(Long grupoId, String email);
+
+    List<GrupoXUsuario> findAllByGrupoIdAndIsAtivoTrue(Long grupoId);
 }
