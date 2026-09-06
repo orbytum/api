@@ -93,16 +93,22 @@ public class AuthFachada {
         );
         novoAdmin = usuarioService.save(novoAdmin);
 
+        Usuario criador = (credenciaisSolicitante.getAccessLevel() == AccessLevel.INITIAL_ADMIN)
+                ? null
+                : credenciaisSolicitante.getUsuario();
+
         CredenciaisLogin credenciaisAdmin = new CredenciaisLogin(
                 request.email(),
                 passwordEncoder.encode(request.senha()),
                 AccessLevel.ADMIN,
                 novoAdmin,
-                credenciaisSolicitante.getUsuario()
+                criador
         );
         credenciaisLoginService.save(credenciaisAdmin);
 
-        excluirAdminInicialSeExistir();
+        if (credenciaisSolicitante.getAccessLevel() == AccessLevel.INITIAL_ADMIN) {
+            excluirAdminInicialSeExistir();
+        }
 
         UserDetails userDetails = User.builder()
                 .username(request.email())
