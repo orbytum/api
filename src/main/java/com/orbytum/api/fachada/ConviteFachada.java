@@ -5,9 +5,12 @@ import com.orbytum.api.models.dto.request.GerarConviteCadastroRequest;
 import com.orbytum.api.models.dto.request.GerarConviteGrupoRequest;
 import com.orbytum.api.models.dto.request.RegisterRequest;
 import com.orbytum.api.models.dto.response.AuthResponse;
+import com.orbytum.api.models.dto.response.ConviteCadastroDetalheResponse;
+import com.orbytum.api.models.dto.response.ConviteCadastroPaginadoResponse;
 import com.orbytum.api.models.dto.response.ConviteCadastroResponse;
 import com.orbytum.api.models.dto.response.ConviteGrupoEnviadoResponse;
 import com.orbytum.api.models.dto.response.ConviteGrupoResponse;
+import java.util.List;
 import com.orbytum.api.models.entity.CredenciaisLogin;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.enums.AccessLevel;
@@ -63,6 +66,24 @@ public class ConviteFachada {
 
     public AuthResponse aceitarConviteCadastro(String token, RegisterRequest request) {
         return conviteService.aceitarConviteCadastro(token, request);
+    }
+
+    public ConviteCadastroPaginadoResponse listarConvitesCadastro(
+            String emailLogado,
+            int page,
+            int size,
+            String email,
+            String status
+    ) {
+        Usuario solicitante = usuarioService.findByEmail(emailLogado)
+                .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário autenticado não encontrado"));
+        return conviteService.listarConvitesCadastro(solicitante, page, size, email, status);
+    }
+
+    public void revogarConviteCadastro(Long id, String emailLogado) {
+        Usuario solicitante = usuarioService.findByEmail(emailLogado)
+                .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário autenticado não encontrado"));
+        conviteService.revogarConviteCadastro(id, solicitante);
     }
 
 }

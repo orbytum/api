@@ -5,9 +5,14 @@ import com.orbytum.api.models.dto.request.GerarConviteCadastroRequest;
 import com.orbytum.api.models.dto.request.GerarConviteGrupoRequest;
 import com.orbytum.api.models.dto.request.RegisterRequest;
 import com.orbytum.api.models.dto.response.AuthResponse;
+import com.orbytum.api.models.dto.response.ConviteCadastroDetalheResponse;
+import com.orbytum.api.models.dto.response.ConviteCadastroPaginadoResponse;
 import com.orbytum.api.models.dto.response.ConviteCadastroResponse;
 import com.orbytum.api.models.dto.response.ConviteGrupoEnviadoResponse;
 import com.orbytum.api.models.dto.response.ConviteGrupoResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import com.orbytum.api.models.entity.*;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.enums.AccessLevel;
@@ -19,6 +24,7 @@ import com.orbytum.api.repository.RoleRepository;
 import com.orbytum.api.util.JwtUtil;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +36,7 @@ import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class ConviteService {
 
     private final ConviteGrupoRepository conviteGrupoRepository;
@@ -134,18 +141,30 @@ public class ConviteService {
     @Transactional
     public ConviteCadastroResponse gerarConviteCadastro(Usuario remetente, GerarConviteCadastroRequest request) {
 
-        if(remetente.getCredenciaisLogin().getAccessLevel() != AccessLevel.ADMIN) {
+        AccessLevel accessLevel = credenciaisLoginService.findByEmail(remetente.getEmail())
+                .map(CredenciaisLogin::getAccessLevel)
+                .orElseGet(() -> remetente.getCredenciaisLogin() != null
+                        ? remetente.getCredenciaisLogin().getAccessLevel()
+                        : null);
+
+        if (accessLevel != AccessLevel.ADMIN && accessLevel != AccessLevel.INITIAL_ADMIN) {
             throw new SemPermissaoConvidarErro("Você não tem permissão para enviar convites de cadastro.");
+        }
+
+        var conviteExistente = conviteCadastroRepository.findByEmailAndIsAtivoTrue(request.email());
+        if(conviteExistente.isPresent()) {
+            throw new ConviteJaEnviadoErro("Esse email já possui um convite pendente ativo.");
         }
 
         LocalDateTime now = LocalDateTime.now();
         String token = UUID.randomUUID().toString();
+        int dias = (request.diasValidade() != null && request.diasValidade() > 0) ? request.diasValidade() : 7;
 
         ConviteCadastro convite = new ConviteCadastro(
                 null,
                 token,
                 request.email(),
-                now.plusDays(request.diasValidade()),
+                now.plusDays(dias),
                 now,
                 true
         );
@@ -163,7 +182,11 @@ public class ConviteService {
 
         EmailRequest emailReq = EmailRequest.comTemplate(request.email(), assunto, templateName, variaveis);
 
-        emailService.sendEmail(emailReq);
+        try {
+            emailService.sendEmail(emailReq);
+        } catch (Exception e) {
+            log.warn("Não foi possível enviar o e-mail de convite para {}: {}", request.email(), e.getMessage());
+        }
 
         return new ConviteCadastroResponse(
                 convite.getId(),
@@ -171,6 +194,85 @@ public class ConviteService {
                 url,
                 convite.getDthExpiracao()
         );
+    }
+
+    public ConviteCadastroPaginadoResponse listarConvitesCadastro(
+            Usuario solicitante,
+            int page,
+            int size,
+            String email,
+            String status
+    ) {
+        AccessLevel accessLevel = credenciaisLoginService.findByEmail(solicitante.getEmail())
+                .map(CredenciaisLogin::getAccessLevel)
+                .orElseGet(() -> solicitante.getCredenciaisLogin() != null
+                        ? solicitante.getCredenciaisLogin().getAccessLevel()
+                        : null);
+
+        if (accessLevel != AccessLevel.ADMIN && accessLevel != AccessLevel.INITIAL_ADMIN) {
+            throw new SemPermissaoConvidarErro("Você não tem permissão para visualizar convites de cadastro.");
+        }
+
+        int pageIndex = Math.max(0, page - 1);
+        int pageSize = size > 0 ? size : 5;
+        Pageable pageable = PageRequest.of(pageIndex, pageSize);
+
+        String normalizedStatus = (status != null && !status.isBlank()) ? status.trim().toLowerCase() : "ativos";
+        String normalizedEmail = (email != null && !email.isBlank()) ? email.trim() : null;
+
+        LocalDateTime now = LocalDateTime.now();
+        Page<ConviteCadastro> pageResult = conviteCadastroRepository.filtrarConvites(
+                normalizedEmail,
+                normalizedStatus,
+                now,
+                pageable
+        );
+
+        List<ConviteCadastroDetalheResponse> items = pageResult.getContent().stream()
+                .map(c -> new ConviteCadastroDetalheResponse(
+                        c.getId(),
+                        c.getEmail(),
+                        c.getToken(),
+                        "/convites/aceitar/cadastro/" + c.getToken(),
+                        c.getDthRegistro(),
+                        c.getDthExpiracao(),
+                        c.isAtivo() && c.getDthExpiracao().isAfter(now)
+                ))
+                .collect(Collectors.toList());
+
+        long totalAtivos = conviteCadastroRepository.countAtivos(now);
+        long totalInativos = conviteCadastroRepository.countInativos(now);
+        long totalGeral = conviteCadastroRepository.count();
+
+        return new ConviteCadastroPaginadoResponse(
+                items,
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages(),
+                page,
+                pageSize,
+                totalAtivos,
+                totalInativos,
+                totalGeral
+        );
+    }
+
+    @Transactional
+    public void revogarConviteCadastro(Long id, Usuario solicitante) {
+        AccessLevel accessLevel = credenciaisLoginService.findByEmail(solicitante.getEmail())
+                .map(CredenciaisLogin::getAccessLevel)
+                .orElseGet(() -> solicitante.getCredenciaisLogin() != null
+                        ? solicitante.getCredenciaisLogin().getAccessLevel()
+                        : null);
+
+        if (accessLevel != AccessLevel.ADMIN && accessLevel != AccessLevel.INITIAL_ADMIN) {
+            throw new SemPermissaoConvidarErro("Você não tem permissão para revogar convites de cadastro.");
+        }
+
+        ConviteCadastro convite = conviteCadastroRepository.findById(id)
+                .orElseThrow(() -> new ConviteInvalidoOuExpiradoErro("Convite não encontrado."));
+
+        convite.setAtivo(false);
+        conviteCadastroRepository.save(convite);
     }
 
     @Transactional
@@ -253,6 +355,10 @@ public class ConviteService {
                 usuario,
                 null
         );
+
+        c.setAtivo(false);
+
+        conviteCadastroRepository.save(c);
         credenciaisLoginService.save(credenciais);
 
         UserDetails userDetails = User.builder()
