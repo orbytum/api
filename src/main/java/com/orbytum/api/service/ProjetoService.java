@@ -2,6 +2,7 @@ package com.orbytum.api.service;
 
 import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.repository.ProjetoRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -25,5 +26,18 @@ public class ProjetoService {
             return List.of();
         }
         return projetoRepository.findAllByIdIn(ids);
+    }
+
+    @Transactional
+    public Projeto save(Projeto projeto) {
+        return projetoRepository.save(projeto);
+    }
+
+    public List<Projeto> findAllAtivos() {
+        return projetoRepository.findAllByIsAtivoTrue();
+    }
+
+    public List<Projeto> findAllAtivosByGrupoId(Long grupoId) {
+        return projetoRepository.findAllByGrupoIdAndIsAtivoTrue(grupoId);
     }
 }

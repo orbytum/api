@@ -45,5 +45,14 @@ public class Projeto {
     @OneToMany(mappedBy = "projeto", fetch = FetchType.LAZY)
     private List<EditalXProjeto> editaisProjetos;
 
+    public Projeto(Grupo grupo, ProjetoStatus status, String titulo, String assunto) {
+        this.grupo = grupo;
+        this.status = status;
+        this.titulo = titulo;
+        this.assunto = assunto;
+        this.dthRegistro = LocalDateTime.now();
+        this.isAtivo = true;
+    }
+
 }
 
