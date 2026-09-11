@@ -147,7 +147,7 @@ public class ConviteService {
                         ? remetente.getCredenciaisLogin().getAccessLevel()
                         : null);
 
-        if (accessLevel != AccessLevel.ADMIN && accessLevel != AccessLevel.INITIAL_ADMIN) {
+        if (accessLevel != AccessLevel.ADMIN) {
             throw new SemPermissaoConvidarErro("Você não tem permissão para enviar convites de cadastro.");
         }
 
@@ -209,7 +209,7 @@ public class ConviteService {
                         ? solicitante.getCredenciaisLogin().getAccessLevel()
                         : null);
 
-        if (accessLevel != AccessLevel.ADMIN && accessLevel != AccessLevel.INITIAL_ADMIN) {
+        if (accessLevel != AccessLevel.ADMIN) {
             throw new SemPermissaoConvidarErro("Você não tem permissão para visualizar convites de cadastro.");
         }
 

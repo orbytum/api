@@ -58,7 +58,7 @@ public class ConviteController {
     }
 
     @PostMapping("/cadastro")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'INITIAL_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'admin', 'ROLE_ADMIN')")
     public ResponseEntity<ConviteCadastroResponse> gerarConviteCadastro(
             @Valid @RequestBody GerarConviteCadastroRequest request,
             Authentication authentication
@@ -69,7 +69,7 @@ public class ConviteController {
     }
 
     @GetMapping({"", "/cadastro"})
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'INITIAL_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'admin', 'ROLE_ADMIN')")
     public ResponseEntity<ConviteCadastroPaginadoResponse> listarConvitesCadastro(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "5") int size,
@@ -89,7 +89,7 @@ public class ConviteController {
     }
 
     @DeleteMapping("/cadastro/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'INITIAL_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'admin', 'ROLE_ADMIN')")
     public ResponseEntity<Void> revogarConviteCadastro(
             @PathVariable Long id,
             Authentication authentication
