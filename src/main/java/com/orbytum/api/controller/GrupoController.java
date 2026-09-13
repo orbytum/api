@@ -21,7 +21,9 @@ import com.orbytum.api.models.dto.request.EditLeaderRequest;
 import com.orbytum.api.models.dto.response.GrupoPaginadoResponse;
 import com.orbytum.api.models.dto.response.GrupoResponse;
 import com.orbytum.api.models.dto.response.LiderResponse;
+import com.orbytum.api.models.dto.response.MeuGrupoResponse;
 import com.orbytum.api.models.dto.response.PesquisadorResponse;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 import jakarta.validation.Valid;
@@ -118,5 +120,12 @@ public class GrupoController {
             @PathVariable Long usuarioId) {
         grupoFachada.removerPesquisador(grupoId, usuarioId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/meus-grupos")
+    public ResponseEntity<List<MeuGrupoResponse>> listarMeusGrupos(Authentication authentication) {
+        String emailUsuarioLogado = authentication.getName();
+        List<MeuGrupoResponse> response = grupoFachada.listarMeusGrupos(emailUsuarioLogado);
+        return ResponseEntity.ok(response);
     }
 }

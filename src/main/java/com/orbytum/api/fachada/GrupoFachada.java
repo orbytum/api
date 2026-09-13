@@ -1,8 +1,15 @@
 package com.orbytum.api.fachada;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
+import com.orbytum.api.models.dto.request.*;
+import com.orbytum.api.models.entity.*;
+import com.orbytum.api.service.*;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -11,34 +18,24 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import com.orbytum.api.models.dto.request.CreateGroupRequest;
-import com.orbytum.api.models.dto.request.CreateLeaderRequest;
-import com.orbytum.api.models.dto.request.EditGroupRequest;
-import com.orbytum.api.models.dto.request.EditLeaderRequest;
 import com.orbytum.api.models.dto.response.GrupoPaginadoResponse;
 import com.orbytum.api.models.dto.response.GrupoResponse;
 import com.orbytum.api.models.dto.response.LiderResponse;
+import com.orbytum.api.models.dto.response.MeuGrupoResponse;
 import com.orbytum.api.models.dto.response.PesquisadorResponse;
-import com.orbytum.api.models.entity.CredenciaisLogin;
-import com.orbytum.api.models.entity.Grupo;
-import com.orbytum.api.models.entity.Role;
-import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.exceptions.GrupoNaoEncontradoErro;
 import com.orbytum.api.models.exceptions.UsuarioNaoEncontradoErro;
 import com.orbytum.api.repository.GrupoXUsuarioRepository;
 import com.orbytum.api.repository.RoleRepository;
-import com.orbytum.api.service.ConviteService;
-import com.orbytum.api.service.CredenciaisLoginService;
-import com.orbytum.api.service.GrupoService;
-import com.orbytum.api.service.UsuarioService;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class GrupoFachada {
 
     private static final Logger logger = LoggerFactory.getLogger(GrupoFachada.class);
@@ -50,6 +47,7 @@ public class GrupoFachada {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final ConviteService conviteService;
+    private final EmailService emailService;
 
     @Transactional
     public GrupoResponse criarGrupo(CreateGroupRequest request) {
@@ -81,6 +79,34 @@ public class GrupoFachada {
 
             if (!grupoXUsuarioRepository.existsByGrupoAndUsuario(grupoSalvo, usuarioLider)) {
                 grupoXUsuarioRepository.save(new GrupoXUsuario(grupoSalvo, usuarioLider, roleLider, true));
+            }
+
+            String token = UUID.randomUUID().toString();
+            String url = "/convites/aceitar/grupo/" + token;
+
+            ConviteGrupo convite = new ConviteGrupo(
+                    grupoSalvo,
+                    usuarioLider,
+                    adminCriador,
+                    token,
+                    roleLider,
+                    List.of(),
+                    LocalDateTime.now()
+            );
+
+            String assunto = "Você foi convidado para se juntar a um grupo de pesquisa";
+            String templateName = "convite-cadastro-template";
+            Map<String, Object> variaveis = Map.of(
+                    "nomeOrganizacao", "Orbytum",
+                    "loginUrl", "http://localhost:8080" + url
+            );
+
+            EmailRequest emailReq = EmailRequest.comTemplate(request.emailLider(), assunto, templateName, variaveis);
+
+            try {
+                emailService.sendEmail(emailReq);
+            } catch (Exception e) {
+                log.warn("Não foi possível enviar o e-mail de convite para {}: {}", request.emailLider(), e.getMessage());
             }
         }
 
@@ -291,6 +317,28 @@ public class GrupoFachada {
 
         vinculo.setAtivo(false);
         grupoXUsuarioRepository.save(vinculo);
+    }
+
+    public List<MeuGrupoResponse> listarMeusGrupos(String emailUsuarioLogado) {
+        CredenciaisLogin credenciais = credenciaisLoginService.findByEmail(emailUsuarioLogado)
+                .orElseThrow(() -> new AccessDeniedException("Usuário não autenticado"));
+
+        if (credenciais.getAccessLevel() == AccessLevel.ADMIN || credenciais.getAccessLevel() == AccessLevel.INITIAL_ADMIN) {
+            List<Grupo> grupos = grupoService.findAllAtivos();
+            return grupos.stream()
+                    .map(g -> new MeuGrupoResponse(g.getId(), g.getNome(), "Administrador", true))
+                    .toList();
+        }
+
+        List<GrupoXUsuario> vinculos = grupoXUsuarioRepository.findAllByUsuarioEmailAndIsAtivoTrueAndGrupoIsAtivoTrue(emailUsuarioLogado);
+        return vinculos.stream()
+                .map(v -> new MeuGrupoResponse(
+                        v.getGrupo().getId(),
+                        v.getGrupo().getNome(),
+                        v.getRole() != null ? v.getRole().getNome() : "Membro",
+                        v.getRole() != null && v.getRole().isLider()
+                ))
+                .toList();
     }
 
     private GrupoResponse mapearParaGrupoResponse(Grupo grupo) {

@@ -174,7 +174,7 @@ public class ConviteService {
         String url = "/convites/aceitar/cadastro/" + token;
 
         String assunto = "Você foi convidado para se juntar ao Orbytum";
-        String templateName = "convite-template";
+        String templateName = "convite-cadastro-template";
         Map<String, Object> variaveis = Map.of(
                 "nomeOrganizacao", "Orbytum",
                 "loginUrl", "http://localhost:8080" + url
