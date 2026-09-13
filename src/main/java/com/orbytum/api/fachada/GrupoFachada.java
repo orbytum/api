@@ -1,7 +1,11 @@
 package com.orbytum.api.fachada;
 
 import java.util.List;
+import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -11,6 +15,7 @@ import com.orbytum.api.models.dto.request.CreateGroupRequest;
 import com.orbytum.api.models.dto.request.CreateLeaderRequest;
 import com.orbytum.api.models.dto.request.EditGroupRequest;
 import com.orbytum.api.models.dto.request.EditLeaderRequest;
+import com.orbytum.api.models.dto.response.GrupoPaginadoResponse;
 import com.orbytum.api.models.dto.response.GrupoResponse;
 import com.orbytum.api.models.dto.response.LiderResponse;
 import com.orbytum.api.models.dto.response.PesquisadorResponse;
@@ -24,6 +29,7 @@ import com.orbytum.api.models.exceptions.GrupoNaoEncontradoErro;
 import com.orbytum.api.models.exceptions.UsuarioNaoEncontradoErro;
 import com.orbytum.api.repository.GrupoXUsuarioRepository;
 import com.orbytum.api.repository.RoleRepository;
+import com.orbytum.api.service.ConviteService;
 import com.orbytum.api.service.CredenciaisLoginService;
 import com.orbytum.api.service.GrupoService;
 import com.orbytum.api.service.UsuarioService;
@@ -34,12 +40,16 @@ import lombok.RequiredArgsConstructor;
 @Component
 @RequiredArgsConstructor
 public class GrupoFachada {
+
+    private static final Logger logger = LoggerFactory.getLogger(GrupoFachada.class);
+
     private final GrupoService grupoService;
     private final UsuarioService usuarioService;
     private final CredenciaisLoginService credenciaisLoginService;
     private final GrupoXUsuarioRepository grupoXUsuarioRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ConviteService conviteService;
 
     @Transactional
     public GrupoResponse criarGrupo(CreateGroupRequest request) {
@@ -50,10 +60,31 @@ public class GrupoFachada {
         String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
         Usuario adminCriador = usuarioService.findByEmail(emailAdminLogado).orElse(null);
 
+        Usuario usuarioLider = null;
+        if (request.emailLider() != null && !request.emailLider().isBlank()) {
+            String emailLider = request.emailLider().trim();
+            usuarioLider = usuarioService.findByEmail(emailLider)
+                    .orElseThrow(() -> new IllegalArgumentException("Não foi encontrado nenhum usuário cadastrado no sistema com o e-mail informado: " + emailLider));
+        }
+
         Grupo novoGrupo = new Grupo(request.nome(), adminCriador);
         Grupo grupoSalvo = grupoService.save(novoGrupo);
 
-        return new GrupoResponse(grupoSalvo.getId(), grupoSalvo.getNome(), grupoSalvo.isAtivo());
+        if (usuarioLider != null) {
+
+            if(usuarioLider.getCredenciaisLogin().getAccessLevel() != AccessLevel.USER) {
+                throw new IllegalArgumentException("O usuário informado não pode ser um administrador.");
+            }
+
+            Role roleLider = roleRepository.findFirstByIsLiderTrue()
+                    .orElseGet(() -> roleRepository.save(new Role("Líder", List.of(), true)));
+
+            if (!grupoXUsuarioRepository.existsByGrupoAndUsuario(grupoSalvo, usuarioLider)) {
+                grupoXUsuarioRepository.save(new GrupoXUsuario(grupoSalvo, usuarioLider, roleLider, true));
+            }
+        }
+
+        return mapearParaGrupoResponse(grupoSalvo);
     }
 
     @Transactional
@@ -61,18 +92,7 @@ public class GrupoFachada {
         Grupo grupo = grupoService.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Grupo de pesquisa não encontrado com ID: " + id));
 
-        String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
-        CredenciaisLogin adminLogado = credenciaisLoginService.findByEmail(emailAdminLogado)
-                .orElseThrow(() -> new IllegalArgumentException("Administrador não autenticado"));
-
-        // permitindo que o admin inicial também edite
-        boolean isInitialAdmin = adminLogado.getAccessLevel() == AccessLevel.INITIAL_ADMIN;
-        boolean isAdminCriador = grupo.getCriador() != null
-                && grupo.getCriador().getEmail().equalsIgnoreCase(emailAdminLogado);
-
-        if (!isInitialAdmin && !isAdminCriador) {
-            throw new AccessDeniedException("Apenas o administrador que criou o grupo pode editar");
-        }
+        validarPermissaoAdminCriador(grupo);
 
         if (!grupo.getNome().equalsIgnoreCase(request.nome()) && grupoService.existsByNome(request.nome())) {
             throw new IllegalArgumentException("Já existe outro grupo de pesquisa cadastrado com este nome");
@@ -85,7 +105,7 @@ public class GrupoFachada {
 
         Grupo grupoAtualizado = grupoService.save(grupo);
 
-        return new GrupoResponse(grupoAtualizado.getId(), grupoAtualizado.getNome(), grupoAtualizado.isAtivo());
+        return mapearParaGrupoResponse(grupoAtualizado);
     }
 
     @Transactional
@@ -117,9 +137,7 @@ public class GrupoFachada {
                 adminCriador);
         credenciaisLoginService.save(credenciais);
 
-        Role roleLider = roleRepository.findByNomeIgnoreCase("Líder")
-                .or(() -> roleRepository.findByNomeIgnoreCase("Lider"))
-                .or(() -> roleRepository.findFirstByIsLiderTrue())
+        Role roleLider = roleRepository.findFirstByIsLiderTrue()
                 .orElseGet(() -> roleRepository.save(new Role("Líder", List.of(), true)));
 
         GrupoXUsuario vinculo = new GrupoXUsuario(grupo, usuario, roleLider);
@@ -165,44 +183,37 @@ public class GrupoFachada {
                 true);
     }
 
-    public List<GrupoResponse> listarGrupos() {
+    public GrupoPaginadoResponse listarGrupos(int page, int size, String nome, String usuario) {
         String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
         CredenciaisLogin adminLogado = credenciaisLoginService.findByEmail(emailAdminLogado)
                 .orElseThrow(() -> new AccessDeniedException("Administrador não autenticado"));
 
-        List<Grupo> grupos;
-        if (adminLogado.getAccessLevel() == AccessLevel.INITIAL_ADMIN) {
-            grupos = grupoService.findAllAtivos();
-        } else {
-            Usuario adminCriador = adminLogado.getUsuario();
-            grupos = grupoService.findAllByCriador(adminCriador);
+        if (adminLogado.getAccessLevel() != AccessLevel.ADMIN) {
+            throw new AccessDeniedException("Apenas Administradores possuem permissão para listar grupos");
         }
 
-        return grupos.stream()
-                .map(grupo -> new GrupoResponse(
-                        grupo.getId(),
-                        grupo.getNome(),
-                        grupo.isAtivo()))
+        Page<Grupo> pageResult = grupoService.listarGrupos(adminLogado, page, size, nome, usuario);
+
+        List<GrupoResponse> items = pageResult.getContent().stream()
+                .map(this::mapearParaGrupoResponse)
                 .toList();
+
+        return new GrupoPaginadoResponse(
+                items,
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages(),
+                page,
+                size
+        );
     }
 
     public GrupoResponse buscarPorId(Long id) {
         Grupo grupo = grupoService.findById(id)
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + id));
 
-        String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
-        CredenciaisLogin adminLogado = credenciaisLoginService.findByEmail(emailAdminLogado)
-                .orElseThrow(() -> new AccessDeniedException("Administrador não autenticado"));
+        validarPermissaoAdminCriador(grupo);
 
-        boolean isInitialAdmin = adminLogado.getAccessLevel() == AccessLevel.INITIAL_ADMIN;
-        boolean isAdminCriador = grupo.getCriador() != null
-                && grupo.getCriador().getEmail().equalsIgnoreCase(emailAdminLogado);
-
-        if (!isInitialAdmin && !isAdminCriador) {
-            throw new AccessDeniedException("Apenas o administrador que criou o grupo pode visualizar");
-        }
-
-        return new GrupoResponse(grupo.getId(), grupo.getNome(), grupo.isAtivo());
+        return mapearParaGrupoResponse(grupo);
     }
 
     @Transactional
@@ -210,17 +221,7 @@ public class GrupoFachada {
         Grupo grupo = grupoService.findById(id)
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + id));
 
-        String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
-        CredenciaisLogin adminLogado = credenciaisLoginService.findByEmail(emailAdminLogado)
-                .orElseThrow(() -> new AccessDeniedException("Administrador não autenticado"));
-
-        boolean isInitialAdmin = adminLogado.getAccessLevel() == AccessLevel.INITIAL_ADMIN;
-        boolean isAdminCriador = grupo.getCriador() != null
-                && grupo.getCriador().getEmail().equalsIgnoreCase(emailAdminLogado);
-
-        if (!isInitialAdmin && !isAdminCriador) {
-            throw new AccessDeniedException("Apenas o administrador que criou o grupo pode removê-lo");
-        }
+        validarPermissaoAdminCriador(grupo);
 
         grupo.setAtivo(false);
         grupoService.save(grupo);
@@ -292,16 +293,41 @@ public class GrupoFachada {
         grupoXUsuarioRepository.save(vinculo);
     }
 
+    private GrupoResponse mapearParaGrupoResponse(Grupo grupo) {
+        List<GrupoXUsuario> vinculos = grupoXUsuarioRepository.findAllByGrupoIdAndIsAtivoTrue(grupo.getId());
+        int totalParticipantes = vinculos.size();
+
+        GrupoXUsuario vinculoLider = vinculos.stream()
+                .filter(v -> v.getRole() != null && v.getRole().isLider())
+                .findFirst()
+                .orElse(null);
+
+        String nomeLider = vinculoLider != null && vinculoLider.getUsuario() != null ? vinculoLider.getUsuario().getNome() : null;
+        Long idLider = vinculoLider != null && vinculoLider.getUsuario() != null ? vinculoLider.getUsuario().getId() : null;
+
+        return new GrupoResponse(
+                grupo.getId(),
+                grupo.getNome(),
+                grupo.isAtivo(),
+                nomeLider,
+                idLider,
+                totalParticipantes
+        );
+    }
+
     private void validarPermissaoAdminCriador(Grupo grupo) {
         String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
         CredenciaisLogin adminLogado = credenciaisLoginService.findByEmail(emailAdminLogado)
                 .orElseThrow(() -> new AccessDeniedException("Administrador não autenticado"));
 
-        boolean isInitialAdmin = adminLogado.getAccessLevel() == AccessLevel.INITIAL_ADMIN;
+        if (adminLogado.getAccessLevel() != AccessLevel.ADMIN) {
+            throw new AccessDeniedException("Apenas o administrador que criou o grupo possui permissão para esta operação");
+        }
+
         boolean isAdminCriador = grupo.getCriador() != null
                 && grupo.getCriador().getEmail().equalsIgnoreCase(emailAdminLogado);
 
-        if (!isInitialAdmin && !isAdminCriador) {
+        if (!isAdminCriador) {
             throw new AccessDeniedException("Apenas o administrador que criou o grupo possui permissão para esta operação");
         }
     }
