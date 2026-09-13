@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: api
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME:admin}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+  flyway:
+    enabled: false
+  mail:
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    default-encoding: UTF-8
+    properties:
+      mail:
+        debug: true
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          ssl:
+            trust: smtp.gmail.com
+
+orbytum:
+  mail:
+    from: ${ORBYTUM_MAIL_FROM:${spring.mail.username}}
+    from-name: ${ORBYTUM_MAIL_FROM_NAME:Orbytum}
+  front-end: ${FRONT_END_URL:http://localhost:3000}
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 86400000
+
+security:
+  password:
+    saltLength: 16
+    hashLength: 32
+    parallelism: 1
+    memory: 16384
+    iterations: 2
+
+logging:
+  level:
+    org.hibernate.orm.results: TRACE
