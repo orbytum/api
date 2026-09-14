@@ -1,4 +1,4 @@
-package com.orbytum.api.fachada;
+package com.orbytum.api.service;
 
 import com.orbytum.api.models.dto.response.MeuGrupoResponse;
 import com.orbytum.api.models.entity.CredenciaisLogin;
@@ -7,13 +7,9 @@ import com.orbytum.api.models.entity.Role;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.enums.AccessLevel;
+import com.orbytum.api.repository.GrupoRepository;
 import com.orbytum.api.repository.GrupoXUsuarioRepository;
 import com.orbytum.api.repository.RoleRepository;
-import com.orbytum.api.service.ConviteService;
-import com.orbytum.api.service.CredenciaisLoginService;
-import com.orbytum.api.service.GrupoService;
-import com.orbytum.api.service.UsuarioService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -29,10 +25,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class GrupoFachadaTest {
+class GrupoServiceTest {
 
     @Mock
-    private GrupoService grupoService;
+    private GrupoRepository grupoRepository;
+
+    @Mock
+    private GrupoXUsuarioService grupoXUsuarioService;
 
     @Mock
     private UsuarioService usuarioService;
@@ -50,10 +49,10 @@ class GrupoFachadaTest {
     private PasswordEncoder passwordEncoder;
 
     @Mock
-    private ConviteService conviteService;
+    private EmailService emailService;
 
     @InjectMocks
-    private GrupoFachada grupoFachada;
+    private GrupoService grupoService;
 
     @Test
     void testListarMeusGruposParaUsuarioComum() {
@@ -72,7 +71,7 @@ class GrupoFachadaTest {
         when(grupoXUsuarioRepository.findAllByUsuarioEmailAndIsAtivoTrueAndGrupoIsAtivoTrue(email))
                 .thenReturn(List.of(vinculo));
 
-        List<MeuGrupoResponse> responses = grupoFachada.listarMeusGrupos(email);
+        List<MeuGrupoResponse> responses = grupoService.listarMeusGrupos(email);
 
         assertEquals(1, responses.size());
         assertEquals(1L, responses.get(0).id());
@@ -90,9 +89,9 @@ class GrupoFachadaTest {
 
         Grupo grupo = new Grupo("Grupo Global", true);
         grupo.setId(2L);
-        when(grupoService.findAllAtivos()).thenReturn(List.of(grupo));
+        when(grupoRepository.findAllByIsAtivoTrue()).thenReturn(List.of(grupo));
 
-        List<MeuGrupoResponse> responses = grupoFachada.listarMeusGrupos(email);
+        List<MeuGrupoResponse> responses = grupoService.listarMeusGrupos(email);
 
         assertEquals(1, responses.size());
         assertEquals(2L, responses.get(0).id());

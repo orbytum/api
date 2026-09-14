@@ -1,6 +1,6 @@
 package com.orbytum.api.controller;
 
-import com.orbytum.api.fachada.ConviteFachada;
+import com.orbytum.api.service.ConviteService;
 import com.orbytum.api.models.dto.request.EnviarConviteRequest;
 import com.orbytum.api.models.dto.request.GerarConviteCadastroRequest;
 import com.orbytum.api.models.dto.request.GerarConviteGrupoRequest;
@@ -9,6 +9,7 @@ import com.orbytum.api.models.dto.response.AuthResponse;
 import com.orbytum.api.models.dto.response.ConviteCadastroDetalheResponse;
 import com.orbytum.api.models.dto.response.ConviteCadastroPaginadoResponse;
 import com.orbytum.api.models.dto.response.ConviteCadastroResponse;
+import com.orbytum.api.models.dto.response.ConviteGrupoDetalheResponse;
 import com.orbytum.api.models.dto.response.ConviteGrupoEnviadoResponse;
 import com.orbytum.api.models.dto.response.ConviteGrupoResponse;
 import java.util.List;
@@ -25,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ConviteController {
 
-    private final ConviteFachada conviteFachada;
+    private final ConviteService conviteService;
 
     @PostMapping
     public ResponseEntity<ConviteGrupoEnviadoResponse> enviarConvite(
@@ -33,7 +34,7 @@ public class ConviteController {
             Authentication authentication
     ) {
         String emailUsuarioLogado = authentication.getName();
-        ConviteGrupoEnviadoResponse response = conviteFachada.enviarConvite(request, emailUsuarioLogado);
+        ConviteGrupoEnviadoResponse response = conviteService.enviarConvite(request, emailUsuarioLogado);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -43,8 +44,16 @@ public class ConviteController {
             Authentication authentication
     ) {
         String emailUsuarioLogado = authentication.getName();
-        ConviteGrupoResponse response = conviteFachada.gerarConviteGrupo(request, emailUsuarioLogado);
+        ConviteGrupoResponse response = conviteService.gerarConviteGrupo(request, emailUsuarioLogado);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping({"/aceitar/grupo/{token}", "/grupo/{token}"})
+    public ResponseEntity<ConviteGrupoDetalheResponse> buscarConviteGrupo(
+            @PathVariable String token
+    ) {
+        ConviteGrupoDetalheResponse response = conviteService.buscarConviteGrupoPorToken(token);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/aceitar/grupo/{token}")
@@ -53,7 +62,7 @@ public class ConviteController {
             Authentication authentication
     ) {
         String emailUsuarioLogado = authentication.getName();
-        ConviteGrupoEnviadoResponse response = conviteFachada.aceitarConviteGrupo(token, emailUsuarioLogado);
+        ConviteGrupoEnviadoResponse response = conviteService.aceitarConviteGrupo(token, emailUsuarioLogado);
         return ResponseEntity.ok(response);
     }
 
@@ -64,7 +73,7 @@ public class ConviteController {
             Authentication authentication
     ) {
         String emailUsuarioLogado = authentication.getName();
-        ConviteCadastroResponse response = conviteFachada.gerarConviteCadastro(request, emailUsuarioLogado);
+        ConviteCadastroResponse response = conviteService.gerarConviteCadastro(request, emailUsuarioLogado);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -78,7 +87,7 @@ public class ConviteController {
             Authentication authentication
     ) {
         String emailUsuarioLogado = authentication.getName();
-        ConviteCadastroPaginadoResponse response = conviteFachada.listarConvitesCadastro(
+        ConviteCadastroPaginadoResponse response = conviteService.listarConvitesCadastro(
                 emailUsuarioLogado,
                 page,
                 size,
@@ -95,7 +104,7 @@ public class ConviteController {
             Authentication authentication
     ) {
         String emailUsuarioLogado = authentication.getName();
-        conviteFachada.revogarConviteCadastro(id, emailUsuarioLogado);
+        conviteService.revogarConviteCadastro(id, emailUsuarioLogado);
         return ResponseEntity.noContent().build();
     }
 
@@ -104,7 +113,7 @@ public class ConviteController {
             @PathVariable String token,
             @RequestBody RegisterRequest request
     ) {
-        AuthResponse response = conviteFachada.aceitarConviteCadastro(token, request);
+        AuthResponse response = conviteService.aceitarConviteCadastro(token, request);
         return ResponseEntity.ok(response);
     }
 }
