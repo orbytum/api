@@ -39,6 +39,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.orbytum.api.models.dto.response.PesquisadorPaginadoResponse;
+
+
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -111,6 +114,10 @@ public class GrupoService {
         Grupo novoGrupo = new Grupo(request.nome(), adminCriador);
         Grupo grupoSalvo = save(novoGrupo);
 
+        // Garante que o Role padrão "Membro" exista no sistema ao criar um grupo
+        roleRepository.findByNomeIgnoreCase("Membro")
+                .orElseGet(() -> roleRepository.save(new Role("Membro", List.of(), false)));
+
         if (usuarioLider != null) {
             if (usuarioLider.getCredenciaisLogin().getAccessLevel() != AccessLevel.USER) {
                 throw new IllegalArgumentException("O usuário informado não pode ser um administrador.");
@@ -118,10 +125,6 @@ public class GrupoService {
 
             Role roleLider = roleRepository.findFirstByIsLiderTrue()
                     .orElseGet(() -> roleRepository.save(new Role("Líder", List.of(), true)));
-
-            if (!grupoXUsuarioRepository.existsByGrupoAndUsuario(grupoSalvo, usuarioLider)) {
-                grupoXUsuarioRepository.save(new GrupoXUsuario(grupoSalvo, usuarioLider, roleLider, true));
-            }
 
             String token = UUID.randomUUID().toString();
             String url = "/convites/aceitar/grupo/" + token;
@@ -133,7 +136,7 @@ public class GrupoService {
                     token,
                     roleLider,
                     List.of(),
-                    LocalDateTime.now()
+                    LocalDateTime.now().plusDays(31)
             );
 
             conviteGrupoRepository.save(convite);
@@ -142,7 +145,7 @@ public class GrupoService {
             String templateName = "convite-grupo-template";
             Map<String, Object> variaveis = Map.of(
                     "nomeGrupo", grupoSalvo.getNome(),
-                    "loginUrl", "http://localhost:8080" + url
+                    "loginUrl", "http://localhost:5173" + url
             );
 
             EmailRequest emailReq = EmailRequest.comTemplate(request.emailLider(), assunto, templateName, variaveis);
@@ -293,19 +296,31 @@ public class GrupoService {
 
         validarPermissaoAdminCriador(grupo);
 
+        List<ConviteGrupo> convites = conviteGrupoRepository.findByGrupo(grupo);
+        if(!convites.isEmpty()) {
+            for(ConviteGrupo c : convites) {
+                c.setAtivo(false);
+            }
+            conviteGrupoRepository.saveAll(convites);
+        }
+
         grupo.setAtivo(false);
         save(grupo);
     }
 
-    public List<PesquisadorResponse> listarPesquisadores(Long grupoId) {
+    public PesquisadorPaginadoResponse listarPesquisadores(Long grupoId, int page, int size, String nome) {
         Grupo grupo = findById(grupoId)
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + grupoId));
 
-        validarPermissaoAdminCriador(grupo);
+        int pageIndex = Math.max(0, page - 1);
+        int pageSize = size > 0 ? size : 10;
+        Pageable pageable = PageRequest.of(pageIndex, pageSize);
 
-        List<GrupoXUsuario> vinculos = grupoXUsuarioRepository.findAllByGrupoIdAndIsAtivoTrue(grupoId);
+        String normalizedNome = (nome != null && !nome.isBlank()) ? nome.trim() : null;
 
-        return vinculos.stream()
+        Page<GrupoXUsuario> pageResult = grupoXUsuarioRepository.filtrarPesquisadores(grupoId, normalizedNome, pageable);
+
+        List<PesquisadorResponse> items = pageResult.getContent().stream()
                 .map(v -> new PesquisadorResponse(
                         v.getUsuario().getId(),
                         v.getUsuario().getNome(),
@@ -317,6 +332,14 @@ public class GrupoService {
                         v.getRole() != null && v.getRole().isLider()
                 ))
                 .toList();
+
+        return new PesquisadorPaginadoResponse(
+                items,
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages(),
+                page,
+                pageSize
+        );
     }
 
     @Transactional
