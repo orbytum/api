@@ -28,4 +28,15 @@ public interface GrupoXUsuarioRepository extends JpaRepository<GrupoXUsuario, UU
     boolean existsByGrupoIdAndUsuarioEmailAndIsAtivoTrue(Long grupoId, String email);
 
     List<GrupoXUsuario> findAllByGrupoIdAndIsAtivoTrue(Long grupoId);
+
+    @Query("""
+        SELECT gxu FROM GrupoXUsuario gxu
+        JOIN FETCH gxu.grupo g
+        LEFT JOIN FETCH gxu.role r
+        WHERE gxu.usuario.email = :email
+          AND gxu.isAtivo = true
+          AND g.isAtivo = true
+        ORDER BY g.nome ASC
+    """)
+    List<GrupoXUsuario> findAllByUsuarioEmailAndIsAtivoTrueAndGrupoIsAtivoTrue(@Param("email") String email);
 }
