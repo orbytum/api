@@ -54,3 +54,4 @@ security:
 logging:
   level:
     org.hibernate.orm.results: TRACE
+    org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG

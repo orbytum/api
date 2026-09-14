@@ -50,9 +50,9 @@ public class ProjetoController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping
-    public ResponseEntity<List<ProjetoResponse>> listarProjetos() {
-        List<ProjetoResponse> projetos = projetoFachada.listarProjetos();
+    @GetMapping("/{grupoId}")
+    public ResponseEntity<List<ProjetoResponse>> listarProjetos(@PathVariable Long grupoId) {
+        List<ProjetoResponse> projetos = projetoFachada.listarProjetosPorGrupo(grupoId);
         return ResponseEntity.ok(projetos);
     }
 

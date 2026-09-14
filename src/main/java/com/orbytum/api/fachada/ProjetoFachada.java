@@ -55,12 +55,11 @@ public class ProjetoFachada {
         Projeto projeto = projetoService.findById(id)
                 .orElseThrow(() -> new ProjetoNaoEncontradoErro("Projeto não encontrado com ID: " + id));
 
-        projeto.setAtivo(false);
-        projetoService.save(projeto);
+        projetoService.delete(projeto);
     }
 
-    public List<ProjetoResponse> listarProjetos() {
-        return projetoService.findAllAtivos()
+    public List<ProjetoResponse> listarProjetosPorGrupo(Long grupoId) {
+        return projetoService.findAllAtivosByGrupoId(grupoId)
                 .stream()
                 .map(this::toResponse)
                 .toList();

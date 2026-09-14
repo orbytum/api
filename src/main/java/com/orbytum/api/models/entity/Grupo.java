@@ -1,17 +1,13 @@
 package com.orbytum.api.models.entity;
 
 import jakarta.annotation.Nonnull;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.List;
 
 @Entity
 @Getter
@@ -31,9 +27,12 @@ public class Grupo {
     private boolean isAtivo;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "criadorId")
+    @JoinColumn(name = "criador_id")
     @Getter
     private Usuario criador;
+
+    @OneToMany(mappedBy = "grupo", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Projeto> projetos;
 
     public Grupo(String nome, Usuario criador) {
         this.nome = nome;
