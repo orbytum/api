@@ -18,21 +18,33 @@ public class CorsConfiguration implements WebMvcConfigurer {
     @Value("${orbytum.front-end:http://localhost:3000}")
     private String url;
 
+    private static final List<String> DEFAULT_ORIGINS = Arrays.asList(
+            "http://localhost:*",
+            "http://127.0.0.1:*",
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "https://orbytum.vercel.app",
+            "https://www.orbytum.vercel.app"
+    );
+
+    private List<String> allowedOrigins() {
+        List<String> origins = new ArrayList<>(DEFAULT_ORIGINS);
+        if (url != null && !url.isBlank()) {
+            for (String raw : url.split(",")) {
+                String normalized = raw.trim().replaceAll("/+$", "");
+                if (!normalized.isBlank() && !origins.contains(normalized)) {
+                    origins.add(normalized);
+                }
+            }
+        }
+        return origins;
+    }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
 
-        List<String> origins = new ArrayList<>(Arrays.asList(
-                "http://localhost:*",
-                "http://127.0.0.1:*",
-                "http://localhost:3000",
-                "http://localhost:5173"
-        ));
-        if (url != null && !url.isBlank() && !origins.contains(url)) {
-            origins.add(url);
-        }
-
-        configuration.setAllowedOriginPatterns(origins);
+        configuration.setAllowedOriginPatterns(allowedOrigins());
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
@@ -47,7 +59,7 @@ public class CorsConfiguration implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*", url)
+                .allowedOriginPatterns(allowedOrigins().toArray(String[]::new))
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                 .allowedHeaders("*")
                 .exposedHeaders("Authorization", "Content-Type")
