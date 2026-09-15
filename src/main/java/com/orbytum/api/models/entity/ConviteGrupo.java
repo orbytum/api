@@ -61,8 +61,9 @@ public class ConviteGrupo {
     @Nonnull
     private boolean isAtivo;
 
-    public ConviteGrupo(Grupo grupo, Usuario usuarioConvidado, Usuario usuarioRemetente, List<Projeto> projetos, LocalDateTime dthExpiracao) {
+    public ConviteGrupo(Grupo grupo, Usuario usuarioConvidado, Usuario usuarioRemetente, List<Projeto> projetos, LocalDateTime dthExpiracao, String token) {
         this.grupo = grupo;
+        this.token = token;
         this.usuarioConvidado = usuarioConvidado;
         this.usuarioRemetente = usuarioRemetente;
         this.projetos = projetos;
