@@ -35,9 +35,6 @@ public class GrupoPaginacaoIntegrationTest {
     private GrupoService grupoService;
 
     @Autowired
-    private com.orbytum.api.fachada.GrupoFachada grupoFachada;
-
-    @Autowired
     private GrupoRepository grupoRepository;
 
     @Autowired
@@ -95,7 +92,7 @@ public class GrupoPaginacaoIntegrationTest {
         );
 
         assertThrows(AccessDeniedException.class, () -> {
-            grupoFachada.listarGrupos(1, 10, null, null);
+            grupoService.listarGrupos(1, 10, null, null);
         });
     }
 
@@ -108,7 +105,7 @@ public class GrupoPaginacaoIntegrationTest {
         CreateGroupRequest request = new CreateGroupRequest("Grupo Teste Sem Lider", "naoexistente@empresa.com");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
-            grupoFachada.criarGrupo(request);
+            grupoService.criarGrupo(request);
         });
 
         assertTrue(ex.getMessage().contains("Não foi encontrado nenhum usuário cadastrado no sistema"));
@@ -123,7 +120,7 @@ public class GrupoPaginacaoIntegrationTest {
         Usuario liderExistente = usuarioRepository.save(new Usuario("Líder Cadastrado", "lider.existente@empresa.com", "11988889999", "Prof"));
 
         CreateGroupRequest request = new CreateGroupRequest("Grupo Teste Com Lider", liderExistente.getEmail());
-        GrupoResponse response = grupoFachada.criarGrupo(request);
+        GrupoResponse response = grupoService.criarGrupo(request);
 
         assertNotNull(response);
         assertEquals("Grupo Teste Com Lider", response.nome());

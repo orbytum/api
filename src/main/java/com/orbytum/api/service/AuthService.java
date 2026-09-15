@@ -1,22 +1,15 @@
-package com.orbytum.api.fachada;
+package com.orbytum.api.service;
 
 import com.orbytum.api.models.dto.request.LoginRequest;
 import com.orbytum.api.models.dto.request.RegisterAdminRequest;
-import com.orbytum.api.models.dto.request.RegisterRequest;
 import com.orbytum.api.models.dto.response.AuthResponse;
-import com.orbytum.api.models.entity.ConviteCadastro;
 import com.orbytum.api.models.entity.CredenciaisLogin;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.enums.Permissao;
 import com.orbytum.api.models.exceptions.ContaDesativadaErro;
-import com.orbytum.api.models.exceptions.ConviteInvalidoOuExpiradoErro;
 import com.orbytum.api.models.exceptions.CrenciaisInvalidas;
 import com.orbytum.api.models.exceptions.EmailJaCadastradoErro;
-import com.orbytum.api.service.ConviteService;
-import com.orbytum.api.service.CredenciaisLoginService;
-import com.orbytum.api.service.GrupoXUsuarioService;
-import com.orbytum.api.service.UsuarioService;
 import com.orbytum.api.util.JwtUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -26,20 +19,19 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-@Component
+@Service
 @RequiredArgsConstructor
-public class AuthFachada {
+public class AuthService {
 
-    private static final Logger logger = LoggerFactory.getLogger(AuthFachada.class);
+    private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
 
     private final CredenciaisLoginService credenciaisLoginService;
-    private final ConviteService conviteService;
     private final UsuarioService usuarioService;
     private final GrupoXUsuarioService grupoXUsuarioService;
     private final PasswordEncoder passwordEncoder;

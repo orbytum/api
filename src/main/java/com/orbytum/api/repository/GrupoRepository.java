@@ -16,7 +16,7 @@ import com.orbytum.api.models.entity.Usuario;
 @Repository
 public interface GrupoRepository extends JpaRepository<Grupo, Long> {
     
-    boolean existsByNome(String nome);
+    boolean existsByNomeAndIsAtivoTrue(String nome);
 
     Optional<Grupo> findByNome(String nome);
 
