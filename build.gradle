@@ -19,6 +19,7 @@ repositories {
 
 ext {
 	set('springModulithVersion', "2.1.0")
+	set('awsSdkVersion', "2.30.30")
 }
 
 dependencies {
@@ -56,6 +57,9 @@ dependencies {
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 
+	// AWS S3
+	implementation 'software.amazon.awssdk:s3'
+
 	// Testes
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
@@ -71,6 +75,7 @@ dependencies {
 dependencyManagement {
 	imports {
 		mavenBom "org.springframework.modulith:spring-modulith-bom:${springModulithVersion}"
+		mavenBom "software.amazon.awssdk:bom:${awsSdkVersion}"
 	}
 }
 
