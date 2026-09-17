@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -27,8 +28,9 @@ public class MaterialEmprestimoSolicitacao {
     private Projeto projeto;
 
     @Nonnull
-    @OneToMany
-    private List<MaterialEmprestimoSolicitacaoItem> items;
+    @OneToMany(cascade = CascadeType.ALL)
+    @Builder.Default
+    private List<MaterialEmprestimoSolicitacaoItem> items = new ArrayList<>();
 
     @Nonnull
     private String justificativa;
