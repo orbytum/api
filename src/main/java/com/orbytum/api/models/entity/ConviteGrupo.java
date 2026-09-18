@@ -86,6 +86,19 @@ public class ConviteGrupo {
         this.isAtivo = true;
     }
 
+    public ConviteGrupo(Grupo grupo, Usuario usuarioConvidado, Usuario usuarioRemetente, String token, Role role, List<Projeto> projetos, LocalDateTime dthExpiracao) {
+        this.grupo = grupo;
+        this.token = token;
+        this.role = role;
+        this.usuarioConvidado = usuarioConvidado;
+        this.usuarioRemetente = usuarioRemetente;
+        this.projetos = projetos;
+        this.dthRegistro = LocalDateTime.now();
+        this.dthExpiracao = dthExpiracao;
+        this.usos = 0;
+        this.isAtivo = true;
+    }
+
     public ConviteGrupo(Grupo grupo, Usuario usuarioRemetente, String token, List<Projeto> projetos, LocalDateTime dthExpiracao) {
         this(grupo, usuarioRemetente, token, projetos, dthExpiracao, null, null);
     }

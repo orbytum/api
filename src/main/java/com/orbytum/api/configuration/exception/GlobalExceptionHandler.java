@@ -64,6 +64,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(erro);
     }
 
+    @ExceptionHandler(com.orbytum.api.models.exceptions.S3StorageException.class)
+    public ResponseEntity<ErroResponse> handleS3StorageException(com.orbytum.api.models.exceptions.S3StorageException ex) {
+        ErroResponse erro = new ErroResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Falha na operação com o armazenamento de arquivos (S3): " + ex.getMessage(),
+                System.currentTimeMillis()
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(erro);
+    }
+
     @ExceptionHandler({SemPermissaoConvidarErro.class, IngressoRestritoErro.class})
     public ResponseEntity<ErroResponse> handleForbidden(RuntimeException ex) {
         ErroResponse erro = new ErroResponse(
@@ -94,7 +104,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(erro);
     }
 
-    @ExceptionHandler({UsuarioNaoEncontradoErro.class, GrupoNaoEncontradoErro.class, ProjetoNaoEncontradoErro.class})
+    @ExceptionHandler({UsuarioNaoEncontradoErro.class, GrupoNaoEncontradoErro.class, ProjetoNaoEncontradoErro.class, PublicacaoNaoEncontradaErro.class})
     public ResponseEntity<ErroResponse> handleNaoEncontrado(RuntimeException ex) {
         ErroResponse erro = new ErroResponse(
                 HttpStatus.NOT_FOUND.value(),

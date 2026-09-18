@@ -39,6 +39,13 @@ orbytum:
     from: ${ORBYTUM_MAIL_FROM:${spring.mail.username}}
     from-name: ${ORBYTUM_MAIL_FROM_NAME:Orbytum}
   front-end: ${FRONT_END_URL:http://localhost:3000}
+
+aws:
+  s3:
+    region: ${AWS_REGION:sa-east-1}
+    bucket-name: ${AWS_S3_BUCKET_NAME:}
+    access-key-id: ${AWS_ACCESS_KEY_ID:}
+    secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
 jwt:
   secret: ${JWT_SECRET}
   expiration: 86400000
