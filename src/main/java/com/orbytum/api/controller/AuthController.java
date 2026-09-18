@@ -1,9 +1,8 @@
 package com.orbytum.api.controller;
 
-import com.orbytum.api.fachada.AuthFachada;
+import com.orbytum.api.service.AuthService;
 import com.orbytum.api.models.dto.request.LoginRequest;
 import com.orbytum.api.models.dto.request.RegisterAdminRequest;
-import com.orbytum.api.models.dto.request.RegisterRequest;
 import com.orbytum.api.models.dto.response.AuthResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,11 +18,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final AuthFachada authFachada;
+    private final AuthService authService;
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authFachada.login(request));
+        return ResponseEntity.ok(authService.login(request));
     }
 
     @PostMapping("/register-admin")
@@ -32,6 +31,6 @@ public class AuthController {
             Authentication authentication
     ) {
         String emailUsuarioLogado = authentication != null ? authentication.getName() : null;
-        return ResponseEntity.ok(authFachada.registerAdmin(request, emailUsuarioLogado));
+        return ResponseEntity.ok(authService.registerAdmin(request, emailUsuarioLogado));
     }
 }

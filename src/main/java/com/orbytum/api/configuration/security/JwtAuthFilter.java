@@ -9,13 +9,19 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -42,11 +48,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             CredenciaisLogin credenciais = credenciaisLoginRepository.findByEmail(email).orElse(null);
 
             if (credenciais != null && credenciais.isAtivo()) {
-                java.util.List<org.springframework.security.core.GrantedAuthority> authorities = credenciais.getAccessLevel() != null
-                        ? java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority(credenciais.getAccessLevel().name()))
-                        : java.util.Collections.emptyList();
+                List<GrantedAuthority> authorities = new ArrayList<>();
+                if (credenciais.getAccessLevel() != null) {
+                    authorities.add(new SimpleGrantedAuthority(credenciais.getAccessLevel().name()));
+                    authorities.add(new SimpleGrantedAuthority(credenciais.getAccessLevel().getKey()));
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + credenciais.getAccessLevel().name()));
+                }
 
-                UserDetails userDetails = new org.springframework.security.core.userdetails.User(
+                UserDetails userDetails = new User(
                         credenciais.getEmail(),
                         credenciais.getSenha(),
                         authorities

@@ -13,6 +13,9 @@ import java.util.Optional;
 import java.util.UUID;
 import com.orbytum.api.models.entity.Grupo;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 @Repository
 public interface GrupoXUsuarioRepository extends JpaRepository<GrupoXUsuario, UUID> {
 
@@ -26,4 +29,32 @@ public interface GrupoXUsuarioRepository extends JpaRepository<GrupoXUsuario, UU
     boolean existsByGrupoIdAndUsuarioIdAndIsAtivoTrue(Long grupoId, Long usuarioId);
 
     boolean existsByGrupoIdAndUsuarioEmailAndIsAtivoTrue(Long grupoId, String email);
+
+    List<GrupoXUsuario> findAllByGrupoIdAndIsAtivoTrue(Long grupoId);
+
+    @Query("""
+        SELECT gxu FROM GrupoXUsuario gxu
+        JOIN gxu.usuario u
+        WHERE gxu.grupo.id = :grupoId
+          AND gxu.isAtivo = true
+          AND (CAST(:nome AS string) IS NULL OR CAST(:nome AS string) = '' OR LOWER(u.nome) LIKE LOWER(CONCAT('%', CAST(:nome AS string), '%')))
+        ORDER BY u.nome ASC
+    """)
+    Page<GrupoXUsuario> filtrarPesquisadores(
+            @Param("grupoId") Long grupoId,
+            @Param("nome") String nome,
+            Pageable pageable
+    );
+
+    @Query("""
+        SELECT gxu FROM GrupoXUsuario gxu
+        JOIN FETCH gxu.grupo g
+        LEFT JOIN FETCH gxu.role r
+        WHERE gxu.usuario.email = :email
+          AND gxu.isAtivo = true
+          AND g.isAtivo = true
+        ORDER BY g.nome ASC
+    """)
+    List<GrupoXUsuario> findAllByUsuarioEmailAndIsAtivoTrueAndGrupoIsAtivoTrue(@Param("email") String email);
 }
+

@@ -1,13 +1,20 @@
 package com.orbytum.api.service;
 
 import com.orbytum.api.models.dto.request.EmailRequest;
+import com.orbytum.api.models.dto.request.EnviarConviteRequest;
 import com.orbytum.api.models.dto.request.GerarConviteCadastroRequest;
 import com.orbytum.api.models.dto.request.GerarConviteGrupoRequest;
 import com.orbytum.api.models.dto.request.RegisterRequest;
 import com.orbytum.api.models.dto.response.AuthResponse;
+import com.orbytum.api.models.dto.response.ConviteCadastroDetalheResponse;
+import com.orbytum.api.models.dto.response.ConviteCadastroPaginadoResponse;
 import com.orbytum.api.models.dto.response.ConviteCadastroResponse;
+import com.orbytum.api.models.dto.response.ConviteGrupoDetalheResponse;
 import com.orbytum.api.models.dto.response.ConviteGrupoEnviadoResponse;
 import com.orbytum.api.models.dto.response.ConviteGrupoResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import com.orbytum.api.models.entity.*;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.enums.AccessLevel;
@@ -19,6 +26,7 @@ import com.orbytum.api.repository.RoleRepository;
 import com.orbytum.api.util.JwtUtil;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +38,7 @@ import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class ConviteService {
 
     private final ConviteGrupoRepository conviteGrupoRepository;
@@ -46,7 +55,7 @@ public class ConviteService {
     private final JwtUtil jwtUtil;
 
     @Transactional
-    public ConviteGrupoEnviadoResponse enviarConviteGrupo(Usuario remetente, Long grupoId, String emailConvidado, List<Long> projetoIds) {
+    public ConviteGrupoEnviadoResponse enviarConviteGrupo(Usuario remetente, Long grupoId, String emailConvidado, List<Long> projetoIds, Integer diasValidade, Long idRole) {
         Grupo grupo = grupoService.findById(grupoId)
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo não encontrado com ID: " + grupoId));
 
@@ -61,13 +70,42 @@ public class ConviteService {
 
         List<Projeto> projetos = validarProjetos(grupoId, projetoIds);
 
-        LocalDateTime dthExpiracao = LocalDateTime.now().plusDays(7);
-        ConviteGrupo conviteGrupo = new ConviteGrupo(grupo, convidado, remetente, projetos, dthExpiracao);
+        Role role = null;
+        if (idRole != null) {
+            role = roleRepository.findById(idRole)
+                    .orElseThrow(() -> new IllegalArgumentException("Cargo não encontrado com ID: " + idRole));
+        } else {
+            role = roleRepository.findByNomeIgnoreCase("Membro")
+                    .orElseGet(() -> roleRepository.save(new Role("Membro", List.of(), false)));
+        }
+
+        String token = UUID.randomUUID().toString();
+        int dias = (diasValidade != null && diasValidade > 0) ? diasValidade : 7;
+        LocalDateTime dthExpiracao = LocalDateTime.now().plusDays(dias);
+        ConviteGrupo conviteGrupo = new ConviteGrupo(grupo, convidado, remetente, token, role, projetos, dthExpiracao);
+        conviteGrupo.setLimiteUso(1);
         conviteGrupo = conviteGrupoRepository.save(conviteGrupo);
 
         List<Long> idsProjetosSalvos = conviteGrupo.getProjetos() != null
                 ? conviteGrupo.getProjetos().stream().map(Projeto::getId).collect(Collectors.toList())
                 : List.of();
+
+        String urlConvite = "/convites/aceitar/grupo/" + token;
+
+        String assunto = "Você foi convidado para se juntar a um grupo de pesquisa";
+        String templateName = "convite-grupo-template";
+        Map<String, Object> variaveis = Map.of(
+                "nomeGrupo", grupo.getNome(),
+                "loginUrl", "http://localhost:5173" + urlConvite
+        );
+
+        EmailRequest emailReq = EmailRequest.comTemplate(emailConvidado, assunto, templateName, variaveis);
+
+        try {
+            emailService.sendEmail(emailReq);
+        } catch (Exception e) {
+            log.warn("Não foi possível enviar o e-mail de convite para {}: {}", emailConvidado, e.getMessage());
+        }
 
         return new ConviteGrupoEnviadoResponse(
                 conviteGrupo.getId(),
@@ -94,9 +132,15 @@ public class ConviteService {
         if (request.idRole() != null) {
             role = roleRepository.findById(request.idRole())
                     .orElseThrow(() -> new IllegalArgumentException("Cargo não encontrado com ID: " + request.idRole()));
+        } else {
+            role = roleRepository.findByNomeIgnoreCase("Membro")
+                    .orElseGet(() -> roleRepository.save(new Role("Membro", List.of(), false)));
         }
 
         Integer limiteUso = request.limiteUso();
+        if (limiteUso == null || limiteUso <= 0) {
+            limiteUso = 5;
+        }
         if (role != null && isLiderRole(role)) {
             limiteUso = 1;
         }
@@ -134,18 +178,30 @@ public class ConviteService {
     @Transactional
     public ConviteCadastroResponse gerarConviteCadastro(Usuario remetente, GerarConviteCadastroRequest request) {
 
-        if(remetente.getCredenciaisLogin().getAccessLevel() != AccessLevel.ADMIN) {
+        AccessLevel accessLevel = credenciaisLoginService.findByEmail(remetente.getEmail())
+                .map(CredenciaisLogin::getAccessLevel)
+                .orElseGet(() -> remetente.getCredenciaisLogin() != null
+                        ? remetente.getCredenciaisLogin().getAccessLevel()
+                        : null);
+
+        if (accessLevel != AccessLevel.ADMIN) {
             throw new SemPermissaoConvidarErro("Você não tem permissão para enviar convites de cadastro.");
+        }
+
+        var conviteExistente = conviteCadastroRepository.findByEmailAndIsAtivoTrue(request.email());
+        if(conviteExistente.isPresent()) {
+            throw new ConviteJaEnviadoErro("Esse email já possui um convite pendente ativo.");
         }
 
         LocalDateTime now = LocalDateTime.now();
         String token = UUID.randomUUID().toString();
+        int dias = (request.diasValidade() != null && request.diasValidade() > 0) ? request.diasValidade() : 7;
 
         ConviteCadastro convite = new ConviteCadastro(
                 null,
                 token,
                 request.email(),
-                now.plusDays(request.diasValidade()),
+                now.plusDays(dias),
                 now,
                 true
         );
@@ -155,15 +211,19 @@ public class ConviteService {
         String url = "/convites/aceitar/cadastro/" + token;
 
         String assunto = "Você foi convidado para se juntar ao Orbytum";
-        String templateName = "convite-template";
+        String templateName = "convite-cadastro-template";
         Map<String, Object> variaveis = Map.of(
                 "nomeOrganizacao", "Orbytum",
-                "loginUrl", "http://localhost:8080" + url
+                "loginUrl", "http://localhost:5173" + url
         );
 
         EmailRequest emailReq = EmailRequest.comTemplate(request.email(), assunto, templateName, variaveis);
 
-        emailService.sendEmail(emailReq);
+        try {
+            emailService.sendEmail(emailReq);
+        } catch (Exception e) {
+            log.warn("Não foi possível enviar o e-mail de convite para {}: {}", request.email(), e.getMessage());
+        }
 
         return new ConviteCadastroResponse(
                 convite.getId(),
@@ -171,6 +231,85 @@ public class ConviteService {
                 url,
                 convite.getDthExpiracao()
         );
+    }
+
+    public ConviteCadastroPaginadoResponse listarConvitesCadastro(
+            Usuario solicitante,
+            int page,
+            int size,
+            String email,
+            String status
+    ) {
+        AccessLevel accessLevel = credenciaisLoginService.findByEmail(solicitante.getEmail())
+                .map(CredenciaisLogin::getAccessLevel)
+                .orElseGet(() -> solicitante.getCredenciaisLogin() != null
+                        ? solicitante.getCredenciaisLogin().getAccessLevel()
+                        : null);
+
+        if (accessLevel != AccessLevel.ADMIN) {
+            throw new SemPermissaoConvidarErro("Você não tem permissão para visualizar convites de cadastro.");
+        }
+
+        int pageIndex = Math.max(0, page - 1);
+        int pageSize = size > 0 ? size : 5;
+        Pageable pageable = PageRequest.of(pageIndex, pageSize);
+
+        String normalizedStatus = (status != null && !status.isBlank()) ? status.trim().toLowerCase() : "ativos";
+        String normalizedEmail = (email != null && !email.isBlank()) ? email.trim() : null;
+
+        LocalDateTime now = LocalDateTime.now();
+        Page<ConviteCadastro> pageResult = conviteCadastroRepository.filtrarConvites(
+                normalizedEmail,
+                normalizedStatus,
+                now,
+                pageable
+        );
+
+        List<ConviteCadastroDetalheResponse> items = pageResult.getContent().stream()
+                .map(c -> new ConviteCadastroDetalheResponse(
+                        c.getId(),
+                        c.getEmail(),
+                        c.getToken(),
+                        "/convites/aceitar/cadastro/" + c.getToken(),
+                        c.getDthRegistro(),
+                        c.getDthExpiracao(),
+                        c.isAtivo() && c.getDthExpiracao().isAfter(now)
+                ))
+                .collect(Collectors.toList());
+
+        long totalAtivos = conviteCadastroRepository.countAtivos(now);
+        long totalInativos = conviteCadastroRepository.countInativos(now);
+        long totalGeral = conviteCadastroRepository.count();
+
+        return new ConviteCadastroPaginadoResponse(
+                items,
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages(),
+                page,
+                pageSize,
+                totalAtivos,
+                totalInativos,
+                totalGeral
+        );
+    }
+
+    @Transactional
+    public void revogarConviteCadastro(Long id, Usuario solicitante) {
+        AccessLevel accessLevel = credenciaisLoginService.findByEmail(solicitante.getEmail())
+                .map(CredenciaisLogin::getAccessLevel)
+                .orElseGet(() -> solicitante.getCredenciaisLogin() != null
+                        ? solicitante.getCredenciaisLogin().getAccessLevel()
+                        : null);
+
+        if (accessLevel != AccessLevel.ADMIN && accessLevel != AccessLevel.INITIAL_ADMIN) {
+            throw new SemPermissaoConvidarErro("Você não tem permissão para revogar convites de cadastro.");
+        }
+
+        ConviteCadastro convite = conviteCadastroRepository.findById(id)
+                .orElseThrow(() -> new ConviteInvalidoOuExpiradoErro("Convite não encontrado."));
+
+        convite.setAtivo(false);
+        conviteCadastroRepository.save(convite);
     }
 
     @Transactional
@@ -253,6 +392,10 @@ public class ConviteService {
                 usuario,
                 null
         );
+
+        c.setAtivo(false);
+
+        conviteCadastroRepository.save(c);
         credenciaisLoginService.save(credenciais);
 
         UserDetails userDetails = User.builder()
@@ -305,5 +448,82 @@ public class ConviteService {
             return false;
         }
         return role.isLider();
+    }
+
+    public ConviteGrupoEnviadoResponse enviarConvite(EnviarConviteRequest request, String emailLogado) {
+        Usuario remetente = usuarioService.findByEmail(emailLogado)
+                .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário autenticado não encontrado"));
+        return enviarConviteGrupo(
+                remetente,
+                request.idGrupo(),
+                request.email(),
+                request.idsProjeto(),
+                request.diasValidade(),
+                request.idRole()
+        );
+    }
+
+    public ConviteGrupoResponse gerarConviteGrupo(GerarConviteGrupoRequest request, String emailLogado) {
+        Usuario remetente = usuarioService.findByEmail(emailLogado)
+                .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário autenticado não encontrado"));
+        return gerarConviteGrupo(remetente, request);
+    }
+
+    public ConviteCadastroResponse gerarConviteCadastro(GerarConviteCadastroRequest request, String emailLogado) {
+        Usuario remetente = usuarioService.findByEmail(emailLogado)
+                .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário autenticado não encontrado"));
+        return gerarConviteCadastro(remetente, request);
+    }
+
+    public ConviteGrupoEnviadoResponse aceitarConviteGrupo(String token, String emailLogado) {
+        Usuario user = usuarioService.findByEmail(emailLogado)
+                .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário autenticado não encontrado"));
+        return aceitarConviteGrupo(token, user);
+    }
+
+    public ConviteCadastroPaginadoResponse listarConvitesCadastro(
+            String emailLogado,
+            int page,
+            int size,
+            String email,
+            String status
+    ) {
+        Usuario solicitante = usuarioService.findByEmail(emailLogado)
+                .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário autenticado não encontrado"));
+        return listarConvitesCadastro(solicitante, page, size, email, status);
+    }
+
+    public void revogarConviteCadastro(Long id, String emailLogado) {
+        Usuario solicitante = usuarioService.findByEmail(emailLogado)
+                .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário autenticado não encontrado"));
+        revogarConviteCadastro(id, solicitante);
+    }
+
+    public ConviteGrupoDetalheResponse buscarConviteGrupoPorToken(String token) {
+        ConviteGrupo conviteGrupo = conviteGrupoRepository.findByTokenAndIsAtivoTrue(token)
+                .orElseThrow(() -> new ConviteInvalidoOuExpiradoErro("Convite por link inválido ou inativo"));
+
+        if (conviteGrupo.getDthExpiracao().isBefore(LocalDateTime.now())) {
+            throw new ConviteInvalidoOuExpiradoErro("Este convite por link já expirou");
+        }
+
+        if (conviteGrupo.getLimiteUso() != null && conviteGrupo.getLimiteUso() > 0 && conviteGrupo.getUsos() != null && conviteGrupo.getUsos() >= conviteGrupo.getLimiteUso()) {
+            throw new ConviteInvalidoOuExpiradoErro("Este convite por link já atingiu o limite de usos");
+        }
+
+        Grupo grupo = conviteGrupo.getGrupo();
+        Role role = conviteGrupo.getRole();
+        Usuario remetente = conviteGrupo.getUsuarioRemetente();
+
+        return new ConviteGrupoDetalheResponse(
+                conviteGrupo.getId(),
+                conviteGrupo.getToken(),
+                grupo != null ? grupo.getId() : null,
+                grupo != null ? grupo.getNome() : null,
+                remetente != null ? remetente.getNome() : null,
+                role != null ? role.getNome() : "Membro",
+                conviteGrupo.getDthExpiracao(),
+                conviteGrupo.isAtivo()
+        );
     }
 }
