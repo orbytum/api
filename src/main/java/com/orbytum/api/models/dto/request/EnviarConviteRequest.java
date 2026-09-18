@@ -14,5 +14,9 @@ public record EnviarConviteRequest(
         @Email(message = "E-mail em formato inválido")
         String email,
 
-        List<Long> idsProjeto
+        List<Long> idsProjeto,
+
+        Integer diasValidade,
+
+        Long idRole
 ) {}

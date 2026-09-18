@@ -104,7 +104,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(erro);
     }
 
-    @ExceptionHandler({UsuarioNaoEncontradoErro.class, GrupoNaoEncontradoErro.class, ProjetoNaoEncontradoErro.class})
+    @ExceptionHandler({UsuarioNaoEncontradoErro.class, GrupoNaoEncontradoErro.class, ProjetoNaoEncontradoErro.class, PublicacaoNaoEncontradaErro.class})
     public ResponseEntity<ErroResponse> handleNaoEncontrado(RuntimeException ex) {
         ErroResponse erro = new ErroResponse(
                 HttpStatus.NOT_FOUND.value(),
