@@ -2,8 +2,16 @@ package com.orbytum.api.models.entity;
 
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
+import lombok.*;
+
+import java.math.BigDecimal;
 
 @Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class MaterialEmprestimoSolicitacaoItem {
 
     @Id
@@ -11,10 +19,10 @@ public class MaterialEmprestimoSolicitacaoItem {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @Nonnull
     private Material material;
 
-    @Nonnull
     private Integer quantidade;
+
+    private BigDecimal valor;
 
 }
