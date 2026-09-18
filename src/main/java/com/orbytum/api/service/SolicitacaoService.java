@@ -20,10 +20,18 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class SolicitacaoService {
+
+    private static final Set<String> TIPOS_VALIDOS = Set.of(
+            "uso_material",
+            "financiamento",
+            "compra_material_catalogado",
+            "compra_material"
+    );
 
     private final SolicitacaoRepository solicitacaoRepository;
     private final ProjetoRepository projetoRepository;
@@ -33,6 +41,7 @@ public class SolicitacaoService {
 
     @Transactional
     public SolicitacaoResponse criar(CriarSolicitacaoRequest request, String emailLogado) {
+        validarTipo(request.tipo());
         Usuario usuario = buscarUsuario(emailLogado);
         Projeto projeto = buscarProjeto(request.projetoId());
 
@@ -134,6 +143,12 @@ public class SolicitacaoService {
             if (vinculo.getRole() == null || !vinculo.getRole().isLider()) {
                 throw new AccessDeniedException("Apenas o autor ou o líder do grupo podem realizar esta ação");
             }
+        }
+    }
+
+    private void validarTipo(String tipo) {
+        if (tipo == null || !TIPOS_VALIDOS.contains(tipo.trim().toLowerCase())) {
+            throw new IllegalArgumentException("Tipo de solicitação inválido. Os tipos permitidos são: uso de material, financiamento ou compra de material catalogado");
         }
     }
 
