@@ -5,7 +5,12 @@ import lombok.Getter;
 
 @AllArgsConstructor
 public enum ProjetoStatus {
-    EM_ANDAMENTO(1), CONCLUIDO(2);
+
+    PLANEJADO(1),
+    EM_ANDAMENTO(2),
+    CONCLUIDO(3),
+    ENCERRADO(4),
+    CANCELADO(5);
 
     @Getter
     private Integer id;
