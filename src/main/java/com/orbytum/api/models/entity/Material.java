@@ -4,11 +4,17 @@ import com.orbytum.api.models.converter.MaterialStatusAttributeConverter;
 import com.orbytum.api.models.enums.MaterialStatus;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Material {
 
     @Id

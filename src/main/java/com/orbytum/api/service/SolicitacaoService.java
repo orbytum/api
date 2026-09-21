@@ -9,6 +9,7 @@ import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.enums.AccessLevel;
+import com.orbytum.api.models.enums.SolicitacaoStatus;
 import com.orbytum.api.repository.GrupoXUsuarioRepository;
 import com.orbytum.api.repository.ProjetoRepository;
 import com.orbytum.api.repository.SolicitacaoRepository;
@@ -52,6 +53,7 @@ public class SolicitacaoService {
                 .projeto(projeto)
                 .justificativa(request.justificativa())
                 .isInterna("uso_material".equalsIgnoreCase(request.tipo()))
+                .status(SolicitacaoStatus.PENDENTE)
                 .isAprovada(false)
                 .dthSolicitacao(LocalDateTime.now())
                 .build();
@@ -93,6 +95,10 @@ public class SolicitacaoService {
 
         validarPermissaoAlteracao(solicitacao, usuario);
 
+        if (solicitacao.getStatus() != null && solicitacao.getStatus() != SolicitacaoStatus.PENDENTE) {
+            throw new IllegalArgumentException("Apenas solicitações pendentes podem ser alteradas");
+        }
+
         solicitacao.setJustificativa(request.justificativa());
         if (!solicitacao.getItems().isEmpty()) {
             if (request.valor() != null) solicitacao.getItems().get(0).setValor(request.valor());
@@ -109,7 +115,67 @@ public class SolicitacaoService {
 
         validarPermissaoAlteracao(solicitacao, usuario);
 
+        if (solicitacao.getStatus() != null && solicitacao.getStatus() != SolicitacaoStatus.PENDENTE) {
+            throw new IllegalArgumentException("Apenas solicitações pendentes podem ser removidas");
+        }
+
         solicitacaoRepository.delete(solicitacao);
+    }
+
+    @Transactional
+    public SolicitacaoResponse aprovar(Long id, String emailLogado) {
+        Usuario usuario = buscarUsuario(emailLogado);
+        MaterialEmprestimoSolicitacao solicitacao = buscarSolicitacao(id);
+
+        validarPermissaoLiderOuAdmin(solicitacao.getProjeto().getGrupo().getId(), usuario);
+
+        if (solicitacao.getStatus() != null && solicitacao.getStatus() != SolicitacaoStatus.PENDENTE) {
+            throw new IllegalArgumentException("Apenas solicitações pendentes podem ser aprovadas");
+        }
+
+        solicitacao.setAprovada(true);
+        solicitacao.setDthResposta(LocalDateTime.now());
+        if (solicitacao.isInterna()) {
+            solicitacao.setStatus(SolicitacaoStatus.EM_ANDAMENTO);
+        } else {
+            solicitacao.setStatus(SolicitacaoStatus.CONCLUIDA);
+        }
+
+        return mapearParaResponse(solicitacaoRepository.save(solicitacao));
+    }
+
+    @Transactional
+    public SolicitacaoResponse rejeitar(Long id, String emailLogado) {
+        Usuario usuario = buscarUsuario(emailLogado);
+        MaterialEmprestimoSolicitacao solicitacao = buscarSolicitacao(id);
+
+        validarPermissaoLiderOuAdmin(solicitacao.getProjeto().getGrupo().getId(), usuario);
+
+        if (solicitacao.getStatus() != null && solicitacao.getStatus() != SolicitacaoStatus.PENDENTE) {
+            throw new IllegalArgumentException("Apenas solicitações pendentes podem ser rejeitadas");
+        }
+
+        solicitacao.setAprovada(false);
+        solicitacao.setDthResposta(LocalDateTime.now());
+        solicitacao.setStatus(SolicitacaoStatus.REJEITADA);
+
+        return mapearParaResponse(solicitacaoRepository.save(solicitacao));
+    }
+
+    @Transactional
+    public SolicitacaoResponse concluir(Long id, String emailLogado) {
+        Usuario usuario = buscarUsuario(emailLogado);
+        MaterialEmprestimoSolicitacao solicitacao = buscarSolicitacao(id);
+
+        validarPermissaoConclusao(solicitacao, usuario);
+
+        if (solicitacao.getStatus() != SolicitacaoStatus.EM_ANDAMENTO) {
+            throw new IllegalArgumentException("Apenas solicitações em andamento podem ser concluídas");
+        }
+
+        solicitacao.setStatus(SolicitacaoStatus.CONCLUIDA);
+
+        return mapearParaResponse(solicitacaoRepository.save(solicitacao));
     }
 
     private GrupoXUsuario validarPermissaoMembro(Long grupoId, Usuario usuario) {
@@ -143,6 +209,39 @@ public class SolicitacaoService {
             if (vinculo.getRole() == null || !vinculo.getRole().isLider()) {
                 throw new AccessDeniedException("Apenas o autor ou o líder do grupo podem realizar esta ação");
             }
+        }
+    }
+
+    private void validarPermissaoConclusao(MaterialEmprestimoSolicitacao solicitacao, Usuario usuario) {
+        if (isAdmin(usuario)) {
+            return;
+        }
+
+        boolean isAutor = solicitacao.getUsuario() != null &&
+                solicitacao.getUsuario().getUsuario().getId().equals(usuario.getId());
+
+        if (!isAutor) {
+            GrupoXUsuario vinculo = grupoXUsuarioRepository
+                    .findByGrupoIdAndUsuarioIdAndIsAtivoTrue(solicitacao.getProjeto().getGrupo().getId(), usuario.getId())
+                    .orElseThrow(() -> new AccessDeniedException("Acesso negado"));
+
+            if (vinculo.getRole() == null || !vinculo.getRole().isLider()) {
+                throw new AccessDeniedException("Apenas o autor ou o líder do grupo podem realizar esta ação");
+            }
+        }
+    }
+
+    private void validarPermissaoLiderOuAdmin(Long grupoId, Usuario usuario) {
+        if (isAdmin(usuario)) {
+            return;
+        }
+
+        GrupoXUsuario vinculo = grupoXUsuarioRepository
+                .findByGrupoIdAndUsuarioIdAndIsAtivoTrue(grupoId, usuario.getId())
+                .orElseThrow(() -> new AccessDeniedException("Acesso negado"));
+
+        if (vinculo.getRole() == null || !vinculo.getRole().isLider()) {
+            throw new AccessDeniedException("Apenas líderes do grupo de pesquisa ou administradores podem aprovar ou rejeitar solicitações");
         }
     }
 
@@ -182,6 +281,7 @@ public class SolicitacaoService {
                 s.getJustificativa(),
                 s.getJustificativa(),
                 s.getJustificativa(),
+                s.getStatus(),
                 s.isInterna(),
                 s.isAprovada(),
                 s.getProjeto() != null ? s.getProjeto().getId() : null,

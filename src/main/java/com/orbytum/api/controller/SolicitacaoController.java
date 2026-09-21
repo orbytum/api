@@ -62,4 +62,28 @@ public class SolicitacaoController {
         solicitacaoService.remover(id, authentication.getName());
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{id}/aprovar")
+    public ResponseEntity<SolicitacaoResponse> aprovar(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(solicitacaoService.aprovar(id, authentication.getName()));
+    }
+
+    @PatchMapping("/{id}/rejeitar")
+    public ResponseEntity<SolicitacaoResponse> rejeitar(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(solicitacaoService.rejeitar(id, authentication.getName()));
+    }
+
+    @PatchMapping("/{id}/concluir")
+    public ResponseEntity<SolicitacaoResponse> concluir(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(solicitacaoService.concluir(id, authentication.getName()));
+    }
 }
