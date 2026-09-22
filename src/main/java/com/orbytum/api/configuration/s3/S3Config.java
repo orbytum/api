@@ -43,6 +43,7 @@ public class S3Config {
         return S3Client.builder()
                 .region(region)
                 .credentialsProvider(credentialsProvider)
+                .crossRegionAccessEnabled(true)
                 .build();
     }
 
