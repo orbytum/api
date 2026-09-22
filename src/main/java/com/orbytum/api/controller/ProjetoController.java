@@ -28,14 +28,12 @@ public class ProjetoController {
     private final ProjetoFachada projetoFachada;
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'INITIAL_ADMIN')")
     public ResponseEntity<ProjetoResponse> criarProjeto(@Valid @RequestBody CreateProjetoRequest request) {
         ProjetoResponse response = projetoFachada.criarProjeto(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'INITIAL_ADMIN')")
     public ResponseEntity<ProjetoResponse> atualizarProjeto(
             @PathVariable Long id,
             @Valid @RequestBody EditProjetoRequest request) {
@@ -44,13 +42,12 @@ public class ProjetoController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'INITIAL_ADMIN')")
     public ResponseEntity<Void> deletarProjeto(@PathVariable Long id) {
         projetoFachada.deletarProjeto(id);
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{grupoId}")
+    @GetMapping("/grupo/{grupoId}")
     public ResponseEntity<List<ProjetoResponse>> listarProjetos(@PathVariable Long grupoId) {
         List<ProjetoResponse> projetos = projetoFachada.listarProjetosPorGrupo(grupoId);
         return ResponseEntity.ok(projetos);
