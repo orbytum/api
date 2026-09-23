@@ -86,4 +86,12 @@ public class SolicitacaoController {
     ) {
         return ResponseEntity.ok(solicitacaoService.concluir(id, authentication.getName()));
     }
+
+    @PatchMapping("/{id}/encerrar")
+    public ResponseEntity<SolicitacaoResponse> encerrar(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(solicitacaoService.encerrar(id, authentication.getName()));
+    }
 }

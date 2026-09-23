@@ -3,14 +3,19 @@ package com.orbytum.api.service;
 import com.orbytum.api.models.dto.request.CriarSolicitacaoRequest;
 import com.orbytum.api.models.dto.request.EditarSolicitacaoRequest;
 import com.orbytum.api.models.dto.response.SolicitacaoResponse;
+import com.orbytum.api.models.entity.Material;
+import com.orbytum.api.models.entity.MaterialEmprestimo;
 import com.orbytum.api.models.entity.MaterialEmprestimoSolicitacao;
 import com.orbytum.api.models.entity.MaterialEmprestimoSolicitacaoItem;
 import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.enums.AccessLevel;
+import com.orbytum.api.models.enums.MaterialStatus;
 import com.orbytum.api.models.enums.SolicitacaoStatus;
 import com.orbytum.api.repository.GrupoXUsuarioRepository;
+import com.orbytum.api.repository.MaterialEmprestimoRepository;
+import com.orbytum.api.repository.MaterialRepository;
 import com.orbytum.api.repository.ProjetoRepository;
 import com.orbytum.api.repository.SolicitacaoRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +44,8 @@ public class SolicitacaoService {
     private final UsuarioService usuarioService;
     private final GrupoXUsuarioRepository grupoXUsuarioRepository;
     private final CredenciaisLoginService credenciaisLoginService;
+    private final MaterialRepository materialRepository;
+    private final MaterialEmprestimoRepository materialEmprestimoRepository;
 
     @Transactional
     public SolicitacaoResponse criar(CriarSolicitacaoRequest request, String emailLogado) {
@@ -48,18 +55,40 @@ public class SolicitacaoService {
 
         GrupoXUsuario vinculo = validarPermissaoMembro(projeto.getGrupo().getId(), usuario);
 
+        boolean isUsoMaterial = "uso_material".equalsIgnoreCase(request.tipo());
+
+        Material material = null;
+        if (isUsoMaterial) {
+            if (request.materialId() == null) {
+                throw new IllegalArgumentException("Para solicitações de uso de material, o material deve ser informado");
+            }
+            material = buscarMaterial(request.materialId());
+            if (material.getStatus() == MaterialStatus.INDISPONIVEL || material.getStatus() == MaterialStatus.EMPRESTADO) {
+                throw new IllegalArgumentException("Material selecionado não está disponível para uso");
+            }
+            if (request.quantidade() == null || request.quantidade() <= 0) {
+                throw new IllegalArgumentException("A quantidade deve ser informada e maior que zero");
+            }
+            if (request.quantidade() > material.getQuantidade()) {
+                throw new IllegalArgumentException("Quantidade solicitada excede a quantidade disponível em estoque");
+            }
+        } else if (request.materialId() != null) {
+            material = buscarMaterial(request.materialId());
+        }
+
         MaterialEmprestimoSolicitacao solicitacao = MaterialEmprestimoSolicitacao.builder()
                 .usuario(vinculo)
                 .projeto(projeto)
                 .justificativa(request.justificativa())
-                .isInterna("uso_material".equalsIgnoreCase(request.tipo()))
+                .isInterna(isUsoMaterial)
                 .status(SolicitacaoStatus.PENDENTE)
                 .isAprovada(false)
                 .dthSolicitacao(LocalDateTime.now())
                 .build();
 
-        if (request.valor() != null || request.quantidade() != null) {
+        if (request.valor() != null || request.quantidade() != null || material != null) {
             solicitacao.getItems().add(MaterialEmprestimoSolicitacaoItem.builder()
+                    .material(material)
                     .quantidade(request.quantidade())
                     .valor(request.valor())
                     .build());
@@ -137,6 +166,21 @@ public class SolicitacaoService {
         solicitacao.setDthResposta(LocalDateTime.now());
         if (solicitacao.isInterna()) {
             solicitacao.setStatus(SolicitacaoStatus.EM_ANDAMENTO);
+
+            Material material = solicitacao.getItems().get(0).getMaterial();
+            Integer quantidade = solicitacao.getItems().get(0).getQuantidade();
+
+            MaterialEmprestimo emprestimo = MaterialEmprestimo.builder()
+                    .material(material)
+                    .grupo(solicitacao.getProjeto().getGrupo())
+                    .quantidade(quantidade)
+                    .isDevolvido(false)
+                    .dthInicio(LocalDateTime.now())
+                    .build();
+            materialEmprestimoRepository.save(emprestimo);
+
+            material.setStatus(MaterialStatus.EMPRESTADO);
+            materialRepository.save(material);
         } else {
             solicitacao.setStatus(SolicitacaoStatus.CONCLUIDA);
         }
@@ -175,7 +219,45 @@ public class SolicitacaoService {
 
         solicitacao.setStatus(SolicitacaoStatus.CONCLUIDA);
 
+        devolverMaterial(solicitacao);
+
         return mapearParaResponse(solicitacaoRepository.save(solicitacao));
+    }
+
+    @Transactional
+    public SolicitacaoResponse encerrar(Long id, String emailLogado) {
+        Usuario usuario = buscarUsuario(emailLogado);
+        MaterialEmprestimoSolicitacao solicitacao = buscarSolicitacao(id);
+
+        validarPermissaoLiderOuAdmin(solicitacao.getProjeto().getGrupo().getId(), usuario);
+
+        if (solicitacao.getStatus() != SolicitacaoStatus.EM_ANDAMENTO) {
+            throw new IllegalArgumentException("Apenas solicitações em andamento podem ser encerradas");
+        }
+
+        solicitacao.setStatus(SolicitacaoStatus.ENCERRADA);
+
+        devolverMaterial(solicitacao);
+
+        return mapearParaResponse(solicitacaoRepository.save(solicitacao));
+    }
+
+    private void devolverMaterial(MaterialEmprestimoSolicitacao solicitacao) {
+        if (!solicitacao.isInterna() || solicitacao.getItems().isEmpty()) {
+            return;
+        }
+
+        Material material = solicitacao.getItems().get(0).getMaterial();
+        materialEmprestimoRepository
+                .findFirstByMaterialIdAndIsDevolvidoFalseOrderByDthInicioDesc(material.getId())
+                .ifPresent(emprestimo -> {
+                    emprestimo.setDevolvido(true);
+                    emprestimo.setDthFim(LocalDateTime.now());
+                    materialEmprestimoRepository.save(emprestimo);
+                });
+
+        material.setStatus(MaterialStatus.DISPONIVEL);
+        materialRepository.save(material);
     }
 
     private GrupoXUsuario validarPermissaoMembro(Long grupoId, Usuario usuario) {
@@ -272,9 +354,18 @@ public class SolicitacaoService {
                 .orElseThrow(() -> new IllegalArgumentException("Solicitação não encontrada"));
     }
 
+    private Material buscarMaterial(Long id) {
+        return materialRepository.findByIdAndIsAtivoTrue(id)
+                .orElseThrow(() -> new IllegalArgumentException("Material não encontrado"));
+    }
+
     private SolicitacaoResponse mapearParaResponse(MaterialEmprestimoSolicitacao s) {
         BigDecimal valor = !s.getItems().isEmpty() ? s.getItems().get(0).getValor() : null;
         Integer qtd = !s.getItems().isEmpty() ? s.getItems().get(0).getQuantidade() : null;
+        Long materialId = !s.getItems().isEmpty() && s.getItems().get(0).getMaterial() != null
+                ? s.getItems().get(0).getMaterial().getId() : null;
+        String materialNome = !s.getItems().isEmpty() && s.getItems().get(0).getMaterial() != null
+                ? s.getItems().get(0).getMaterial().getNome() : null;
 
         return new SolicitacaoResponse(
                 s.getId(),
@@ -288,6 +379,8 @@ public class SolicitacaoService {
                 s.getProjeto() != null ? s.getProjeto().getTitulo() : null,
                 s.getUsuario() != null && s.getUsuario().getUsuario() != null ? s.getUsuario().getUsuario().getId() : null,
                 s.getUsuario() != null && s.getUsuario().getUsuario() != null ? s.getUsuario().getUsuario().getNome() : null,
+                materialId,
+                materialNome,
                 qtd,
                 valor,
                 s.getDthSolicitacao(),

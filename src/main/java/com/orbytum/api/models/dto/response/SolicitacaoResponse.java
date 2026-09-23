@@ -17,6 +17,8 @@ public record SolicitacaoResponse(
         String projetoTitulo,
         Long usuarioId,
         String usuarioNome,
+        Long materialId,
+        String materialNome,
         Integer quantidade,
         BigDecimal valor,
         LocalDateTime dthSolicitacao,
