@@ -109,11 +109,20 @@ public class ConviteController {
     }
 
     @PostMapping("/aceitar/cadastro/{token}")
-    public ResponseEntity<AuthResponse> aceitarConviteGrupo(
+    public ResponseEntity<AuthResponse> aceitarConviteCadastro(
             @PathVariable String token,
             @RequestBody RegisterRequest request
     ) {
         AuthResponse response = conviteService.aceitarConviteCadastro(token, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/aceitar/grupo/{token}/cadastro")
+    public ResponseEntity<AuthResponse> aceitarConviteGrupoCadastro(
+            @PathVariable String token,
+            @RequestBody RegisterRequest request
+    ) {
+        AuthResponse response = conviteService.aceitarConviteGrupoCadastro(token, request);
         return ResponseEntity.ok(response);
     }
 }

@@ -11,5 +11,7 @@ public record ProjetoResponse (
     String titulo,
     String assunto,
     LocalDateTime dthRegistro,
-    Boolean isAtivo
+    Boolean isAtivo,
+    Boolean isInicial,
+    Boolean isFavorito
 ) {}

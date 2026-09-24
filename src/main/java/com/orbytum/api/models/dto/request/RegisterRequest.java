@@ -10,6 +10,9 @@ public record RegisterRequest (
 
         @NotBlank String telefone,
 
-        @NotBlank String titulo
+        @NotBlank String titulo,
+
+        @Email(message = "E-mail em formato inválido")
+        String email
 
 ) {}

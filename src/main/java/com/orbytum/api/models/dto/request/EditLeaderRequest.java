@@ -10,5 +10,7 @@ public record EditLeaderRequest(
     String telefone,
 
     @NotBlank(message = "O título é obrigatório")
-    String titulo
+    String titulo,
+
+    String funcao
 ) {}

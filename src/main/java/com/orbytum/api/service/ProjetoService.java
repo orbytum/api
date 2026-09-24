@@ -58,4 +58,22 @@ public class ProjetoService {
     public List<Projeto> findAllAtivosByGrupoId(Long grupoId) {
         return projetoRepository.findAllByGrupoIdAndIsAtivoTrue(grupoId);
     }
+
+    @Transactional
+    public Projeto finalizarProjeto(Projeto projeto) {
+        var grupoProjeto = projeto.getGrupo();
+
+        //REQ-025
+        if (projeto.isInicial()) {
+            var projetosNaoFinalizados = grupoProjeto.getProjetos().stream()
+                    .filter(p -> !(p.getStatus() == ProjetoStatus.ENCERRADO || p.getStatus() == ProjetoStatus.CANCELADO))
+                    .toList();
+            if (projetosNaoFinalizados.size() > 1) {
+                throw new ProjetoNaoPodeSerFinalizado("O projeto Inicial só pode ser finalizado se não houver outros projetos ativos");
+            }
+        }
+
+        projeto.setStatus(ProjetoStatus.ENCERRADO);
+        return projetoRepository.save(projeto);
+    }
 }

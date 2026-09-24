@@ -48,6 +48,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.GET, "/convites/aceitar/grupo/**", "/convites/grupo/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/convites/aceitar/grupo/*/cadastro").permitAll()
                 .requestMatchers(
                         "/auth/**",
                         "/convites/aceitar/cadastro/**",

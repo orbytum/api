@@ -74,7 +74,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(erro);
     }
 
-    @ExceptionHandler({SemPermissaoConvidarErro.class, IngressoRestritoErro.class})
+    @ExceptionHandler({SemPermissaoConvidarErro.class, IngressoRestritoErro.class, SemPermissaoNoGrupoErro.class})
     public ResponseEntity<ErroResponse> handleForbidden(RuntimeException ex) {
         ErroResponse erro = new ErroResponse(
                 HttpStatus.FORBIDDEN.value(),
@@ -94,7 +94,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(erro);
     }
 
-    @ExceptionHandler({UsuarioJaNoGrupoErro.class, ProjetoNaoPertenceAoGrupoErro.class})
+    @ExceptionHandler({UsuarioJaNoGrupoErro.class, ProjetoNaoPertenceAoGrupoErro.class, GrupoJaPossuiLiderErro.class, AtividadeNaoPertenceAoProjetoErro.class})
     public ResponseEntity<ErroResponse> handleConflitoOuInvalido(RuntimeException ex) {
         ErroResponse erro = new ErroResponse(
                 HttpStatus.CONFLICT.value(),
@@ -104,7 +104,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(erro);
     }
 
-    @ExceptionHandler({UsuarioNaoEncontradoErro.class, GrupoNaoEncontradoErro.class, ProjetoNaoEncontradoErro.class, PublicacaoNaoEncontradaErro.class})
+    @ExceptionHandler({TransicaoAtividadeInvalidaErro.class, ResponsavelNaoPertenceAoProjetoErro.class})
+    public ResponseEntity<ErroResponse> handleRegraDeNegocio(RuntimeException ex) {
+        ErroResponse erro = new ErroResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                System.currentTimeMillis()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(erro);
+    }
+
+    @ExceptionHandler({UsuarioNaoEncontradoErro.class, GrupoNaoEncontradoErro.class, ProjetoNaoEncontradoErro.class, PublicacaoNaoEncontradaErro.class, AtividadeNaoEncontradaErro.class})
     public ResponseEntity<ErroResponse> handleNaoEncontrado(RuntimeException ex) {
         ErroResponse erro = new ErroResponse(
                 HttpStatus.NOT_FOUND.value(),

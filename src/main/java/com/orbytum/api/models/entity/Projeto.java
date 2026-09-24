@@ -2,6 +2,7 @@ package com.orbytum.api.models.entity;
 
 import com.orbytum.api.models.converter.ProjetoStatusAttributeConverter;
 import com.orbytum.api.models.entity.joinColumns.EditalXProjeto;
+import com.orbytum.api.models.entity.joinColumns.ProjetoXUsuario;
 import com.orbytum.api.models.enums.ProjetoStatus;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
@@ -51,6 +52,9 @@ public class Projeto {
 
     @OneToMany(mappedBy = "projeto", fetch = FetchType.LAZY)
     private List<EditalXProjeto> editaisProjetos;
+
+    @OneToMany(mappedBy = "projeto", fetch = FetchType.LAZY)
+    private List<ProjetoXUsuario> participantes;
 
     public Projeto(Grupo grupo, ProjetoStatus status, String titulo, String assunto) {
         this.grupo = grupo;

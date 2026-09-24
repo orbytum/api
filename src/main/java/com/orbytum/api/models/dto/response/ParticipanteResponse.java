@@ -2,11 +2,10 @@ package com.orbytum.api.models.dto.response;
 
 import com.orbytum.api.models.enums.NivelMembro;
 
-public record MeuGrupoResponse(
-        Long id,
+public record ParticipanteResponse(
+        Long usuarioId,
         String nome,
-        String role,
+        String email,
         NivelMembro nivel,
-        boolean isLider
-) {
-}
+        boolean isAtivo
+) {}
