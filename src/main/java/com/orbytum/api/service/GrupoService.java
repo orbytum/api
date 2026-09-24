@@ -19,10 +19,14 @@ import com.orbytum.api.models.dto.response.PesquisadorResponse;
 import com.orbytum.api.models.entity.ConviteGrupo;
 import com.orbytum.api.models.entity.CredenciaisLogin;
 import com.orbytum.api.models.entity.Grupo;
+import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Role;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.enums.AccessLevel;
+import com.orbytum.api.models.enums.NivelMembro;
+import com.orbytum.api.models.enums.ProjetoStatus;
+import com.orbytum.api.models.exceptions.GrupoJaPossuiLiderErro;
 import com.orbytum.api.models.exceptions.GrupoNaoEncontradoErro;
 import com.orbytum.api.models.exceptions.UsuarioNaoEncontradoErro;
 import com.orbytum.api.repository.ConviteGrupoRepository;
@@ -60,6 +64,7 @@ public class GrupoService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final ProjetoService projetoService;
 
     public boolean existsByNome(String nome) {
         return grupoRepository.existsByNomeAndIsAtivoTrue(nome);
@@ -101,63 +106,78 @@ public class GrupoService {
             throw new IllegalArgumentException("Já existe um grupo de pesquisa cadastrado com este nome");
         }
 
+        String emailLider = request.emailLider() == null ? "" : request.emailLider().trim();
+        if (emailLider.isBlank()) {
+            throw new IllegalArgumentException("O líder do grupo é obrigatório");
+        }
+
         String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
         Usuario adminCriador = usuarioService.findByEmail(emailAdminLogado).orElse(null);
-
-        Usuario usuarioLider = null;
-        if (request.emailLider() != null && !request.emailLider().isBlank()) {
-            String emailLider = request.emailLider().trim();
-            usuarioLider = usuarioService.findByEmail(emailLider)
-                    .orElseThrow(() -> new IllegalArgumentException("Não foi encontrado nenhum usuário cadastrado no sistema com o e-mail informado: " + emailLider));
-        }
 
         Grupo novoGrupo = new Grupo(request.nome(), adminCriador);
         Grupo grupoSalvo = save(novoGrupo);
 
-        // Garante que o Role padrão "Membro" exista no sistema ao criar um grupo
         roleRepository.findByNomeIgnoreCase("Membro")
                 .orElseGet(() -> roleRepository.save(new Role("Membro", List.of(), false)));
 
+        Role roleLider = roleRepository.findFirstByIsLiderTrue()
+                .orElseGet(() -> roleRepository.save(new Role("Líder", List.of(), true)));
+
+        Usuario usuarioLider = usuarioService.findByEmail(emailLider).orElse(null);
+
         if (usuarioLider != null) {
-            if (usuarioLider.getCredenciaisLogin().getAccessLevel() != AccessLevel.USER) {
+            if (usuarioLider.getCredenciaisLogin() != null
+                    && usuarioLider.getCredenciaisLogin().getAccessLevel() != AccessLevel.USER) {
                 throw new IllegalArgumentException("O usuário informado não pode ser um administrador.");
             }
 
-            Role roleLider = roleRepository.findFirstByIsLiderTrue()
-                    .orElseGet(() -> roleRepository.save(new Role("Líder", List.of(), true)));
-
+            GrupoXUsuario vinculo = new GrupoXUsuario(grupoSalvo, usuarioLider, roleLider, NivelMembro.LIDER, null, true);
+            grupoXUsuarioRepository.save(vinculo);
+        } else {
             String token = UUID.randomUUID().toString();
             String url = "/convites/aceitar/grupo/" + token;
 
             ConviteGrupo convite = new ConviteGrupo(
                     grupoSalvo,
-                    usuarioLider,
+                    null,
                     adminCriador,
                     token,
                     roleLider,
                     List.of(),
                     LocalDateTime.now().plusDays(31)
             );
-
+            convite.setNivel(NivelMembro.LIDER);
+            convite.setLimiteUso(1);
             conviteGrupoRepository.save(convite);
 
-            String assunto = "Você foi convidado para se juntar a um grupo de pesquisa";
-            String templateName = "convite-grupo-template";
-            Map<String, Object> variaveis = Map.of(
-                    "nomeGrupo", grupoSalvo.getNome(),
-                    "loginUrl", "http://localhost:5173" + url
-            );
-
-            EmailRequest emailReq = EmailRequest.comTemplate(request.emailLider(), assunto, templateName, variaveis);
-
-            try {
-                emailService.sendEmail(emailReq);
-            } catch (Exception e) {
-                log.warn("Não foi possível enviar o e-mail de convite para {}: {}", request.emailLider(), e.getMessage());
-            }
+            enviarEmailConvite(emailLider, grupoSalvo.getNome(), url);
         }
 
+        criarProjetoInicial(grupoSalvo);
+
         return mapearParaGrupoResponse(grupoSalvo);
+    }
+
+    private void criarProjetoInicial(Grupo grupo) {
+        Projeto projeto = new Projeto(grupo, ProjetoStatus.PLANEJADO, "Projeto Inicial", grupo.getNome(), true);
+        projetoService.save(projeto);
+    }
+
+    private void enviarEmailConvite(String emailDestino, String nomeGrupo, String url) {
+        String assunto = "Você foi convidado para se juntar a um grupo de pesquisa";
+        String templateName = "convite-grupo-template";
+        Map<String, Object> variaveis = Map.of(
+                "nomeGrupo", nomeGrupo,
+                "loginUrl", "http://localhost:5173" + url
+        );
+
+        EmailRequest emailReq = EmailRequest.comTemplate(emailDestino, assunto, templateName, variaveis);
+
+        try {
+            emailService.sendEmail(emailReq);
+        } catch (Exception e) {
+            log.warn("Não foi possível enviar o e-mail de convite para {}: {}", emailDestino, e.getMessage());
+        }
     }
 
     @Transactional
@@ -210,10 +230,14 @@ public class GrupoService {
                 adminCriador);
         credenciaisLoginService.save(credenciais);
 
+        if (grupoXUsuarioRepository.existsByGrupoIdAndNivelAndIsAtivoTrue(grupoId, NivelMembro.LIDER)) {
+            throw new GrupoJaPossuiLiderErro("Este grupo de pesquisa já possui um líder ativo");
+        }
+
         Role roleLider = roleRepository.findFirstByIsLiderTrue()
                 .orElseGet(() -> roleRepository.save(new Role("Líder", List.of(), true)));
 
-        GrupoXUsuario vinculo = new GrupoXUsuario(grupo, usuario, roleLider);
+        GrupoXUsuario vinculo = new GrupoXUsuario(grupo, usuario, roleLider, NivelMembro.LIDER, null, true);
         grupoXUsuarioRepository.save(vinculo);
 
         return new LiderResponse(
@@ -329,7 +353,9 @@ public class GrupoService {
                         v.getUsuario().getTitulo(),
                         grupo.getId(),
                         v.getRole() != null ? v.getRole().getNome() : "Membro",
-                        v.getRole() != null && v.getRole().isLider()
+                        v.getNivel(),
+                        v.getFuncao(),
+                        v.getNivel() == NivelMembro.LIDER
                 ))
                 .toList();
 
@@ -360,6 +386,11 @@ public class GrupoService {
         usuario.setTitulo(request.titulo());
         Usuario usuarioAtualizado = usuarioService.save(usuario);
 
+        if (request.funcao() != null) {
+            vinculo.setFuncao(request.funcao());
+            grupoXUsuarioRepository.save(vinculo);
+        }
+
         return new PesquisadorResponse(
                 usuarioAtualizado.getId(),
                 usuarioAtualizado.getNome(),
@@ -368,7 +399,9 @@ public class GrupoService {
                 usuarioAtualizado.getTitulo(),
                 grupo.getId(),
                 vinculo.getRole() != null ? vinculo.getRole().getNome() : "Membro",
-                vinculo.getRole() != null && vinculo.getRole().isLider()
+                vinculo.getNivel(),
+                vinculo.getFuncao(),
+                vinculo.getNivel() == NivelMembro.LIDER
         );
     }
 
@@ -393,7 +426,7 @@ public class GrupoService {
         if (credenciais.getAccessLevel() == AccessLevel.ADMIN || credenciais.getAccessLevel() == AccessLevel.INITIAL_ADMIN) {
             List<Grupo> grupos = findAllAtivos();
             return grupos.stream()
-                    .map(g -> new MeuGrupoResponse(g.getId(), g.getNome(), "Administrador", true))
+                    .map(g -> new MeuGrupoResponse(g.getId(), g.getNome(), "Administrador", null, true))
                     .toList();
         }
 
@@ -403,7 +436,8 @@ public class GrupoService {
                         v.getGrupo().getId(),
                         v.getGrupo().getNome(),
                         v.getRole() != null ? v.getRole().getNome() : "Membro",
-                        v.getRole() != null && v.getRole().isLider()
+                        v.getNivel(),
+                        v.getNivel() == NivelMembro.LIDER
                 ))
                 .toList();
     }

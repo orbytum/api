@@ -7,6 +7,7 @@ import com.orbytum.api.models.entity.Role;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.enums.AccessLevel;
+import com.orbytum.api.models.enums.NivelMembro;
 import com.orbytum.api.repository.GrupoRepository;
 import com.orbytum.api.repository.GrupoXUsuarioRepository;
 import com.orbytum.api.repository.RoleRepository;
@@ -51,6 +52,9 @@ class GrupoServiceTest {
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private ProjetoService projetoService;
+
     @InjectMocks
     private GrupoService grupoService;
 
@@ -66,7 +70,7 @@ class GrupoServiceTest {
         Usuario usuario = new Usuario();
         usuario.setNome("João");
         Role role = new Role("Líder", Collections.emptyList(), true);
-        GrupoXUsuario vinculo = new GrupoXUsuario(grupo, usuario, role, true);
+        GrupoXUsuario vinculo = new GrupoXUsuario(grupo, usuario, role, NivelMembro.LIDER, null, true);
 
         when(grupoXUsuarioRepository.findAllByUsuarioEmailAndIsAtivoTrueAndGrupoIsAtivoTrue(email))
                 .thenReturn(List.of(vinculo));

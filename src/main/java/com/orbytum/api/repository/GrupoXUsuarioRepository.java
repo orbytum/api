@@ -2,6 +2,7 @@ package com.orbytum.api.repository;
 
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
+import com.orbytum.api.models.enums.NivelMembro;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -29,6 +30,10 @@ public interface GrupoXUsuarioRepository extends JpaRepository<GrupoXUsuario, UU
     boolean existsByGrupoIdAndUsuarioIdAndIsAtivoTrue(Long grupoId, Long usuarioId);
 
     boolean existsByGrupoIdAndUsuarioEmailAndIsAtivoTrue(Long grupoId, String email);
+
+    boolean existsByGrupoIdAndNivelAndIsAtivoTrue(Long grupoId, NivelMembro nivel);
+
+    long countByGrupoIdAndNivelAndIsAtivoTrue(Long grupoId, NivelMembro nivel);
 
     List<GrupoXUsuario> findAllByGrupoIdAndIsAtivoTrue(Long grupoId);
 

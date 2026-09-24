@@ -1,5 +1,6 @@
 package com.orbytum.api.models.entity;
 
+import com.orbytum.api.models.enums.NivelMembro;
 import com.orbytum.api.models.enums.TipoConvite;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
@@ -31,6 +32,8 @@ public class ConviteGrupo {
     @JoinColumn(name = "usuario_convidado_id")
     private Usuario usuarioConvidado;
 
+    private String emailConvidado;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_remetente_id")
     private Usuario usuarioRemetente;
@@ -38,6 +41,11 @@ public class ConviteGrupo {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id")
     private Role role;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    @Builder.Default
+    private NivelMembro nivel = NivelMembro.PESQUISADOR;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
