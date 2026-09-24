@@ -1,6 +1,8 @@
 package com.orbytum.api.models.entity;
 
+import com.orbytum.api.models.converter.SolicitacaoStatusAttributeConverter;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
+import com.orbytum.api.models.enums.SolicitacaoStatus;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
 import lombok.*;
@@ -40,6 +42,9 @@ public class MaterialEmprestimoSolicitacao {
 
     @Nonnull
     private boolean isAprovada;
+
+    @Convert(converter = SolicitacaoStatusAttributeConverter.class)
+    private SolicitacaoStatus status;
 
     @Nonnull
     private LocalDateTime dthSolicitacao;
