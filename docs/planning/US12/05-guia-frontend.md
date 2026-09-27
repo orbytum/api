@@ -227,7 +227,7 @@ Retorno inclui `token` e `urlConvite`.
 | PATCH | `/atividades/{id}/status` | `{ status }` | `AtividadeResponse` |
 | DELETE | `/atividades/{id}` | — | `204` |
 | GET | `/atividades/{id}` | — | `AtividadeResponse` |
-| GET | `/atividades/projeto/{projetoId}` | — | `[AtividadeResponse]` |
+| GET | `/atividades/projeto/{projetoId}?page&size` | — | `AtividadePaginadoResponse` |
 | GET | `/atividades/projeto/{projetoId}/atrasadas` | — | `[AtividadeResponse]` |
 
 **Criar atividade** (`CreateAtividadeRequest`):
@@ -245,6 +245,17 @@ Retorno inclui `token` e `urlConvite`.
 - `atividadePaiId != null` → **impedimento**; a atividade pai precisa estar `EM_ANDAMENTO`; o responsável pode ser **qualquer membro do grupo**.
 
 **Editar** (`EditAtividadeRequest`): `{ responsavelId?, titulo, descricao, dthPrazo? }`.
+
+**Listar atividades do projeto** (`GET /atividades/projeto/{projetoId}?page&size`): `page` é 1-based, `size` padrão 10. Retorna `AtividadePaginadoResponse`:
+```json
+{
+  "items": [ /* AtividadeResponse[] */ ],
+  "totalElements": 42,
+  "totalPages": 5,
+  "currentPage": 1,
+  "pageSize": 10
+}
+```
 
 **`AtividadeResponse`:**
 ```json
