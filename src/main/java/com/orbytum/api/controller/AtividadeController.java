@@ -3,6 +3,7 @@ package com.orbytum.api.controller;
 import com.orbytum.api.models.dto.request.AtualizarStatusAtividadeRequest;
 import com.orbytum.api.models.dto.request.CreateAtividadeRequest;
 import com.orbytum.api.models.dto.request.EditAtividadeRequest;
+import com.orbytum.api.models.dto.response.AtividadePaginadoResponse;
 import com.orbytum.api.models.dto.response.AtividadeResponse;
 import com.orbytum.api.service.AtividadeService;
 import jakarta.validation.Valid;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -69,10 +71,12 @@ public class AtividadeController {
     }
 
     @GetMapping("/projeto/{projetoId}")
-    public ResponseEntity<List<AtividadeResponse>> listarPorProjeto(
+    public ResponseEntity<AtividadePaginadoResponse> listarPorProjeto(
             @PathVariable Long projetoId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
             Authentication authentication) {
-        return ResponseEntity.ok(atividadeService.listarPorProjeto(projetoId, authentication.getName()));
+        return ResponseEntity.ok(atividadeService.listarPorProjeto(projetoId, page, size, authentication.getName()));
     }
 
     @GetMapping("/projeto/{projetoId}/atrasadas")

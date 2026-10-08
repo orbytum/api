@@ -2,6 +2,7 @@ package com.orbytum.api.service;
 
 import com.orbytum.api.models.dto.request.CreateAtividadeRequest;
 import com.orbytum.api.models.dto.request.EditAtividadeRequest;
+import com.orbytum.api.models.dto.response.AtividadePaginadoResponse;
 import com.orbytum.api.models.dto.response.AtividadeResponse;
 import com.orbytum.api.models.entity.Atividade;
 import com.orbytum.api.models.entity.Projeto;
@@ -11,12 +12,17 @@ import com.orbytum.api.models.enums.AtividadeStatus;
 import com.orbytum.api.models.exceptions.AtividadeNaoEncontradaErro;
 import com.orbytum.api.models.exceptions.AtividadeNaoPertenceAoProjetoErro;
 import com.orbytum.api.models.exceptions.ProjetoNaoEncontradoErro;
+import com.orbytum.api.models.exceptions.ResponsavelNaoPertenceAoProjetoErro;
 import com.orbytum.api.models.exceptions.TransicaoAtividadeInvalidaErro;
 import com.orbytum.api.models.exceptions.UsuarioNaoEncontradoErro;
 import com.orbytum.api.repository.AtividadeRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -62,7 +68,7 @@ public class AtividadeService {
             if (!isAdmin(solicitante)) {
                 grupoAcessoService.validarCoordenadorOuAcima(grupoId, solicitante.getId());
             }
-            grupoAcessoService.validarMembroDoProjeto(projeto.getId(), responsavel.getId());
+            validarResponsavelNoProjeto(projeto.getId(), responsavel);
         }
 
         Atividade atividade = new Atividade(
@@ -99,7 +105,7 @@ public class AtividadeService {
                     .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário não encontrado com ID: " + request.responsavelId()));
 
             if (atividade.getAtividadePai() == null) {
-                grupoAcessoService.validarMembroDoProjeto(atividade.getProjeto().getId(), responsavel.getId());
+                validarResponsavelNoProjeto(atividade.getProjeto().getId(), responsavel);
             } else {
                 grupoAcessoService.validarMembro(grupoId, responsavel.getId());
             }
@@ -149,6 +155,7 @@ public class AtividadeService {
         atividadeRepository.save(atividade);
     }
 
+    @Transactional(readOnly = true)
     public AtividadeResponse buscar(Long id, String emailLogado) {
         Atividade atividade = buscarEntidade(id);
         Usuario solicitante = usuarioAutenticado(emailLogado);
@@ -156,25 +163,59 @@ public class AtividadeService {
         return toResponse(atividade);
     }
 
-    public List<AtividadeResponse> listarPorProjeto(Long projetoId, String emailLogado) {
+    @Transactional(readOnly = true)
+    public AtividadePaginadoResponse listarPorProjeto(Long projetoId, int page, int size, String emailLogado) {
         Projeto projeto = projetoService.findById(projetoId)
                 .orElseThrow(() -> new ProjetoNaoEncontradoErro("Projeto não encontrado com ID: " + projetoId));
         Usuario solicitante = usuarioAutenticado(emailLogado);
         validarAcessoAoGrupo(projeto.getGrupo().getId(), solicitante);
 
-        return atividadeRepository.findAllByProjetoIdAndIsAtivoTrue(projetoId).stream()
-                .map(this::toResponse)
+        int pageIndex = Math.max(0, page - 1);
+        int pageSize = size > 0 ? size : 10;
+        Pageable pageable = PageRequest.of(pageIndex, pageSize, Sort.by(Sort.Direction.ASC, "id"));
+
+        Page<Atividade> atividades = atividadeRepository.pageAtivasPorProjeto(projetoId, pageable);
+        boolean projetoPodeSerFinalizado = !existeAtividadeAberta(projetoId);
+
+        List<AtividadeResponse> items = atividades.getContent().stream()
+                .map(atividade -> toResponse(atividade, projetoPodeSerFinalizado))
+                .toList();
+
+        return new AtividadePaginadoResponse(
+                items,
+                atividades.getTotalElements(),
+                atividades.getTotalPages(),
+                page,
+                pageSize
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<AtividadeResponse> listarAtrasadasPorProjeto(Long projetoId, String emailLogado) {
+        Projeto projeto = projetoService.findById(projetoId)
+                .orElseThrow(() -> new ProjetoNaoEncontradoErro("Projeto não encontrado com ID: " + projetoId));
+        Usuario solicitante = usuarioAutenticado(emailLogado);
+        validarAcessoAoGrupo(projeto.getGrupo().getId(), solicitante);
+
+        List<Atividade> atrasadas = atividadeRepository.findAllAtrasadasPorProjeto(
+                projetoId,
+                STATUS_ABERTOS,
+                LocalDateTime.now());
+        boolean projetoPodeSerFinalizado = !existeAtividadeAberta(projetoId);
+
+        return atrasadas.stream()
+                .map(atividade -> toResponse(atividade, projetoPodeSerFinalizado))
                 .toList();
     }
 
-    public List<AtividadeResponse> listarAtrasadasPorProjeto(Long projetoId, String emailLogado) {
-        return listarPorProjeto(projetoId, emailLogado).stream()
-                .filter(AtividadeResponse::isAtrasada)
-                .toList();
+    private void validarResponsavelNoProjeto(Long projetoId, Usuario responsavel) {
+        if (!grupoAcessoService.isMembroDoProjeto(projetoId, responsavel.getId())) {
+            throw new ResponsavelNaoPertenceAoProjetoErro("O responsável informado não participa deste projeto");
+        }
     }
 
     private Atividade buscarEntidade(Long id) {
-        return atividadeRepository.findById(id)
+        return atividadeRepository.findByIdComRelacionamentos(id)
                 .orElseThrow(() -> new AtividadeNaoEncontradaErro("Atividade não encontrada com ID: " + id));
     }
 
@@ -200,11 +241,13 @@ public class AtividadeService {
     }
 
     private AtividadeResponse toResponse(Atividade atividade) {
+        return toResponse(atividade, !existeAtividadeAberta(atividade.getProjeto().getId()));
+    }
+
+    private AtividadeResponse toResponse(Atividade atividade, boolean projetoPodeSerFinalizado) {
         boolean atrasada = atividade.getStatus().isAberta()
                 && atividade.getDthPrazo() != null
                 && atividade.getDthPrazo().isBefore(LocalDateTime.now());
-
-        boolean projetoPodeSerFinalizado = !existeAtividadeAberta(atividade.getProjeto().getId());
 
         return new AtividadeResponse(
                 atividade.getId(),
