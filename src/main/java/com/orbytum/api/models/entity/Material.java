@@ -28,6 +28,9 @@ public class Material {
     private String descricao;
 
     @Nonnull
+    private String categoria;
+
+    @Nonnull
     private String identificador;
 
     @Nonnull

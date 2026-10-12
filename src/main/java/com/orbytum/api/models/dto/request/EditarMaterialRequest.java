@@ -14,6 +14,9 @@ public record EditarMaterialRequest(
         @NotBlank(message = "A descrição é obrigatória.")
         String descricao,
 
+        @NotBlank(message = "A categoria é obrigatória.")
+        String categoria,
+
         @NotBlank(message = "O identificador é obrigatório.")
         String identificador,
 

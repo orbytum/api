@@ -51,6 +51,7 @@ public class MaterialService {
         Material material = Material.builder()
                 .nome(request.nome())
                 .descricao(request.descricao())
+                .categoria(request.categoria())
                 .identificador(request.identificador())
                 .quantidade(request.quantidade())
                 .localizacao(request.localizacao())
@@ -70,6 +71,7 @@ public class MaterialService {
         Material material = buscarMaterial(id);
         material.setNome(request.nome());
         material.setDescricao(request.descricao());
+        material.setCategoria(request.categoria());
         material.setIdentificador(request.identificador());
         material.setQuantidade(request.quantidade());
         material.setLocalizacao(request.localizacao());
@@ -144,6 +146,7 @@ public class MaterialService {
                 material.getId(),
                 material.getNome(),
                 material.getDescricao(),
+                material.getCategoria(),
                 material.getIdentificador(),
                 material.getQuantidade(),
                 material.getLocalizacao(),

@@ -8,6 +8,7 @@ public record MaterialResponse(
         Long id,
         String nome,
         String descricao,
+        String categoria,
         String identificador,
         Integer quantidade,
         String localizacao,
