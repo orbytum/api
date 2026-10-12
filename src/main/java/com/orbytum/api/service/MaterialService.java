@@ -123,8 +123,8 @@ public class MaterialService {
         int quantidadeDisponivel = material.getQuantidade() - quantidadeEmprestada;
 
         MaterialStatus statusEfetivo = material.getStatus();
-        if (material.getStatus() != MaterialStatus.INDISPONIVEL) {
-            statusEfetivo = quantidadeDisponivel <= 0 ? MaterialStatus.EMPRESTADO : MaterialStatus.DISPONIVEL;
+        if (material.getStatus() != MaterialStatus.MANUTENCAO) {
+            statusEfetivo = quantidadeDisponivel <= 0 ? MaterialStatus.EM_USO : MaterialStatus.DISPONIVEL;
         }
 
         List<MaterialEmprestimoSolicitacao> solicitacoesAtivas =
