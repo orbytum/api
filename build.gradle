@@ -50,6 +50,9 @@ dependencies {
 	// Documentação
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
 
+	// Web scraping (importação de dados de notícias por link — REQ-079)
+	implementation 'org.jsoup:jsoup:1.18.3'
+
 	//Segurança
 	implementation 'org.bouncycastle:bcprov-jdk18on:1.84'
 

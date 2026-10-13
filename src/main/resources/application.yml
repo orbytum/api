@@ -39,6 +39,8 @@ orbytum:
     from: ${ORBYTUM_MAIL_FROM:${spring.mail.username}}
     from-name: ${ORBYTUM_MAIL_FROM_NAME:Orbytum}
   front-end: ${FRONT_END_URL:http://localhost:3000}
+  noticias:
+    prazo-exibicao-dias: ${ORBYTUM_NOTICIAS_PRAZO_EXIBICAO_DIAS:30}
 
 aws:
   s3:
