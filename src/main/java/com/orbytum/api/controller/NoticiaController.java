@@ -3,8 +3,10 @@ package com.orbytum.api.controller;
 import com.orbytum.api.models.dto.request.CreateNoticiaRequest;
 import com.orbytum.api.models.dto.request.EditNoticiaRequest;
 import com.orbytum.api.models.dto.request.RejeitarNoticiaRequest;
+import com.orbytum.api.models.dto.response.LinkPreviewResponse;
 import com.orbytum.api.models.dto.response.NoticiaPaginadaResponse;
 import com.orbytum.api.models.dto.response.NoticiaResponse;
+import com.orbytum.api.service.LinkPreviewService;
 import com.orbytum.api.service.NoticiaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ import java.time.LocalDate;
 public class NoticiaController {
 
     private final NoticiaService noticiaService;
+    private final LinkPreviewService linkPreviewService;
 
     @PostMapping
     public ResponseEntity<NoticiaResponse> criarNoticia(
@@ -54,6 +57,11 @@ public class NoticiaController {
         NoticiaPaginadaResponse response = noticiaService.listarPendentes(
                 grupoId, page, size, authentication.getName());
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/preview")
+    public ResponseEntity<LinkPreviewResponse> previewLink(@RequestParam String url) {
+        return ResponseEntity.ok(linkPreviewService.extrair(url));
     }
 
     @GetMapping("/{id}")
