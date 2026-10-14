@@ -5,7 +5,7 @@ import lombok.Getter;
 
 @AllArgsConstructor
 public enum MaterialStatus {
-    DISPONIVEL(1), INDISPONIVEL(2), EMPRESTADO(3);
+    DISPONIVEL(1), MANUTENCAO(2), EM_USO(3);
 
     @Getter private Integer id;
 
@@ -15,6 +15,6 @@ public enum MaterialStatus {
                 return p;
             }
         }
-        throw new IllegalArgumentException("Id de status de atividade invalido: " + id);
+        throw new IllegalArgumentException("Id de status de material invalido: " + id);
     }
 }

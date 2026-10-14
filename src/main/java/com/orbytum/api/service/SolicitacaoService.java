@@ -63,7 +63,7 @@ public class SolicitacaoService {
                 throw new IllegalArgumentException("Para solicitações de uso de material, o material deve ser informado");
             }
             material = buscarMaterial(request.materialId());
-            if (material.getStatus() == MaterialStatus.INDISPONIVEL || material.getStatus() == MaterialStatus.EMPRESTADO) {
+            if (material.getStatus() == MaterialStatus.MANUTENCAO || material.getStatus() == MaterialStatus.EM_USO) {
                 throw new IllegalArgumentException("Material selecionado não está disponível para uso");
             }
             if (request.quantidade() == null || request.quantidade() <= 0) {
@@ -179,7 +179,7 @@ public class SolicitacaoService {
                     .build();
             materialEmprestimoRepository.save(emprestimo);
 
-            material.setStatus(MaterialStatus.EMPRESTADO);
+            material.setStatus(MaterialStatus.EM_USO);
             materialRepository.save(material);
         } else {
             solicitacao.setStatus(SolicitacaoStatus.CONCLUIDA);

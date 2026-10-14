@@ -64,6 +64,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(erro);
     }
 
+    @ExceptionHandler(LinkPreviewIndisponivelErro.class)
+    public ResponseEntity<ErroResponse> handleLinkPreviewIndisponivel(LinkPreviewIndisponivelErro ex) {
+        ErroResponse erro = new ErroResponse(
+                HttpStatus.BAD_GATEWAY.value(),
+                ex.getMessage(),
+                System.currentTimeMillis()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(erro);
+    }
+
     @ExceptionHandler(com.orbytum.api.models.exceptions.S3StorageException.class)
     public ResponseEntity<ErroResponse> handleS3StorageException(com.orbytum.api.models.exceptions.S3StorageException ex) {
         ErroResponse erro = new ErroResponse(
@@ -104,7 +114,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(erro);
     }
 
-    @ExceptionHandler({TransicaoAtividadeInvalidaErro.class, ResponsavelNaoPertenceAoProjetoErro.class})
+    @ExceptionHandler({TransicaoAtividadeInvalidaErro.class, ResponsavelNaoPertenceAoProjetoErro.class, NoticiaNaoPendenteErro.class})
     public ResponseEntity<ErroResponse> handleRegraDeNegocio(RuntimeException ex) {
         ErroResponse erro = new ErroResponse(
                 HttpStatus.BAD_REQUEST.value(),
