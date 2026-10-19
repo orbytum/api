@@ -1,7 +1,6 @@
 package com.orbytum.api.repository;
 
 import com.orbytum.api.models.entity.Evento;
-import com.orbytum.api.models.enums.TipoLembrete;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -33,8 +32,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
             LEFT JOIN FETCH e.participantes
             WHERE e.grupo.id = :grupoId
               AND e.isAtivo = true
-              AND (:tipo IS NULL OR e.tipo = :tipo)
-              AND (:busca IS NULL OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :busca, '%'))
+              AND (:busca = '' OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :busca, '%'))
                                  OR LOWER(e.descricao) LIKE LOWER(CONCAT('%', :busca, '%'))
                                  OR LOWER(e.organizador) LIKE LOWER(CONCAT('%', :busca, '%')))
             ORDER BY e.dthInicio ASC
@@ -43,14 +41,13 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
             SELECT COUNT(e) FROM Evento e
             WHERE e.grupo.id = :grupoId
               AND e.isAtivo = true
-              AND (:tipo IS NULL OR e.tipo = :tipo)
-              AND (:busca IS NULL OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :busca, '%'))
+              AND (:busca = '' OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :busca, '%'))
                                  OR LOWER(e.descricao) LIKE LOWER(CONCAT('%', :busca, '%'))
                                  OR LOWER(e.organizador) LIKE LOWER(CONCAT('%', :busca, '%')))
             """)
+    /** `busca` nunca deve ser nulo (use "" para sem filtro): parâmetro String nulo vira bytea no PostgreSQL. */
     Page<Evento> filtrarPorGrupo(
             @Param("grupoId") Long grupoId,
-            @Param("tipo") TipoLembrete tipo,
             @Param("busca") String busca,
             Pageable pageable);
 

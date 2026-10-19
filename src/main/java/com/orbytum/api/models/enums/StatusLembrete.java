@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 
 @AllArgsConstructor
 public enum StatusLembrete {
-    EM_ANDAMENTO("Em Andamento"),
+    AGENDADO("Agendado"),
     PROXIMO("Próximo"),
     ENCERRADO("Encerrado");
 
@@ -32,7 +32,7 @@ public enum StatusLembrete {
         if (dataHora.isBefore(agora.plusDays(3).plusSeconds(1))) {
             return PROXIMO;
         }
-        return EM_ANDAMENTO;
+        return AGENDADO;
     }
 
     @JsonCreator
@@ -47,7 +47,7 @@ public enum StatusLembrete {
                 return status;
             }
         }
-        throw new IllegalArgumentException("Status de lembrete inválido: " + value + ". Valores aceitos: Em Andamento, Próximo, Encerrado.");
+        throw new IllegalArgumentException("Status de lembrete inválido: " + value + ". Valores aceitos: Agendado, Próximo, Encerrado.");
     }
 
     private static String normalizar(String str) {

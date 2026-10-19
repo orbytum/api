@@ -88,11 +88,13 @@ public class LembreteController {
     }
 
     @GetMapping("/grupo/{grupoId}/todos")
-    @Operation(summary = "Listar todos os lembretes ativos de um grupo")
+    @Operation(summary = "Listar todos os lembretes ativos de um grupo (sem paginação), ordenados pela próxima ocorrência, com filtros opcionais")
     public ResponseEntity<List<LembreteResponse>> listarTodosPorGrupo(
             @PathVariable Long grupoId,
+            @RequestParam(required = false) TipoLembrete tipo,
+            @RequestParam(required = false) String busca,
             Authentication authentication) {
-        return ResponseEntity.ok(lembreteService.listarTodosPorGrupo(grupoId, authentication.getName()));
+        return ResponseEntity.ok(lembreteService.listarTodosPorGrupo(grupoId, tipo, busca, authentication.getName()));
     }
 
     @PostMapping(value = "/{id}/ata", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

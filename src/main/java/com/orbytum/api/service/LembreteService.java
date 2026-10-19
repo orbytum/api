@@ -23,17 +23,17 @@ import com.orbytum.api.repository.EventoRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -42,6 +42,23 @@ import java.util.UUID;
 public class LembreteService {
 
     private static final Logger logger = LoggerFactory.getLogger(LembreteService.class);
+
+    /**
+     * Ordem cronológica pela próxima ocorrência: primeiro o que ainda vai acontecer (do mais
+     * próximo ao mais distante), depois o que já passou (do mais recente ao mais antigo).
+     */
+    private static final Comparator<LembreteResponse> ORDEM_CRONOLOGICA = (a, b) -> {
+        boolean aEncerrado = a.status() == StatusLembrete.ENCERRADO;
+        boolean bEncerrado = b.status() == StatusLembrete.ENCERRADO;
+        if (aEncerrado != bEncerrado) {
+            return aEncerrado ? 1 : -1;
+        }
+        int porData = a.proximaOcorrencia().compareTo(b.proximaOcorrencia());
+        if (porData != 0) {
+            return aEncerrado ? -porData : porData;
+        }
+        return a.id().compareTo(b.id());
+    };
 
     private final EventoRepository eventoRepository;
     private final EventoParticipanteRepository participanteRepository;
@@ -169,33 +186,52 @@ public class LembreteService {
         Usuario solicitante = usuarioAutenticado(emailLogado);
         validarAcessoAoGrupo(grupoId, solicitante);
 
-        int pageIndex = Math.max(0, page - 1);
         int pageSize = size > 0 ? size : 10;
-        Pageable pageable = PageRequest.of(pageIndex, pageSize, Sort.by(Sort.Direction.ASC, "dthInicio"));
+        String buscaTrim = (busca != null && !busca.isBlank()) ? busca.trim() : "";
 
-        String buscaTrim = (busca != null && !busca.isBlank()) ? busca.trim() : null;
-        Page<Evento> pageResult = eventoRepository.filtrarPorGrupo(grupoId, tipo, buscaTrim, pageable);
-
-        List<LembreteResponse> items = pageResult.getContent().stream()
+        // Busca sem filtro de tipo para que os totais por tipo reflitam a pesquisa inteira
+        List<LembreteResponse> pesquisados = eventoRepository
+                .filtrarPorGrupo(grupoId, buscaTrim, Pageable.unpaged()).getContent().stream()
                 .map(e -> toResponse(e, solicitante))
                 .toList();
 
+        Map<String, Long> totaisPorTipo = new LinkedHashMap<>();
+        for (TipoLembrete t : TipoLembrete.values()) {
+            totaisPorTipo.put(t.getDescricao(), pesquisados.stream().filter(l -> l.tipo() == t).count());
+        }
+
+        List<LembreteResponse> ordenados = pesquisados.stream()
+                .filter(l -> tipo == null || l.tipo() == tipo)
+                .sorted(ORDEM_CRONOLOGICA)
+                .toList();
+
+        long total = ordenados.size();
+        int totalPages = (int) Math.ceil((double) total / pageSize);
+        int pageAtual = Math.max(1, page);
+        int from = (int) Math.min((long) (pageAtual - 1) * pageSize, total);
+        int to = (int) Math.min((long) from + pageSize, total);
+
         return new LembretePaginadoResponse(
-                items,
-                pageResult.getTotalElements(),
-                pageResult.getTotalPages(),
-                page,
-                pageSize
+                ordenados.subList(from, to),
+                total,
+                totalPages,
+                pageAtual,
+                pageSize,
+                totaisPorTipo
         );
     }
 
     @Transactional(readOnly = true)
-    public List<LembreteResponse> listarTodosPorGrupo(Long grupoId, String emailLogado) {
+    public List<LembreteResponse> listarTodosPorGrupo(Long grupoId, TipoLembrete tipo, String busca, String emailLogado) {
         Usuario solicitante = usuarioAutenticado(emailLogado);
         validarAcessoAoGrupo(grupoId, solicitante);
 
-        return eventoRepository.findAllByGrupoIdAndIsAtivoTrueOrderByDthInicioAsc(grupoId).stream()
+        String buscaTrim = (busca != null && !busca.isBlank()) ? busca.trim() : "";
+
+        return eventoRepository.filtrarPorGrupo(grupoId, buscaTrim, Pageable.unpaged()).getContent().stream()
+                .filter(e -> tipo == null || e.getTipo() == tipo)
                 .map(e -> toResponse(e, solicitante))
+                .sorted(ORDEM_CRONOLOGICA)
                 .toList();
     }
 
@@ -320,8 +356,11 @@ public class LembreteService {
     }
 
     private boolean isAdmin(Usuario usuario) {
-        return usuario.getCredenciaisLogin() != null
-                && usuario.getCredenciaisLogin().getAccessLevel() == AccessLevel.ADMIN;
+        if (usuario.getCredenciaisLogin() == null) {
+            return false;
+        }
+        AccessLevel nivel = usuario.getCredenciaisLogin().getAccessLevel();
+        return nivel == AccessLevel.ADMIN || nivel == AccessLevel.INITIAL_ADMIN;
     }
 
     private void validarAcessoAoGrupo(Long grupoId, Usuario solicitante) {
@@ -354,7 +393,9 @@ public class LembreteService {
     }
 
     private LembreteResponse toResponse(Evento evento, Usuario solicitante) {
-        StatusLembrete status = StatusLembrete.calcularStatus(evento.getDthInicio());
+        TipoRecorrencia recorrenciaEvento = evento.getRecorrencia() != null ? evento.getRecorrencia() : TipoRecorrencia.NENHUMA;
+        LocalDateTime proxima = recorrenciaEvento.proximaOcorrencia(evento.getDthInicio(), LocalDateTime.now());
+        StatusLembrete status = StatusLembrete.calcularStatus(proxima);
 
         boolean presencaConfirmada = evento.getParticipantes().stream()
                 .anyMatch(p -> p.getUsuario() != null
@@ -383,6 +424,7 @@ public class LembreteService {
                 evento.getDescricao(),
                 evento.getTipo(),
                 evento.getDthInicio(),
+                proxima,
                 evento.getLocalizacao(),
                 evento.getLocalizacao(),
                 evento.getUrl(),

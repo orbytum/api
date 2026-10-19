@@ -138,7 +138,7 @@ class LembreteServiceTest {
         assertEquals("Reunião de Acompanhamento", response.titulo());
         assertEquals(TipoLembrete.REUNIAO, response.tipo());
         assertEquals(TipoRecorrencia.SEMANAL, response.recorrencia());
-        assertEquals(StatusLembrete.EM_ANDAMENTO, response.status());
+        assertEquals(StatusLembrete.AGENDADO, response.status());
         assertEquals(10L, response.grupoId());
         assertEquals(1L, response.criadorId());
         assertEquals(2, response.participantes().size());
@@ -337,7 +337,7 @@ class LembreteServiceTest {
 
         Evento l1 = criarEventoExemplo(1L, TipoLembrete.WORKSHOP, LocalDateTime.now().plusDays(1));
 
-        when(eventoRepository.filtrarPorGrupo(eq(10L), isNull(), isNull(), any(Pageable.class)))
+        when(eventoRepository.filtrarPorGrupo(eq(10L), eq(""), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(l1)));
 
         LembretePaginadoResponse response = lembreteService.listarPorGrupo(10L, null, null, 1, 10, EMAIL_CRIADOR);
@@ -345,6 +345,29 @@ class LembreteServiceTest {
         assertNotNull(response);
         assertEquals(1, response.items().size());
         assertEquals(1, response.totalElements());
+    }
+
+    @Test
+    @DisplayName("Paginação em ordem cronológica: futuros crescentes, depois passados do mais recente ao mais antigo")
+    void testListarPorGrupoOrdemCronologicaEPaginas() {
+        when(usuarioService.findByEmail(EMAIL_CRIADOR)).thenReturn(Optional.of(criador));
+
+        Evento longe = criarEventoExemplo(1L, TipoLembrete.EDITAL, LocalDateTime.now().plusDays(10));
+        Evento passadoAntigo = criarEventoExemplo(2L, TipoLembrete.REUNIAO, LocalDateTime.now().minusDays(20));
+        Evento perto = criarEventoExemplo(3L, TipoLembrete.WORKSHOP, LocalDateTime.now().plusDays(1));
+        Evento passadoRecente = criarEventoExemplo(4L, TipoLembrete.REUNIAO, LocalDateTime.now().minusDays(2));
+
+        when(eventoRepository.filtrarPorGrupo(eq(10L), eq(""), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(longe, passadoAntigo, perto, passadoRecente)));
+
+        LembretePaginadoResponse p1 = lembreteService.listarPorGrupo(10L, null, null, 1, 3, EMAIL_CRIADOR);
+        LembretePaginadoResponse p2 = lembreteService.listarPorGrupo(10L, null, null, 2, 3, EMAIL_CRIADOR);
+
+        assertEquals(List.of(3L, 1L, 4L), p1.items().stream().map(LembreteResponse::id).toList());
+        assertEquals(List.of(2L), p2.items().stream().map(LembreteResponse::id).toList());
+        assertEquals(4, p1.totalElements());
+        assertEquals(2, p1.totalPages());
+        assertEquals(2L, p1.totaisPorTipo().get("Reunião"));
     }
 
     @Test
@@ -392,12 +415,12 @@ class LembreteServiceTest {
     }
 
     @Test
-    @DisplayName("Cálculo dinâmico de status: Encerrado (passado), Próximo (<= 3 dias), Em Andamento (> 3 dias)")
+    @DisplayName("Cálculo dinâmico de status: Encerrado (passado), Próximo (<= 3 dias), Agendado (> 3 dias)")
     void testStatusLembreteCalculo() {
         assertEquals(StatusLembrete.ENCERRADO, StatusLembrete.calcularStatus(LocalDateTime.now().minusHours(1)));
         assertEquals(StatusLembrete.PROXIMO, StatusLembrete.calcularStatus(LocalDateTime.now().plusDays(1)));
         assertEquals(StatusLembrete.PROXIMO, StatusLembrete.calcularStatus(LocalDateTime.now().plusDays(2)));
-        assertEquals(StatusLembrete.EM_ANDAMENTO, StatusLembrete.calcularStatus(LocalDateTime.now().plusDays(5)));
+        assertEquals(StatusLembrete.AGENDADO, StatusLembrete.calcularStatus(LocalDateTime.now().plusDays(5)));
     }
 
     @Test
@@ -433,9 +456,10 @@ class LembreteServiceTest {
     void testListarTodosPorGrupo() {
         when(usuarioService.findByEmail(EMAIL_CRIADOR)).thenReturn(Optional.of(criador));
         Evento l = criarEventoExemplo(1L, TipoLembrete.REUNIAO, LocalDateTime.now().plusDays(1));
-        when(eventoRepository.findAllByGrupoIdAndIsAtivoTrueOrderByDthInicioAsc(10L)).thenReturn(List.of(l));
+        when(eventoRepository.filtrarPorGrupo(eq(10L), eq(""), any(Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(l)));
 
-        List<LembreteResponse> list = lembreteService.listarTodosPorGrupo(10L, EMAIL_CRIADOR);
+        List<LembreteResponse> list = lembreteService.listarTodosPorGrupo(10L, null, null, EMAIL_CRIADOR);
 
         assertEquals(1, list.size());
         assertEquals("Lembrete de Teste", list.get(0).titulo());

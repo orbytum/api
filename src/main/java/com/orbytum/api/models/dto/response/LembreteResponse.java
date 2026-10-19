@@ -17,6 +17,7 @@ public record LembreteResponse(
         String descricao,
         TipoLembrete tipo,
         LocalDateTime dataHora,
+        LocalDateTime proximaOcorrencia,
         String local,
         String localizacao,
         String link,
