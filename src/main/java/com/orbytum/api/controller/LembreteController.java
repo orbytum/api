@@ -97,6 +97,20 @@ public class LembreteController {
         return ResponseEntity.ok(lembreteService.listarTodosPorGrupo(grupoId, tipo, busca, authentication.getName()));
     }
 
+    @GetMapping(value = "/grupo/{grupoId}/ics", produces = "text/calendar")
+    @Operation(summary = "Exportar os lembretes do grupo em arquivo iCalendar (.ics)")
+    public ResponseEntity<byte[]> exportarIcs(
+            @PathVariable Long grupoId,
+            Authentication authentication) {
+        byte[] arquivo = lembreteService.exportarIcs(grupoId, authentication.getName());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"lembretes-grupo-" + grupoId + ".ics\"")
+                .contentType(MediaType.parseMediaType("text/calendar; charset=UTF-8"))
+                .body(arquivo);
+    }
+
     @PostMapping(value = "/{id}/ata", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Inserir arquivo de ata de reunião (apenas tipo Reunião e somente o criador)")
     public ResponseEntity<LembreteResponse> inserirAta(

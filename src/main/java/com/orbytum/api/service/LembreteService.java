@@ -20,6 +20,7 @@ import com.orbytum.api.models.exceptions.UsuarioNaoEncontradoErro;
 import com.orbytum.api.repository.GrupoRepository;
 import com.orbytum.api.repository.EventoParticipanteRepository;
 import com.orbytum.api.repository.EventoRepository;
+import com.orbytum.api.util.IcsCalendarBuilder;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -233,6 +234,24 @@ public class LembreteService {
                 .map(e -> toResponse(e, solicitante))
                 .sorted(ORDEM_CRONOLOGICA)
                 .toList();
+    }
+
+    /**
+     * Exporta os lembretes/eventos ativos do grupo em formato iCalendar (.ics).
+     * O arquivo inclui recorrência (RRULE), local, link, organizador e participantes.
+     */
+    @Transactional(readOnly = true)
+    public byte[] exportarIcs(Long grupoId, String emailLogado) {
+        Usuario solicitante = usuarioAutenticado(emailLogado);
+
+        Grupo grupo = grupoRepository.findById(grupoId)
+                .filter(Grupo::isAtivo)
+                .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo não encontrado com ID: " + grupoId));
+
+        validarAcessoAoGrupo(grupoId, solicitante);
+
+        List<Evento> eventos = eventoRepository.findAllByGrupoIdAndIsAtivoTrueOrderByDthInicioAsc(grupoId);
+        return IcsCalendarBuilder.gerar(grupo.getNome(), eventos);
     }
 
     @Transactional
