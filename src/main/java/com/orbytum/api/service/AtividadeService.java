@@ -25,7 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -191,8 +193,23 @@ public class AtividadeService {
     }
 
     @Transactional(readOnly = true)
-    public List<AtividadeResponse> listarAtrasadasPorProjeto(Long projetoId, String emailLogado) {
-        Projeto projeto = projetoService.findById(projetoId)
+    public List<AtividadeResponse> listarPorGrupo(Long grupoId, String emailLogado) {
+        Usuario solicitante = usuarioAutenticado(emailLogado);
+        validarAcessoAoGrupo(grupoId, solicitante);
+
+        Map<Long, Boolean> projetosFinalizaveis = new HashMap<>();
+        return atividadeRepository.findAllAtivasPorGrupo(grupoId).stream()
+                .map(atividade -> {
+                    Long projetoId = atividade.getProjeto().getId();
+                    boolean finalizavel = projetosFinalizaveis.computeIfAbsent(
+                            projetoId, id -> !existeAtividadeAberta(id));
+                    return toResponse(atividade, finalizavel);
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AtividadeResponse> listarAtrasadasPorProjeto(Long projetoId, String emailLogado) {        Projeto projeto = projetoService.findById(projetoId)
                 .orElseThrow(() -> new ProjetoNaoEncontradoErro("Projeto não encontrado com ID: " + projetoId));
         Usuario solicitante = usuarioAutenticado(emailLogado);
         validarAcessoAoGrupo(projeto.getGrupo().getId(), solicitante);

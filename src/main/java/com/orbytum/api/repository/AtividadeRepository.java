@@ -55,6 +55,16 @@ public interface AtividadeRepository extends JpaRepository<Atividade, Long> {
             @Param("status") Collection<AtividadeStatus> status,
             @Param("agora") LocalDateTime agora);
 
+    @Query("""
+            SELECT a FROM Atividade a
+            LEFT JOIN FETCH a.projeto p
+            LEFT JOIN FETCH a.responsavel
+            WHERE p.grupo.id = :grupoId
+              AND a.isAtivo = true
+            ORDER BY a.dthPrazo ASC, a.id ASC
+            """)
+    List<Atividade> findAllAtivasPorGrupo(@Param("grupoId") Long grupoId);
+
     List<Atividade> findAllByAtividadePaiIdAndIsAtivoTrue(Long atividadePaiId);
 
     long countByProjetoIdAndStatusInAndIsAtivoTrue(Long projetoId, Collection<AtividadeStatus> status);

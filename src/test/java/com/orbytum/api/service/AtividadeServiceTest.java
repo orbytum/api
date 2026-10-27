@@ -236,6 +236,25 @@ class AtividadeServiceTest {
     }
 
     @Test
+    void listarPorGrupoRetornaAtividadesAtivasConsolidadas() {
+        Atividade a1 = atividade(AtividadeStatus.PENDENTE, LocalDateTime.now().plusDays(1));
+        Atividade a2 = atividade(AtividadeStatus.EM_ANDAMENTO, LocalDateTime.now().plusDays(2));
+        a2.setId(2L);
+
+        when(atividadeRepository.findAllAtivasPorGrupo(1L)).thenReturn(List.of(a1, a2));
+
+        List<AtividadeResponse> response = atividadeService.listarPorGrupo(1L, EMAIL);
+
+        assertEquals(2, response.size());
+        assertEquals(5L, response.get(0).projetoId());
+        assertEquals(5L, response.get(1).projetoId());
+        verify(atividadeRepository).findAllAtivasPorGrupo(1L);
+        // A flag é calculada uma única vez por projeto
+        verify(atividadeRepository, times(1))
+                .countByProjetoIdAndStatusInAndIsAtivoTrue(anyLong(), any());
+    }
+
+    @Test
     void listarAtrasadasFiltraNoBancoComStatusAbertos() {
         when(projetoService.findById(5L)).thenReturn(Optional.of(projeto));
         when(atividadeRepository.findAllAtrasadasPorProjeto(eq(5L), any(), any(LocalDateTime.class)))

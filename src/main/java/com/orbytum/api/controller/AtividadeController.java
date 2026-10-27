@@ -70,6 +70,13 @@ public class AtividadeController {
         return ResponseEntity.ok(atividadeService.buscar(id, authentication.getName()));
     }
 
+    @GetMapping("/grupo/{grupoId}")
+    public ResponseEntity<List<AtividadeResponse>> listarPorGrupo(
+            @PathVariable Long grupoId,
+            Authentication authentication) {
+        return ResponseEntity.ok(atividadeService.listarPorGrupo(grupoId, authentication.getName()));
+    }
+
     @GetMapping("/projeto/{projetoId}")
     public ResponseEntity<AtividadePaginadoResponse> listarPorProjeto(
             @PathVariable Long projetoId,

@@ -28,6 +28,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -368,6 +369,31 @@ class LembreteServiceTest {
         assertEquals(4, p1.totalElements());
         assertEquals(2, p1.totalPages());
         assertEquals(2L, p1.totaisPorTipo().get("Reunião"));
+    }
+
+    @Test
+    @DisplayName("Deve exportar os lembretes ativos do grupo em arquivo .ics")
+    void testExportarIcs() {
+        Evento evento = criarEventoExemplo(1L, TipoLembrete.REUNIAO, LocalDateTime.of(2026, 11, 10, 14, 0));
+        evento.setRecorrencia(TipoRecorrencia.SEMANAL);
+
+        when(usuarioService.findByEmail(EMAIL_CRIADOR)).thenReturn(Optional.of(criador));
+        when(grupoRepository.findById(10L)).thenReturn(Optional.of(grupo));
+        when(eventoRepository.findAllByGrupoIdAndIsAtivoTrueOrderByDthInicioAsc(10L))
+                .thenReturn(List.of(evento));
+
+        byte[] bytes = lembreteService.exportarIcs(10L, EMAIL_CRIADOR);
+        String ics = new String(bytes, StandardCharsets.UTF_8);
+
+        assertTrue(ics.contains("BEGIN:VCALENDAR"));
+        assertTrue(ics.contains("X-WR-CALNAME:Grupo de Inteligência Artificial"));
+        assertTrue(ics.contains("BEGIN:VEVENT"));
+        assertTrue(ics.contains("SUMMARY:Lembrete de Teste"));
+        assertTrue(ics.contains("DTSTART:20261110T140000"));
+        assertTrue(ics.contains("RRULE:FREQ=WEEKLY"));
+        assertTrue(ics.contains("END:VCALENDAR"));
+
+        verify(grupoAcessoService).validarMembro(10L, 1L);
     }
 
     @Test
