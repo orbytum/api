@@ -29,7 +29,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -180,6 +182,8 @@ public class LembreteService {
             Long grupoId,
             TipoLembrete tipo,
             String busca,
+            LocalDate dataInicio,
+            LocalDate dataFim,
             int page,
             int size,
             String emailLogado
@@ -189,10 +193,12 @@ public class LembreteService {
 
         int pageSize = size > 0 ? size : 10;
         String buscaTrim = (busca != null && !busca.isBlank()) ? busca.trim() : "";
+        LocalDateTime inicio = dataInicio != null ? dataInicio.atStartOfDay() : null;
+        LocalDateTime fim = dataFim != null ? dataFim.atTime(LocalTime.MAX) : null;
 
         // Busca sem filtro de tipo para que os totais por tipo reflitam a pesquisa inteira
         List<LembreteResponse> pesquisados = eventoRepository
-                .filtrarPorGrupo(grupoId, buscaTrim, Pageable.unpaged()).getContent().stream()
+                .filtrarPorGrupo(grupoId, buscaTrim, inicio, fim, Pageable.unpaged()).getContent().stream()
                 .map(e -> toResponse(e, solicitante))
                 .toList();
 
@@ -229,7 +235,7 @@ public class LembreteService {
 
         String buscaTrim = (busca != null && !busca.isBlank()) ? busca.trim() : "";
 
-        return eventoRepository.filtrarPorGrupo(grupoId, buscaTrim, Pageable.unpaged()).getContent().stream()
+        return eventoRepository.filtrarPorGrupo(grupoId, buscaTrim, null, null, Pageable.unpaged()).getContent().stream()
                 .filter(e -> tipo == null || e.getTipo() == tipo)
                 .map(e -> toResponse(e, solicitante))
                 .sorted(ORDEM_CRONOLOGICA)
