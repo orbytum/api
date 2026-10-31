@@ -1,7 +1,6 @@
 package com.orbytum.api.models.entity;
 
 import com.orbytum.api.models.converter.ProjetoStatusAttributeConverter;
-import com.orbytum.api.models.entity.joinColumns.EditalXProjeto;
 import com.orbytum.api.models.entity.joinColumns.ProjetoXUsuario;
 import com.orbytum.api.models.enums.ProjetoStatus;
 import jakarta.annotation.Nonnull;
@@ -49,9 +48,6 @@ public class Projeto {
 
     @Nonnull
     private boolean isFavorito;
-
-    @OneToMany(mappedBy = "projeto", fetch = FetchType.LAZY)
-    private List<EditalXProjeto> editaisProjetos;
 
     @OneToMany(mappedBy = "projeto", fetch = FetchType.LAZY)
     private List<ProjetoXUsuario> participantes;
