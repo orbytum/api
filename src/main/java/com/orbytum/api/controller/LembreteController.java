@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -18,6 +19,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -69,10 +71,12 @@ public class LembreteController {
             @RequestParam Long grupoId,
             @RequestParam(required = false) TipoLembrete tipo,
             @RequestParam(required = false) String busca,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication authentication) {
-        return ResponseEntity.ok(lembreteService.listarPorGrupo(grupoId, tipo, busca, page, size, authentication.getName()));
+        return ResponseEntity.ok(lembreteService.listarPorGrupo(grupoId, tipo, busca, dataInicio, dataFim, page, size, authentication.getName()));
     }
 
     @GetMapping("/grupo/{grupoId}")
@@ -81,10 +85,12 @@ public class LembreteController {
             @PathVariable Long grupoId,
             @RequestParam(required = false) TipoLembrete tipo,
             @RequestParam(required = false) String busca,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication authentication) {
-        return ResponseEntity.ok(lembreteService.listarPorGrupo(grupoId, tipo, busca, page, size, authentication.getName()));
+        return ResponseEntity.ok(lembreteService.listarPorGrupo(grupoId, tipo, busca, dataInicio, dataFim, page, size, authentication.getName()));
     }
 
     @GetMapping("/grupo/{grupoId}/todos")

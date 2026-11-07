@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,6 +36,8 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
               AND (:busca = '' OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :busca, '%'))
                                  OR LOWER(e.descricao) LIKE LOWER(CONCAT('%', :busca, '%'))
                                  OR LOWER(e.organizador) LIKE LOWER(CONCAT('%', :busca, '%')))
+              AND (CAST(:dataInicio AS java.time.LocalDateTime) IS NULL OR e.dthInicio >= :dataInicio)
+              AND (CAST(:dataFim AS java.time.LocalDateTime) IS NULL OR e.dthInicio <= :dataFim)
             ORDER BY e.dthInicio ASC
             """,
             countQuery = """
@@ -44,11 +47,15 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
               AND (:busca = '' OR LOWER(e.titulo) LIKE LOWER(CONCAT('%', :busca, '%'))
                                  OR LOWER(e.descricao) LIKE LOWER(CONCAT('%', :busca, '%'))
                                  OR LOWER(e.organizador) LIKE LOWER(CONCAT('%', :busca, '%')))
+              AND (CAST(:dataInicio AS java.time.LocalDateTime) IS NULL OR e.dthInicio >= :dataInicio)
+              AND (CAST(:dataFim AS java.time.LocalDateTime) IS NULL OR e.dthInicio <= :dataFim)
             """)
     /** `busca` nunca deve ser nulo (use "" para sem filtro): parâmetro String nulo vira bytea no PostgreSQL. */
     Page<Evento> filtrarPorGrupo(
             @Param("grupoId") Long grupoId,
             @Param("busca") String busca,
+            @Param("dataInicio") LocalDateTime dataInicio,
+            @Param("dataFim") LocalDateTime dataFim,
             Pageable pageable);
 
     @Query("""
