@@ -1,6 +1,6 @@
 package com.orbytum.api.service;
 
-import com.orbytum.api.configuration.s3.S3Properties;
+import com.orbytum.api.configuration.S3Properties;
 import com.orbytum.api.models.exceptions.S3StorageException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
