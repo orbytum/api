@@ -432,6 +432,7 @@ public class ConviteService {
             case LIDER -> "Líder";
             case COORDENADOR -> "Coordenador";
             case PESQUISADOR -> "Membro";
+            case COLABORADOR -> "Colaborador";
         };
 
         return roleRepository.findByNomeIgnoreCase(nomeRole)
@@ -517,8 +518,9 @@ public class ConviteService {
         if (alvo == NivelMembro.COORDENADOR && !nivelRemetente.isPeloMenos(NivelMembro.LIDER)) {
             throw new SemPermissaoConvidarErro("Apenas o Líder do grupo pode convidar coordenadores");
         }
-        if (alvo == NivelMembro.PESQUISADOR && !nivelRemetente.isPeloMenos(NivelMembro.COORDENADOR)) {
-            throw new SemPermissaoConvidarErro("Apenas Líder ou Coordenador podem convidar pesquisadores");
+        if ((alvo == NivelMembro.PESQUISADOR || alvo == NivelMembro.COLABORADOR)
+                && !nivelRemetente.isPeloMenos(NivelMembro.COORDENADOR)) {
+            throw new SemPermissaoConvidarErro("Apenas Líder ou Coordenador podem convidar pesquisadores e colaboradores");
         }
     }
 

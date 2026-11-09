@@ -56,6 +56,7 @@ class AtividadeServiceTest {
 
     private Projeto projeto;
     private Usuario responsavel;
+    private Usuario solicitante;
 
     @BeforeEach
     void setUp() {
@@ -70,7 +71,11 @@ class AtividadeServiceTest {
         responsavel = new Usuario(10L, "Responsável", "resp@test.com", "1", "Dr",
                 LocalDateTime.now(), true, credenciais);
 
-        lenient().when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(new Usuario()));
+        CredenciaisLogin credenciaisSolicitante = new CredenciaisLogin(
+                EMAIL, "hash", AccessLevel.USER, new Usuario(), null);
+        solicitante = new Usuario(20L, "Solicitante", EMAIL, "2", "Ms",
+                LocalDateTime.now(), true, credenciaisSolicitante);
+        lenient().when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(solicitante));
         lenient().when(atividadeRepository.save(any(Atividade.class))).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(atividadeRepository.countByProjetoIdAndStatusInAndIsAtivoTrue(anyLong(), any()))
                 .thenReturn(1L);
@@ -111,8 +116,6 @@ class AtividadeServiceTest {
     void concluirExigeCoordenador() {
         when(atividadeRepository.findByIdComRelacionamentos(1L))
                 .thenReturn(Optional.of(atividade(AtividadeStatus.AGUARDANDO_CONFIRMACAO, LocalDateTime.now().plusDays(1))));
-        doThrow(new SemPermissaoNoGrupoErro("Sem permissão"))
-                .when(grupoAcessoService).validarCoordenadorOuAcima(anyLong(), any());
 
         assertThrows(SemPermissaoNoGrupoErro.class,
                 () -> atividadeService.atualizarStatus(1L, AtividadeStatus.CONCLUIDA, EMAIL));
@@ -149,10 +152,60 @@ class AtividadeServiceTest {
     }
 
     @Test
+    void pesquisadorCriaAtividadeDeTopoAguardandoAprovacao() {
+        when(projetoService.findById(5L)).thenReturn(Optional.of(projeto));
+        when(usuarioService.findById(10L)).thenReturn(Optional.of(responsavel));
+        when(grupoAcessoService.isMembroDoProjeto(5L, 10L)).thenReturn(true);
+        when(grupoAcessoService.isMembroDoProjeto(5L, 20L)).thenReturn(true);
+
+        AtividadeResponse response = atividadeService.criar(createRequest(10L, null), EMAIL);
+
+        assertEquals(AtividadeStatus.AGUARDANDO_APROVACAO, response.status());
+        assertTrue(response.podeSerAprovada() == false);
+    }
+
+    @Test
+    void liderDoProjetoAprovaAtividadeAguardandoAprovacao() {
+        Atividade aguardando = atividade(AtividadeStatus.AGUARDANDO_APROVACAO, LocalDateTime.now().plusDays(1));
+        when(atividadeRepository.findByIdComRelacionamentos(1L)).thenReturn(Optional.of(aguardando));
+        when(grupoAcessoService.isLiderDoProjeto(5L, 20L)).thenReturn(true);
+
+        AtividadeResponse response = atividadeService.aprovar(1L, EMAIL);
+
+        assertEquals(AtividadeStatus.PENDENTE, response.status());
+        assertTrue(response.podeSerAprovada() == false);
+    }
+
+    @Test
+    void liderDoProjetoRejeitaAtividadeComMotivo() {
+        Atividade aguardando = atividade(AtividadeStatus.AGUARDANDO_APROVACAO, LocalDateTime.now().plusDays(1));
+        when(atividadeRepository.findByIdComRelacionamentos(1L)).thenReturn(Optional.of(aguardando));
+        when(grupoAcessoService.isLiderDoProjeto(5L, 20L)).thenReturn(true);
+
+        AtividadeResponse response = atividadeService.rejeitar(
+                1L, new com.orbytum.api.models.dto.request.RejeitarAtividadeRequest("Faltou escopo"), EMAIL);
+
+        assertEquals(AtividadeStatus.REJEITADA, response.status());
+        assertEquals("Faltou escopo", response.motivoRejeicao());
+    }
+
+    @Test
+    void colaboradorNaoPodeCriarAtividade() {
+        when(projetoService.findById(5L)).thenReturn(Optional.of(projeto));
+        when(usuarioService.findById(10L)).thenReturn(Optional.of(responsavel));
+        when(grupoAcessoService.isMembroDoProjeto(5L, 10L)).thenReturn(true);
+        when(grupoAcessoService.isColaborador(1L, 20L)).thenReturn(true);
+
+        assertThrows(SemPermissaoNoGrupoErro.class,
+                () -> atividadeService.criar(createRequest(10L, null), EMAIL));
+    }
+
+    @Test
     void criarAtividadeDeTopoComResponsavelNoProjeto() {
         when(projetoService.findById(5L)).thenReturn(Optional.of(projeto));
         when(usuarioService.findById(10L)).thenReturn(Optional.of(responsavel));
         when(grupoAcessoService.isMembroDoProjeto(5L, 10L)).thenReturn(true);
+        when(grupoAcessoService.isCoordenadorOuAcima(1L, 20L)).thenReturn(true);
 
         AtividadeResponse response = atividadeService.criar(createRequest(10L, null), EMAIL);
 
@@ -168,6 +221,7 @@ class AtividadeServiceTest {
                 .thenReturn(Optional.of(atividade(AtividadeStatus.PENDENTE, LocalDateTime.now().plusDays(1))));
         when(usuarioService.findById(99L)).thenReturn(Optional.of(responsavel));
         when(grupoAcessoService.isMembroDoProjeto(5L, 10L)).thenReturn(false);
+        when(grupoAcessoService.isCoordenadorOuAcima(1L, 20L)).thenReturn(true);
 
         EditAtividadeRequest request = new EditAtividadeRequest(99L, "Novo título", "Nova descrição", null);
 
@@ -183,12 +237,13 @@ class AtividadeServiceTest {
         when(projetoService.findById(5L)).thenReturn(Optional.of(projeto));
         when(usuarioService.findById(10L)).thenReturn(Optional.of(responsavel));
         when(atividadeRepository.findByIdComRelacionamentos(7L)).thenReturn(Optional.of(pai));
+        when(grupoAcessoService.isMembroDoProjeto(5L, 20L)).thenReturn(true);
 
         AtividadeResponse response = atividadeService.criar(createRequest(10L, 7L), EMAIL);
 
         assertEquals(7L, response.atividadePaiId());
         verify(grupoAcessoService).validarMembro(1L, 10L);
-        verify(grupoAcessoService, never()).isMembroDoProjeto(anyLong(), anyLong());
+        verify(grupoAcessoService).isMembroDoProjeto(5L, 20L);
     }
 
     @Test
@@ -208,6 +263,7 @@ class AtividadeServiceTest {
     void deletarFazSoftDeleteSemRemoverLinha() {
         Atividade alvo = atividade(AtividadeStatus.PENDENTE, LocalDateTime.now().plusDays(1));
         when(atividadeRepository.findByIdComRelacionamentos(1L)).thenReturn(Optional.of(alvo));
+        when(grupoAcessoService.isCoordenadorOuAcima(1L, 20L)).thenReturn(true);
 
         atividadeService.deletar(1L, EMAIL);
 
@@ -265,6 +321,7 @@ class AtividadeServiceTest {
         assertEquals(1, response.size());
         assertTrue(response.get(0).isAtrasada());
         verify(atividadeRepository).findAllAtrasadasPorProjeto(eq(5L), eq(List.of(
+                AtividadeStatus.AGUARDANDO_APROVACAO,
                 AtividadeStatus.PENDENTE,
                 AtividadeStatus.EM_ANDAMENTO,
                 AtividadeStatus.AGUARDANDO_CONFIRMACAO)), any(LocalDateTime.class));

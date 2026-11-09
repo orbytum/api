@@ -20,5 +20,10 @@ public record CreateProjetoRequest (
     String titulo,
 
     @NotBlank(message = "O assunto do projeto é obrigatório")
-    String assunto
+    String assunto,
+
+    /**
+     * Líder opcional do projeto. Se não informado, o criador assume a liderança.
+     */
+    Long liderProjetoId
 ) {}

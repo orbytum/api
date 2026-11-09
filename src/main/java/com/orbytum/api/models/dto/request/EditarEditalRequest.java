@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Pattern;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record EditarEditalRequest(
         @NotBlank(message = "O organizador do edital é obrigatório.")
@@ -24,5 +25,7 @@ public record EditarEditalRequest(
         LocalDateTime dthAbertura,
 
         @NotNull(message = "A data de encerramento é obrigatória.")
-        LocalDateTime dthEncerramento
+        LocalDateTime dthEncerramento,
+
+        List<Long> projetoIds
 ) {}

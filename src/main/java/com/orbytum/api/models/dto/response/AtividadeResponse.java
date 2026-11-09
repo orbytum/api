@@ -18,5 +18,7 @@ public record AtividadeResponse(
         LocalDateTime dthConclusao,
         boolean isAtrasada,
         boolean isAtivo,
-        boolean projetoPodeSerFinalizado
+        boolean projetoPodeSerFinalizado,
+        String motivoRejeicao,
+        boolean podeSerAprovada
 ) {}

@@ -3,10 +3,15 @@ package com.orbytum.api.service;
 import com.orbytum.api.models.dto.request.CreatePublicacaoRequest;
 import com.orbytum.api.models.dto.response.PublicacaoPaginadaResponse;
 import com.orbytum.api.models.dto.response.PublicacaoResponse;
+import com.orbytum.api.models.entity.CredenciaisLogin;
+import com.orbytum.api.models.entity.Grupo;
 import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Publicacao;
+import com.orbytum.api.models.entity.Usuario;
+import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.exceptions.ProjetoNaoEncontradoErro;
 import com.orbytum.api.models.exceptions.PublicacaoNaoEncontradaErro;
+import com.orbytum.api.models.exceptions.SemPermissaoNoGrupoErro;
 import com.orbytum.api.repository.ProjetoRepository;
 import com.orbytum.api.repository.PublicacaoRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,7 +35,9 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,17 +52,38 @@ class PublicacaoServiceTest {
     @Mock
     private S3StorageService s3StorageService;
 
+    @Mock
+    private UsuarioService usuarioService;
+
+    @Mock
+    private GrupoAcessoService grupoAcessoService;
+
     @InjectMocks
     private PublicacaoService publicacaoService;
 
+    private static final String EMAIL = "gestor@test.com";
+
     private Projeto projeto;
+    private Usuario gestor;
 
     @BeforeEach
     void setUp() {
+        Grupo grupo = new Grupo("Grupo Publicações", true);
+        grupo.setId(1L);
+
         projeto = new Projeto();
         projeto.setId(10L);
         projeto.setTitulo("Projeto Inteligência Artificial");
+        projeto.setGrupo(grupo);
         projeto.setAtivo(true);
+
+        CredenciaisLogin credenciais = new CredenciaisLogin(
+                EMAIL, "hash", AccessLevel.USER, new Usuario(), null);
+        gestor = new Usuario(1L, "Gestor", EMAIL, "11999999999", "Dr",
+                LocalDateTime.now(), true, credenciais);
+
+        lenient().when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(gestor));
+        lenient().when(grupoAcessoService.podeGerenciarProjeto(anyLong(), anyLong())).thenReturn(true);
     }
 
     @Test
@@ -84,7 +112,7 @@ class PublicacaoServiceTest {
             return p;
         });
 
-        PublicacaoResponse response = publicacaoService.criarPublicacao(request);
+        PublicacaoResponse response = publicacaoService.criarPublicacao(request, EMAIL);
 
         assertNotNull(response);
         assertEquals(1L, response.id());
@@ -104,6 +132,22 @@ class PublicacaoServiceTest {
     }
 
     @Test
+    void testPesquisadorNaoPodeCriarPublicacao() {
+        MockMultipartFile pdfFile = new MockMultipartFile(
+                "arquivo", "pesquisa.pdf", "application/pdf", "%PDF-1.4".getBytes(StandardCharsets.UTF_8));
+
+        CreatePublicacaoRequest request = new CreatePublicacaoRequest(
+                "Título Artigo", "Descrição", 10L, pdfFile);
+
+        when(projetoRepository.findById(10L)).thenReturn(Optional.of(projeto));
+        when(grupoAcessoService.podeGerenciarProjeto(10L, 1L)).thenReturn(false);
+
+        assertThrows(SemPermissaoNoGrupoErro.class,
+                () -> publicacaoService.criarPublicacao(request, EMAIL));
+        verifyNoInteractions(s3StorageService);
+    }
+
+    @Test
     void testCriarPublicacaoRejeitaArquivoNaoPdfPelaExtensao() {
         MockMultipartFile txtFile = new MockMultipartFile(
                 "arquivo",
@@ -120,7 +164,7 @@ class PublicacaoServiceTest {
         );
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> publicacaoService.criarPublicacao(request));
+                () -> publicacaoService.criarPublicacao(request, EMAIL));
 
         assertEquals("A publicação deve ser exclusivamente no formato PDF.", ex.getMessage());
         verifyNoInteractions(s3StorageService);
@@ -144,7 +188,7 @@ class PublicacaoServiceTest {
         );
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> publicacaoService.criarPublicacao(request));
+                () -> publicacaoService.criarPublicacao(request, EMAIL));
 
         assertEquals("A publicação deve ser exclusivamente no formato PDF.", ex.getMessage());
         verifyNoInteractions(s3StorageService);
@@ -167,7 +211,7 @@ class PublicacaoServiceTest {
         );
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> publicacaoService.criarPublicacao(request));
+                () -> publicacaoService.criarPublicacao(request, EMAIL));
 
         assertEquals("O arquivo PDF da publicação é obrigatório.", ex.getMessage());
     }
@@ -190,7 +234,7 @@ class PublicacaoServiceTest {
 
         when(projetoRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThrows(ProjetoNaoEncontradoErro.class, () -> publicacaoService.criarPublicacao(request));
+        assertThrows(ProjetoNaoEncontradoErro.class, () -> publicacaoService.criarPublicacao(request, EMAIL));
         verifyNoInteractions(s3StorageService);
         verify(publicacaoRepository, never()).save(any());
     }
@@ -208,7 +252,8 @@ class PublicacaoServiceTest {
                 .isAtivo(true)
                 .build();
 
-        when(publicacaoRepository.filtrarPublicacoes(eq("Artigo"), any(), any(), eq(10L), any(Pageable.class)))
+        when(projetoRepository.findById(10L)).thenReturn(Optional.of(projeto));
+        when(publicacaoRepository.filtrarPublicacoes(eq("Artigo"), any(), any(), eq(10L), isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(p)));
 
         PublicacaoPaginadaResponse response = publicacaoService.listarPublicacoes(
@@ -216,8 +261,10 @@ class PublicacaoServiceTest {
                 LocalDate.now().minusDays(10),
                 LocalDate.now(),
                 10L,
+                null,
                 1,
-                10
+                10,
+                EMAIL
         );
 
         assertNotNull(response);
@@ -241,7 +288,7 @@ class PublicacaoServiceTest {
 
         when(publicacaoRepository.findByIdAndIsAtivoTrue(1L)).thenReturn(Optional.of(p));
 
-        PublicacaoResponse response = publicacaoService.buscarPorId(1L);
+        PublicacaoResponse response = publicacaoService.buscarPorId(1L, EMAIL);
 
         assertNotNull(response);
         assertEquals(1L, response.id());
@@ -251,7 +298,7 @@ class PublicacaoServiceTest {
     void testBuscarPorIdNaoEncontradoLancaExcecao() {
         when(publicacaoRepository.findByIdAndIsAtivoTrue(99L)).thenReturn(Optional.empty());
 
-        assertThrows(PublicacaoNaoEncontradaErro.class, () -> publicacaoService.buscarPorId(99L));
+        assertThrows(PublicacaoNaoEncontradaErro.class, () -> publicacaoService.buscarPorId(99L, EMAIL));
     }
 
     @Test
@@ -269,7 +316,7 @@ class PublicacaoServiceTest {
 
         when(publicacaoRepository.findByIdAndIsAtivoTrue(1L)).thenReturn(Optional.of(p));
 
-        publicacaoService.inativarPublicacao(1L);
+        publicacaoService.inativarPublicacao(1L, EMAIL);
 
         assertFalse(p.isAtivo());
         verify(publicacaoRepository).save(p);
@@ -279,7 +326,7 @@ class PublicacaoServiceTest {
     void testInativarPublicacaoInexistenteLancaErro() {
         when(publicacaoRepository.findByIdAndIsAtivoTrue(99L)).thenReturn(Optional.empty());
 
-        assertThrows(PublicacaoNaoEncontradaErro.class, () -> publicacaoService.inativarPublicacao(99L));
+        assertThrows(PublicacaoNaoEncontradaErro.class, () -> publicacaoService.inativarPublicacao(99L, EMAIL));
         verify(publicacaoRepository, never()).save(any());
     }
 }

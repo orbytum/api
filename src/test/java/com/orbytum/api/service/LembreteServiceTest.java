@@ -7,8 +7,10 @@ import com.orbytum.api.models.dto.response.LembreteResponse;
 import com.orbytum.api.models.entity.CredenciaisLogin;
 import com.orbytum.api.models.entity.Grupo;
 import com.orbytum.api.models.entity.Evento;
+import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.enums.AccessLevel;
+import com.orbytum.api.models.enums.ProjetoStatus;
 import com.orbytum.api.models.enums.StatusLembrete;
 import com.orbytum.api.models.enums.TipoLembrete;
 import com.orbytum.api.models.enums.TipoRecorrencia;
@@ -58,6 +60,9 @@ class LembreteServiceTest {
 
     @Mock
     private GrupoAcessoService grupoAcessoService;
+
+    @Mock
+    private ProjetoService projetoService;
 
     @Mock
     private S3StorageService s3StorageService;
@@ -123,7 +128,9 @@ class LembreteServiceTest {
                 TipoRecorrencia.SEMANAL,
                 "Carlos Pesquisador",
                 List.of("Maria Silva", "João Santos"),
-                null
+                null,
+                null,
+                true
         );
 
         when(eventoRepository.save(any(Evento.class))).thenAnswer(invocation -> {
@@ -150,6 +157,78 @@ class LembreteServiceTest {
     }
 
     @Test
+    @DisplayName("Somente líder do grupo cria lembrete para o grupo inteiro")
+    void lembreteParaGrupoInteiroExigeLider() {
+        when(usuarioService.findByEmail(EMAIL_CRIADOR)).thenReturn(Optional.of(criador));
+        when(grupoRepository.findById(10L)).thenReturn(Optional.of(grupo));
+        doThrow(new SemPermissaoNoGrupoErro("Sem permissão"))
+                .when(grupoAcessoService).validarLider(10L, 1L);
+
+        CreateLembreteRequest request = new CreateLembreteRequest(
+                10L,
+                "Reunião geral",
+                "Descrição",
+                TipoLembrete.REUNIAO,
+                LocalDateTime.now().plusDays(2),
+                null, null, null, null, null, null, null, null, true
+        );
+
+        assertThrows(SemPermissaoNoGrupoErro.class, () -> lembreteService.criar(request, EMAIL_CRIADOR));
+    }
+
+    @Test
+    @DisplayName("Líder do projeto cria lembrete vinculado ao projeto")
+    void liderDoProjetoCriaLembreteDoProjeto() {
+        Projeto projeto = new Projeto(grupo, ProjetoStatus.EM_ANDAMENTO, "Projeto IA", "Assunto");
+        projeto.setId(50L);
+
+        when(usuarioService.findByEmail(EMAIL_CRIADOR)).thenReturn(Optional.of(criador));
+        when(grupoRepository.findById(10L)).thenReturn(Optional.of(grupo));
+        when(projetoService.findById(50L)).thenReturn(Optional.of(projeto));
+        when(eventoRepository.save(any(Evento.class))).thenAnswer(invocation -> {
+            Evento e = invocation.getArgument(0);
+            e.setId(101L);
+            return e;
+        });
+
+        CreateLembreteRequest request = new CreateLembreteRequest(
+                10L,
+                "Reunião do projeto",
+                "Descrição",
+                TipoLembrete.REUNIAO,
+                LocalDateTime.now().plusDays(2),
+                null, null, null, null, null, null, null,
+                50L,
+                false
+        );
+
+        LembreteResponse response = lembreteService.criar(request, EMAIL_CRIADOR);
+
+        assertEquals(50L, response.projetoId());
+        assertEquals("Projeto IA", response.projetoNome());
+        assertFalse(response.paraGrupoInteiro());
+        verify(grupoAcessoService).validarPodeGerenciarProjeto(50L, 1L);
+    }
+
+    @Test
+    @DisplayName("Lembrete sem projeto e sem grupo inteiro é rejeitado")
+    void lembreteSemEscopoLancaErro() {
+        when(usuarioService.findByEmail(EMAIL_CRIADOR)).thenReturn(Optional.of(criador));
+        when(grupoRepository.findById(10L)).thenReturn(Optional.of(grupo));
+
+        CreateLembreteRequest request = new CreateLembreteRequest(
+                10L,
+                "Reunião sem escopo",
+                "Descrição",
+                TipoLembrete.REUNIAO,
+                LocalDateTime.now().plusDays(2),
+                null, null, null, null, null, null, null, null, null
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> lembreteService.criar(request, EMAIL_CRIADOR));
+    }
+
+    @Test
     @DisplayName("CA 4: Deve lançar erro ao criar lembrete para grupo inexistente")
     void testCriarLembreteGrupoInexistenteLancaErro() {
         when(usuarioService.findByEmail(EMAIL_CRIADOR)).thenReturn(Optional.of(criador));
@@ -161,7 +240,7 @@ class LembreteServiceTest {
                 "Descrição",
                 TipoLembrete.EDITAL,
                 LocalDateTime.now().plusDays(2),
-                null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, true
         );
 
         assertThrows(GrupoNaoEncontradoErro.class, () -> lembreteService.criar(request, EMAIL_CRIADOR));
@@ -180,7 +259,7 @@ class LembreteServiceTest {
                 "Descrição",
                 TipoLembrete.WORKSHOP,
                 LocalDateTime.now().plusDays(2),
-                null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, true
         );
 
         assertThrows(SemPermissaoNoGrupoErro.class, () -> lembreteService.criar(request, EMAIL_CRIADOR));
@@ -206,6 +285,8 @@ class LembreteServiceTest {
                 TipoRecorrencia.MENSAL,
                 "Novo Organizador",
                 null,
+                null,
+                null,
                 null
         );
 
@@ -229,7 +310,7 @@ class LembreteServiceTest {
                 null,
                 TipoLembrete.REUNIAO,
                 LocalDateTime.now().plusDays(2),
-                null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null
         );
 
         assertThrows(SemPermissaoNoGrupoErro.class, () -> lembreteService.atualizar(100L, request, EMAIL_OUTRO));
@@ -250,7 +331,7 @@ class LembreteServiceTest {
                 null,
                 TipoLembrete.EDITAL,
                 LocalDateTime.now().plusDays(2),
-                null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null
         );
 
         assertThrows(IllegalArgumentException.class, () -> lembreteService.atualizar(100L, request, EMAIL_CRIADOR));
@@ -338,10 +419,10 @@ class LembreteServiceTest {
 
         Evento l1 = criarEventoExemplo(1L, TipoLembrete.WORKSHOP, LocalDateTime.now().plusDays(1));
 
-        when(eventoRepository.filtrarPorGrupo(eq(10L), eq(""), any(), any(), any(Pageable.class)))
+        when(eventoRepository.filtrarPorGrupo(eq(10L), eq(""), any(), any(), isNull(), anyBoolean(), any(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(l1)));
 
-        LembretePaginadoResponse response = lembreteService.listarPorGrupo(10L, null, null, null, null, 1, 10, EMAIL_CRIADOR);
+        LembretePaginadoResponse response = lembreteService.listarPorGrupo(10L, null, null, null, null, null, 1, 10, EMAIL_CRIADOR);
 
         assertNotNull(response);
         assertEquals(1, response.items().size());
@@ -358,11 +439,11 @@ class LembreteServiceTest {
         Evento perto = criarEventoExemplo(3L, TipoLembrete.WORKSHOP, LocalDateTime.now().plusDays(1));
         Evento passadoRecente = criarEventoExemplo(4L, TipoLembrete.REUNIAO, LocalDateTime.now().minusDays(2));
 
-        when(eventoRepository.filtrarPorGrupo(eq(10L), eq(""), any(), any(), any(Pageable.class)))
+        when(eventoRepository.filtrarPorGrupo(eq(10L), eq(""), any(), any(), isNull(), anyBoolean(), any(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(longe, passadoAntigo, perto, passadoRecente)));
 
-        LembretePaginadoResponse p1 = lembreteService.listarPorGrupo(10L, null, null, null, null, 1, 3, EMAIL_CRIADOR);
-        LembretePaginadoResponse p2 = lembreteService.listarPorGrupo(10L, null, null, null, null, 2, 3, EMAIL_CRIADOR);
+        LembretePaginadoResponse p1 = lembreteService.listarPorGrupo(10L, null, null, null, null, null, 1, 3, EMAIL_CRIADOR);
+        LembretePaginadoResponse p2 = lembreteService.listarPorGrupo(10L, null, null, null, null, null, 2, 3, EMAIL_CRIADOR);
 
         assertEquals(List.of(3L, 1L, 4L), p1.items().stream().map(LembreteResponse::id).toList());
         assertEquals(List.of(2L), p2.items().stream().map(LembreteResponse::id).toList());
@@ -379,8 +460,9 @@ class LembreteServiceTest {
 
         when(usuarioService.findByEmail(EMAIL_CRIADOR)).thenReturn(Optional.of(criador));
         when(grupoRepository.findById(10L)).thenReturn(Optional.of(grupo));
-        when(eventoRepository.findAllByGrupoIdAndIsAtivoTrueOrderByDthInicioAsc(10L))
-                .thenReturn(List.of(evento));
+        when(eventoRepository.filtrarPorGrupo(eq(10L), eq(""), isNull(), isNull(), isNull(),
+                anyBoolean(), any(), any(Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(evento)));
 
         byte[] bytes = lembreteService.exportarIcs(10L, EMAIL_CRIADOR);
         String ics = new String(bytes, StandardCharsets.UTF_8);
@@ -482,10 +564,10 @@ class LembreteServiceTest {
     void testListarTodosPorGrupo() {
         when(usuarioService.findByEmail(EMAIL_CRIADOR)).thenReturn(Optional.of(criador));
         Evento l = criarEventoExemplo(1L, TipoLembrete.REUNIAO, LocalDateTime.now().plusDays(1));
-        when(eventoRepository.filtrarPorGrupo(eq(10L), eq(""), any(), any(), any(Pageable.class)))
+        when(eventoRepository.filtrarPorGrupo(eq(10L), eq(""), any(), any(), isNull(), anyBoolean(), any(), any(Pageable.class)))
                 .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(l)));
 
-        List<LembreteResponse> list = lembreteService.listarTodosPorGrupo(10L, null, null, EMAIL_CRIADOR);
+        List<LembreteResponse> list = lembreteService.listarTodosPorGrupo(10L, null, null, null, EMAIL_CRIADOR);
 
         assertEquals(1, list.size());
         assertEquals("Lembrete de Teste", list.get(0).titulo());

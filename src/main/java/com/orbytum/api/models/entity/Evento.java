@@ -35,6 +35,14 @@ public class Evento {
     @JoinColumn(name = "criador_id", nullable = false)
     private Usuario criador;
 
+    /**
+     * Quando preenchido, o lembrete pertence a um projeto específico.
+     * Quando nulo, o lembrete é destinado ao grupo inteiro.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "projeto_id")
+    private Projeto projeto;
+
     @Nonnull
     @Column(nullable = false)
     private String titulo;

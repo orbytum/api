@@ -5,11 +5,13 @@ import lombok.Getter;
 
 @AllArgsConstructor
 public enum AtividadeStatus {
+    AGUARDANDO_APROVACAO(0),
     PENDENTE(1),
     EM_ANDAMENTO(2),
     AGUARDANDO_CONFIRMACAO(3),
     CONCLUIDA(4),
-    ENCERRADA(5);
+    ENCERRADA(5),
+    REJEITADA(6);
 
     @Getter
     private Integer id;
@@ -24,7 +26,7 @@ public enum AtividadeStatus {
     }
 
     public boolean isAberta() {
-        return this != CONCLUIDA && this != ENCERRADA;
+        return this != CONCLUIDA && this != ENCERRADA && this != REJEITADA;
     }
 
     public boolean podeTransicionarPara(AtividadeStatus destino) {
@@ -32,11 +34,13 @@ public enum AtividadeStatus {
             return false;
         }
         return switch (this) {
+            case AGUARDANDO_APROVACAO -> destino == PENDENTE || destino == REJEITADA;
             case PENDENTE -> destino == EM_ANDAMENTO;
             case EM_ANDAMENTO -> destino == AGUARDANDO_CONFIRMACAO;
             case AGUARDANDO_CONFIRMACAO -> destino == CONCLUIDA;
             case CONCLUIDA -> destino == ENCERRADA;
             case ENCERRADA -> false;
+            case REJEITADA -> false;
         };
     }
 }

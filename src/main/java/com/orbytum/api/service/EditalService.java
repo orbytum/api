@@ -6,12 +6,14 @@ import com.orbytum.api.models.dto.response.EditalPaginadoResponse;
 import com.orbytum.api.models.dto.response.EditalResponse;
 import com.orbytum.api.models.entity.Edital;
 import com.orbytum.api.models.entity.Grupo;
+import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.entity.joinColumns.EditalXGrupo;
 import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.exceptions.EditalJaVinculadoErro;
 import com.orbytum.api.models.exceptions.EditalNaoEncontradoErro;
 import com.orbytum.api.models.exceptions.GrupoNaoEncontradoErro;
+import com.orbytum.api.models.exceptions.SemPermissaoNoGrupoErro;
 import com.orbytum.api.models.exceptions.UsuarioNaoEncontradoErro;
 import com.orbytum.api.repository.EditalRepository;
 import com.orbytum.api.repository.EditalXGrupoRepository;
@@ -25,6 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +41,7 @@ public class EditalService {
     private final GrupoService grupoService;
     private final UsuarioService usuarioService;
     private final GrupoAcessoService grupoAcessoService;
+    private final ProjetoService projetoService;
 
     @Transactional
     public EditalResponse criar(Long grupoId, CriarEditalRequest request, String emailLogado) {
@@ -43,23 +50,31 @@ public class EditalService {
         validarPodeGerenciar(grupo.getId(), solicitante);
         validarPeriodo(request.dthAbertura(), request.dthEncerramento());
 
-        String uri = request.uri().trim();
-        Edital edital = editalRepository.findByUri(uri)
-                .orElseGet(() -> editalRepository.save(Edital.builder()
-                        .organizador(request.organizador().trim())
-                        .descricao(request.descricao().trim())
-                        .valor(request.valor())
-                        .uri(uri)
-                        .dthAbertura(request.dthAbertura())
-                        .dthEncerramento(request.dthEncerramento())
-                        .build()));
+        Set<Projeto> projetos = resolverProjetos(grupo.getId(), request.projetoIds());
 
-        if (editalXGrupoRepository.existsByEditalIdAndGrupoId(edital.getId(), grupo.getId())) {
+        String uri = request.uri().trim();
+        Edital edital = editalRepository.findByUri(uri).orElse(null);
+
+        if (edital != null
+                && editalXGrupoRepository.existsByEditalIdAndGrupoId(edital.getId(), grupo.getId())) {
             throw new EditalJaVinculadoErro("Este edital já está vinculado ao grupo.");
         }
 
+        if (edital == null) {
+            edital = Edital.builder()
+                    .organizador(request.organizador().trim())
+                    .descricao(request.descricao().trim())
+                    .valor(request.valor())
+                    .uri(uri)
+                    .dthAbertura(request.dthAbertura())
+                    .dthEncerramento(request.dthEncerramento())
+                    .build();
+        }
+
+        edital.getProjetos().addAll(projetos);
+        edital = editalRepository.save(edital);
         editalXGrupoRepository.save(new EditalXGrupo(edital, grupo));
-        return EditalResponse.fromEntity(edital);
+        return EditalResponse.fromEntity(edital, grupo.getId());
     }
 
     @Transactional
@@ -76,19 +91,25 @@ public class EditalService {
         edital.setDthAbertura(request.dthAbertura());
         edital.setDthEncerramento(request.dthEncerramento());
 
-        return EditalResponse.fromEntity(editalRepository.save(edital));
+        Set<Projeto> projetos = resolverProjetos(grupoId, request.projetoIds());
+        edital.getProjetos().removeIf(projeto -> projeto.getGrupo() != null
+                && grupoId.equals(projeto.getGrupo().getId()));
+        edital.getProjetos().addAll(projetos);
+
+        return EditalResponse.fromEntity(editalRepository.save(edital), grupoId);
     }
 
     @Transactional(readOnly = true)
     public EditalResponse buscar(Long editalId, Long grupoId, String emailLogado) {
         Usuario solicitante = usuarioAutenticado(emailLogado);
         validarMembro(grupoId, solicitante);
-        return EditalResponse.fromEntity(buscarEditalDoGrupo(editalId, grupoId));
+        return EditalResponse.fromEntity(buscarEditalDoGrupo(editalId, grupoId), grupoId);
     }
 
     @Transactional(readOnly = true)
     public EditalPaginadoResponse listar(
             Long grupoId,
+            Long projetoId,
             String palavraChave,
             String organizacao,
             LocalDate dataInicio,
@@ -108,10 +129,12 @@ public class EditalService {
         LocalDateTime fim = dataFim != null ? dataFim.atTime(LocalTime.MAX) : null;
 
         Page<Edital> resultado = editalRepository.filtrarPorGrupo(
-                grupoId, normalizar(palavraChave), normalizar(organizacao), inicio, fim, pageable);
+                grupoId, projetoId, normalizar(palavraChave), normalizar(organizacao), inicio, fim, pageable);
 
         return new EditalPaginadoResponse(
-                resultado.getContent().stream().map(EditalResponse::fromEntity).toList(),
+                resultado.getContent().stream()
+                        .map(edital -> EditalResponse.fromEntity(edital, grupoId))
+                        .toList(),
                 resultado.getTotalElements(),
                 resultado.getTotalPages(),
                 page,
@@ -155,7 +178,36 @@ public class EditalService {
         if (isAdmin(solicitante)) {
             return;
         }
-        grupoAcessoService.validarCoordenadorOuAcima(grupoId, solicitante.getId());
+        grupoAcessoService.validarLider(grupoId, solicitante.getId());
+    }
+
+    private Set<Projeto> resolverProjetos(Long grupoId, List<Long> projetoIds) {
+        if (projetoIds == null || projetoIds.isEmpty()) {
+            return new HashSet<>();
+        }
+
+        List<Long> ids = projetoIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        if (ids.isEmpty()) {
+            return new HashSet<>();
+        }
+
+        List<Projeto> projetos = projetoService.findAllByIds(ids);
+        if (projetos.size() != ids.size()) {
+            throw new IllegalArgumentException("Um ou mais projetos informados não foram encontrados");
+        }
+
+        for (Projeto projeto : projetos) {
+            if (projeto.getGrupo() == null || !grupoId.equals(projeto.getGrupo().getId())) {
+                throw new SemPermissaoNoGrupoErro(
+                        "O projeto '" + projeto.getTitulo() + "' não pertence ao grupo informado");
+            }
+        }
+
+        return new HashSet<>(projetos);
     }
 
     private void validarPeriodo(LocalDateTime abertura, LocalDateTime encerramento) {

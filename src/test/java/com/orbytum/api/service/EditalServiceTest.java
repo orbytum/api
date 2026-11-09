@@ -6,9 +6,11 @@ import com.orbytum.api.models.dto.response.EditalResponse;
 import com.orbytum.api.models.entity.CredenciaisLogin;
 import com.orbytum.api.models.entity.Edital;
 import com.orbytum.api.models.entity.Grupo;
+import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.entity.joinColumns.EditalXGrupo;
 import com.orbytum.api.models.enums.AccessLevel;
+import com.orbytum.api.models.enums.ProjetoStatus;
 import com.orbytum.api.models.exceptions.EditalJaVinculadoErro;
 import com.orbytum.api.models.exceptions.SemPermissaoNoGrupoErro;
 import com.orbytum.api.repository.EditalRepository;
@@ -52,6 +54,9 @@ class EditalServiceTest {
     @Mock
     private GrupoAcessoService grupoAcessoService;
 
+    @Mock
+    private ProjetoService projetoService;
+
     @InjectMocks
     private EditalService editalService;
 
@@ -72,7 +77,7 @@ class EditalServiceTest {
 
     private CriarEditalRequest request(LocalDateTime abertura, LocalDateTime encerramento) {
         return new CriarEditalRequest("CNPq", "Edital de pesquisa em tecnologia",
-                new BigDecimal("50000.00"), URI, abertura, encerramento);
+                new BigDecimal("50000.00"), URI, abertura, encerramento, null);
     }
 
     @Test
@@ -85,7 +90,6 @@ class EditalServiceTest {
             edital.setId(7L);
             return edital;
         });
-        when(editalXGrupoRepository.existsByEditalIdAndGrupoId(7L, 1L)).thenReturn(false);
         when(editalXGrupoRepository.save(any(EditalXGrupo.class))).thenAnswer(inv -> inv.getArgument(0));
 
         LocalDateTime abertura = LocalDateTime.now();
@@ -93,7 +97,7 @@ class EditalServiceTest {
 
         assertEquals(7L, response.id());
         assertEquals("CNPq", response.organizador());
-        verify(grupoAcessoService).validarCoordenadorOuAcima(1L, 20L);
+        verify(grupoAcessoService).validarLider(1L, 20L);
         verify(editalXGrupoRepository).save(any(EditalXGrupo.class));
     }
 
@@ -103,11 +107,57 @@ class EditalServiceTest {
         when(grupoService.findById(1L)).thenReturn(Optional.of(grupo));
         when(usuarioService.findByEmail("pesquisa@test.com")).thenReturn(Optional.of(pesquisador));
         doThrow(new SemPermissaoNoGrupoErro("Sem permissão"))
-                .when(grupoAcessoService).validarCoordenadorOuAcima(1L, 10L);
+                .when(grupoAcessoService).validarLider(1L, 10L);
 
         LocalDateTime abertura = LocalDateTime.now();
         assertThrows(SemPermissaoNoGrupoErro.class,
                 () -> editalService.criar(1L, request(abertura, abertura.plusDays(30)), "pesquisa@test.com"));
+    }
+
+    @Test
+    void rotuloDeProjetoDeOutroGrupoLancaErro() {
+        Grupo outroGrupo = new Grupo("Outro Grupo", true);
+        outroGrupo.setId(2L);
+        Projeto projetoOutroGrupo = new Projeto(
+                outroGrupo, ProjetoStatus.EM_ANDAMENTO, "Projeto de outro grupo", "Assunto");
+        projetoOutroGrupo.setId(99L);
+
+        when(grupoService.findById(1L)).thenReturn(Optional.of(grupo));
+        when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
+        when(projetoService.findAllByIds(List.of(99L))).thenReturn(List.of(projetoOutroGrupo));
+
+        LocalDateTime abertura = LocalDateTime.now();
+        CriarEditalRequest request = new CriarEditalRequest(
+                "CNPq", "Edital", null, URI, abertura, abertura.plusDays(10), List.of(99L));
+
+        assertThrows(SemPermissaoNoGrupoErro.class,
+                () -> editalService.criar(1L, request, EMAIL));
+    }
+
+    @Test
+    void criarEditalComRotuloDoMesmoGrupo() {
+        Projeto projeto = new Projeto(grupo, ProjetoStatus.EM_ANDAMENTO, "Projeto do grupo", "Assunto");
+        projeto.setId(50L);
+
+        when(grupoService.findById(1L)).thenReturn(Optional.of(grupo));
+        when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
+        when(projetoService.findAllByIds(List.of(50L))).thenReturn(List.of(projeto));
+        when(editalRepository.findByUri(URI)).thenReturn(Optional.empty());
+        when(editalRepository.save(any(Edital.class))).thenAnswer(inv -> {
+            Edital edital = inv.getArgument(0);
+            edital.setId(7L);
+            return edital;
+        });
+        when(editalXGrupoRepository.save(any(EditalXGrupo.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        LocalDateTime abertura = LocalDateTime.now();
+        CriarEditalRequest request = new CriarEditalRequest(
+                "CNPq", "Edital", null, URI, abertura, abertura.plusDays(10), List.of(50L));
+
+        EditalResponse response = editalService.criar(1L, request, EMAIL);
+
+        assertEquals(1, response.projetos().size());
+        assertEquals(50L, response.projetos().get(0).id());
     }
 
     @Test
@@ -153,10 +203,10 @@ class EditalServiceTest {
                 .build();
 
         when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
-        when(editalRepository.filtrarPorGrupo(eq(1L), eq("Tecnologia"), eq("CNPq"), isNull(), isNull(), any(Pageable.class)))
+        when(editalRepository.filtrarPorGrupo(eq(1L), isNull(), eq("Tecnologia"), eq("CNPq"), isNull(), isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(edital)));
 
-        EditalPaginadoResponse response = editalService.listar(1L, "  Tecnologia  ", "  CNPq  ", null, null, 1, 10, EMAIL);
+        EditalPaginadoResponse response = editalService.listar(1L, null, "  Tecnologia  ", "  CNPq  ", null, null, 1, 10, EMAIL);
 
         assertEquals(1, response.items().size());
         assertEquals("CNPq", response.items().get(0).organizador());

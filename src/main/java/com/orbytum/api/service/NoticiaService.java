@@ -7,8 +7,11 @@ import com.orbytum.api.models.dto.response.NoticiaPaginadaResponse;
 import com.orbytum.api.models.dto.response.NoticiaResponse;
 import com.orbytum.api.models.entity.Grupo;
 import com.orbytum.api.models.entity.Noticia;
+import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Usuario;
+import com.orbytum.api.models.entity.joinColumns.ProjetoXUsuario;
 import com.orbytum.api.models.enums.AccessLevel;
+import com.orbytum.api.models.enums.NivelMembro;
 import com.orbytum.api.models.enums.NoticiaStatus;
 import com.orbytum.api.models.exceptions.GrupoNaoEncontradoErro;
 import com.orbytum.api.models.exceptions.NoticiaNaoEncontradaErro;
@@ -16,6 +19,7 @@ import com.orbytum.api.models.exceptions.NoticiaNaoPendenteErro;
 import com.orbytum.api.models.exceptions.SemPermissaoNoGrupoErro;
 import com.orbytum.api.models.exceptions.UsuarioNaoEncontradoErro;
 import com.orbytum.api.repository.NoticiaRepository;
+import com.orbytum.api.repository.ProjetoXUsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -28,7 +32,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +45,8 @@ public class NoticiaService {
     private final GrupoService grupoService;
     private final UsuarioService usuarioService;
     private final GrupoAcessoService grupoAcessoService;
+    private final ProjetoService projetoService;
+    private final ProjetoXUsuarioRepository projetoXUsuarioRepository;
 
     @Value("${orbytum.noticias.prazo-exibicao-dias:30}")
     private int prazoExibicaoDias;
@@ -51,6 +60,7 @@ public class NoticiaService {
         Grupo grupo = buscarGrupo(request.grupoId());
         Usuario autor = usuarioAutenticado(emailLogado);
         validarAcessoAoGrupo(grupo.getId(), autor);
+        validarNaoColaborador(grupo.getId(), autor);
         validarPeriodoExibicao(request.dataInicioExibicao(), request.dataFimExibicao());
 
         Noticia noticia = new Noticia(
@@ -62,6 +72,7 @@ public class NoticiaService {
                 request.assunto().trim(),
                 request.dataInicioExibicao(),
                 request.dataFimExibicao());
+        noticia.setProjetos(resolverProjetos(grupo.getId(), request.projetoIds()));
 
         Noticia salva = noticiaRepository.save(noticia);
         return toResponse(salva);
@@ -74,6 +85,7 @@ public class NoticiaService {
         Long grupoId = noticia.getGrupo().getId();
 
         validarAcessoAoGrupo(grupoId, solicitante);
+        validarNaoColaborador(grupoId, solicitante);
         validarPermissaoEdicao(noticia, solicitante, grupoId);
         validarPeriodoExibicao(request.dataInicioExibicao(), request.dataFimExibicao());
 
@@ -83,6 +95,7 @@ public class NoticiaService {
         noticia.setAssunto(request.assunto().trim());
         noticia.setDataInicioExibicao(request.dataInicioExibicao());
         noticia.setDataFimExibicao(request.dataFimExibicao());
+        noticia.setProjetos(resolverProjetos(grupoId, request.projetoIds()));
 
         if (noticia.getStatus() == NoticiaStatus.REJEITADA) {
             noticia.setStatus(NoticiaStatus.PENDENTE);
@@ -98,9 +111,8 @@ public class NoticiaService {
     public NoticiaResponse aprovar(Long id, String emailLogado) {
         Noticia noticia = buscarEntidade(id);
         Usuario solicitante = usuarioAutenticado(emailLogado);
-        Long grupoId = noticia.getGrupo().getId();
 
-        validarCoordenadorOuAdmin(grupoId, solicitante);
+        validarPodeAprovarNoticia(noticia, solicitante);
 
         if (noticia.getStatus() != NoticiaStatus.PENDENTE) {
             throw new NoticiaNaoPendenteErro("Somente notícias pendentes podem ser aprovadas.");
@@ -124,9 +136,8 @@ public class NoticiaService {
     public NoticiaResponse rejeitar(Long id, RejeitarNoticiaRequest request, String emailLogado) {
         Noticia noticia = buscarEntidade(id);
         Usuario solicitante = usuarioAutenticado(emailLogado);
-        Long grupoId = noticia.getGrupo().getId();
 
-        validarCoordenadorOuAdmin(grupoId, solicitante);
+        validarPodeAprovarNoticia(noticia, solicitante);
 
         if (noticia.getStatus() != NoticiaStatus.PENDENTE) {
             throw new NoticiaNaoPendenteErro("Somente notícias pendentes podem ser rejeitadas.");
@@ -147,6 +158,7 @@ public class NoticiaService {
         Long grupoId = noticia.getGrupo().getId();
 
         validarAcessoAoGrupo(grupoId, solicitante);
+        validarNaoColaborador(grupoId, solicitante);
         validarPermissaoEdicao(noticia, solicitante, grupoId);
 
         noticia.setAtivo(false);
@@ -164,6 +176,7 @@ public class NoticiaService {
     @Transactional(readOnly = true)
     public NoticiaPaginadaResponse listar(
             Long grupoId,
+            Long projetoId,
             String assunto,
             LocalDate dataInicio,
             LocalDate dataFim,
@@ -190,6 +203,7 @@ public class NoticiaService {
                 normalizedAssunto,
                 inicio,
                 fim,
+                projetoId,
                 pageable);
 
         List<NoticiaResponse> items = resultado.getContent().stream()
@@ -205,17 +219,34 @@ public class NoticiaService {
     }
 
     @Transactional(readOnly = true)
-    public NoticiaPaginadaResponse listarPendentes(Long grupoId, int page, int size, String emailLogado) {
+    public NoticiaPaginadaResponse listarPendentes(
+            Long grupoId,
+            Long projetoId,
+            int page,
+            int size,
+            String emailLogado
+    ) {
         Grupo grupo = buscarGrupo(grupoId);
         Usuario solicitante = usuarioAutenticado(emailLogado);
-        validarCoordenadorOuAdmin(grupo.getId(), solicitante);
+        validarAcessoAoGrupo(grupo.getId(), solicitante);
+
+        boolean gestor = isAdmin(solicitante)
+                || grupoAcessoService.isCoordenadorOuAcima(grupo.getId(), solicitante.getId());
+
+        List<Long> projetosLiderados = projetosLideradosPeloUsuario(solicitante.getId());
+        if (!gestor && projetosLiderados.isEmpty()) {
+            throw new SemPermissaoNoGrupoErro(
+                    "Apenas Líder/Coordenador do grupo ou líder de um projeto rotulado pode listar notícias pendentes");
+        }
+
+        List<Long> filtroProjetos = projetosLiderados.isEmpty() ? List.of(-1L) : projetosLiderados;
 
         int pageIndex = Math.max(0, page - 1);
         int pageSize = size > 0 ? size : 10;
         Pageable pageable = PageRequest.of(pageIndex, pageSize, Sort.by(Sort.Direction.ASC, "dthRegistro"));
 
-        Page<Noticia> resultado = noticiaRepository.findByGrupoIdAndStatusAndIsAtivoTrue(
-                grupo.getId(), NoticiaStatus.PENDENTE, pageable);
+        Page<Noticia> resultado = noticiaRepository.filtrarPendentes(
+                grupo.getId(), NoticiaStatus.PENDENTE, projetoId, gestor, filtroProjetos, pageable);
 
         List<NoticiaResponse> items = resultado.getContent().stream()
                 .map(this::toResponse)
@@ -227,6 +258,18 @@ public class NoticiaService {
                 resultado.getTotalPages(),
                 page,
                 pageSize);
+    }
+
+    private List<Long> projetosLideradosPeloUsuario(Long usuarioId) {
+        if (usuarioId == null) {
+            return List.of();
+        }
+        return projetoXUsuarioRepository.findAllByUsuarioIdAndIsAtivoTrue(usuarioId).stream()
+                .filter(vinculo -> vinculo.getNivel() == NivelMembro.LIDER)
+                .map(ProjetoXUsuario::getProjeto)
+                .filter(Objects::nonNull)
+                .map(Projeto::getId)
+                .toList();
     }
 
     private Noticia buscarEntidade(Long id) {
@@ -275,11 +318,31 @@ public class NoticiaService {
         grupoAcessoService.validarMembro(grupoId, solicitante.getId());
     }
 
-    private void validarCoordenadorOuAdmin(Long grupoId, Usuario solicitante) {
+    private void validarNaoColaborador(Long grupoId, Usuario solicitante) {
         if (isAdmin(solicitante)) {
             return;
         }
-        grupoAcessoService.validarCoordenadorOuAcima(grupoId, solicitante.getId());
+        grupoAcessoService.validarNaoColaborador(grupoId, solicitante.getId());
+    }
+
+    private void validarPodeAprovarNoticia(Noticia noticia, Usuario solicitante) {
+        if (isAdmin(solicitante)) {
+            return;
+        }
+
+        Long grupoId = noticia.getGrupo().getId();
+        if (grupoAcessoService.isCoordenadorOuAcima(grupoId, solicitante.getId())) {
+            return;
+        }
+
+        boolean liderDeProjetoRotulado = noticia.getProjetos() != null
+                && noticia.getProjetos().stream()
+                .anyMatch(projeto -> grupoAcessoService.isLiderDoProjeto(projeto.getId(), solicitante.getId()));
+
+        if (!liderDeProjetoRotulado) {
+            throw new SemPermissaoNoGrupoErro(
+                    "Apenas Líder/Coordenador do grupo ou líder de um projeto rotulado pode aprovar esta notícia");
+        }
     }
 
     private boolean isAdmin(Usuario usuario) {
@@ -295,6 +358,35 @@ public class NoticiaService {
 
     private String normalizar(String valor) {
         return (valor != null && !valor.isBlank()) ? valor.trim() : null;
+    }
+
+    private Set<Projeto> resolverProjetos(Long grupoId, List<Long> projetoIds) {
+        if (projetoIds == null || projetoIds.isEmpty()) {
+            return new HashSet<>();
+        }
+
+        List<Long> ids = projetoIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        if (ids.isEmpty()) {
+            return new HashSet<>();
+        }
+
+        List<Projeto> projetos = projetoService.findAllByIds(ids);
+        if (projetos.size() != ids.size()) {
+            throw new IllegalArgumentException("Um ou mais projetos informados não foram encontrados");
+        }
+
+        for (Projeto projeto : projetos) {
+            if (projeto.getGrupo() == null || !grupoId.equals(projeto.getGrupo().getId())) {
+                throw new SemPermissaoNoGrupoErro(
+                        "O projeto '" + projeto.getTitulo() + "' não pertence ao grupo informado");
+            }
+        }
+
+        return new HashSet<>(projetos);
     }
 
     private NoticiaResponse toResponse(Noticia noticia) {

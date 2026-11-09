@@ -13,5 +13,7 @@ public record ProjetoResponse (
     LocalDateTime dthRegistro,
     Boolean isAtivo,
     Boolean isInicial,
-    Boolean isFavorito
+    Boolean isFavorito,
+    Long liderProjetoId,
+    String liderProjetoNome
 ) {}

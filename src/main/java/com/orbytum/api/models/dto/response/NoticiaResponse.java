@@ -1,9 +1,12 @@
 package com.orbytum.api.models.dto.response;
 
 import com.orbytum.api.models.entity.Noticia;
+import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.enums.NoticiaStatus;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 public record NoticiaResponse(
@@ -25,12 +28,20 @@ public record NoticiaResponse(
         LocalDateTime dthRegistro,
         LocalDateTime dthAprovacao,
         boolean isAtivo,
-        boolean isExpirada
+        boolean isExpirada,
+        List<ProjetoRotuloResponse> projetos
 ) {
     public static NoticiaResponse fromEntity(Noticia noticia, boolean expirada) {
         if (noticia == null) {
             return null;
         }
+
+        List<ProjetoRotuloResponse> projetos = noticia.getProjetos() == null
+                ? List.of()
+                : noticia.getProjetos().stream()
+                .sorted(Comparator.comparing(Projeto::getTitulo, Comparator.nullsLast(String::compareToIgnoreCase)))
+                .map(ProjetoRotuloResponse::fromEntity)
+                .toList();
 
         return new NoticiaResponse(
                 noticia.getId(),
@@ -51,7 +62,8 @@ public record NoticiaResponse(
                 noticia.getDthRegistro(),
                 noticia.getDthAprovacao(),
                 noticia.isAtivo(),
-                expirada
+                expirada,
+                projetos
         );
     }
 }

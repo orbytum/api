@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -72,6 +74,14 @@ public class Noticia {
     @Nonnull
     private boolean isAtivo;
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "noticia_x_projeto",
+            joinColumns = @JoinColumn(name = "noticia_id"),
+            inverseJoinColumns = @JoinColumn(name = "projeto_id"))
+    @Builder.Default
+    private Set<Projeto> projetos = new HashSet<>();
+
     public Noticia(
             Grupo grupo,
             Usuario autor,
@@ -94,5 +104,6 @@ public class Noticia {
         this.status = NoticiaStatus.PENDENTE;
         this.dthRegistro = LocalDateTime.now();
         this.isAtivo = true;
+        this.projetos = new HashSet<>();
     }
 }

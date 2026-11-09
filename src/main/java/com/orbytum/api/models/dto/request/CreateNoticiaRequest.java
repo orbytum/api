@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record CreateNoticiaRequest(
         @NotNull(message = "O ID do grupo é obrigatório.")
@@ -22,5 +23,7 @@ public record CreateNoticiaRequest(
 
         LocalDateTime dataInicioExibicao,
 
-        LocalDateTime dataFimExibicao
+        LocalDateTime dataFimExibicao,
+
+        List<Long> projetoIds
 ) {}

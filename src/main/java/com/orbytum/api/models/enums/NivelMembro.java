@@ -8,7 +8,8 @@ public enum NivelMembro {
 
     LIDER(3),
     COORDENADOR(2),
-    PESQUISADOR(1);
+    PESQUISADOR(1),
+    COLABORADOR(0);
 
     @Getter
     private final int prioridade;
