@@ -2,6 +2,7 @@ package com.orbytum.api.models.entity;
 
 import com.orbytum.api.models.converter.TipoLembreteAttributeConverter;
 import com.orbytum.api.models.converter.TipoRecorrenciaAttributeConverter;
+import com.orbytum.api.models.enums.StorageProvider;
 import com.orbytum.api.models.enums.TipoLembrete;
 import com.orbytum.api.models.enums.TipoRecorrencia;
 import jakarta.annotation.Nonnull;
@@ -90,6 +91,14 @@ public class Evento {
     @Column(name = "ata_nome_arquivo")
     private String ataNomeArquivo;
 
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @JoinColumn(name = "ata_documento_id")
+    private Documento ataDocumento;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ata_storage_provider", length = 20)
+    private StorageProvider ataStorageProvider;
+
     @Nonnull
     @Column(name = "dth_registro", nullable = false)
     private LocalDateTime dthRegistro;
@@ -131,6 +140,8 @@ public class Evento {
     }
 
     public boolean isTemAta() {
-        return (ataUrl != null && !ataUrl.isBlank()) || (ataS3Key != null && !ataS3Key.isBlank());
+        return ataDocumento != null
+                || (ataUrl != null && !ataUrl.isBlank())
+                || (ataS3Key != null && !ataS3Key.isBlank());
     }
 }

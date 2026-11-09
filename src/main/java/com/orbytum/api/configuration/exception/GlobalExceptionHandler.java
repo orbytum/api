@@ -74,11 +74,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(erro);
     }
 
-    @ExceptionHandler(com.orbytum.api.models.exceptions.S3StorageException.class)
-    public ResponseEntity<ErroResponse> handleS3StorageException(com.orbytum.api.models.exceptions.S3StorageException ex) {
+    @ExceptionHandler(ArquivoStorageException.class)
+    public ResponseEntity<ErroResponse> handleArquivoStorageException(ArquivoStorageException ex) {
         ErroResponse erro = new ErroResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "Falha na operação com o armazenamento de arquivos (S3): " + ex.getMessage(),
+                "Falha na operação com o armazenamento de arquivos: " + ex.getMessage(),
                 System.currentTimeMillis()
         );
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(erro);

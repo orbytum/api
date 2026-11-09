@@ -2,9 +2,11 @@ package com.orbytum.api.service;
 
 import com.orbytum.api.models.dto.request.CreateLembreteRequest;
 import com.orbytum.api.models.dto.request.EditLembreteRequest;
+import com.orbytum.api.configuration.StorageProperties;
 import com.orbytum.api.models.dto.response.LembretePaginadoResponse;
 import com.orbytum.api.models.dto.response.LembreteResponse;
 import com.orbytum.api.models.dto.response.ParticipanteLembreteResponse;
+import com.orbytum.api.models.entity.Documento;
 import com.orbytum.api.models.entity.Grupo;
 import com.orbytum.api.models.entity.Evento;
 import com.orbytum.api.models.entity.EventoParticipante;
@@ -12,6 +14,7 @@ import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.enums.StatusLembrete;
+import com.orbytum.api.models.enums.StorageProvider;
 import com.orbytum.api.models.enums.TipoLembrete;
 import com.orbytum.api.models.enums.TipoRecorrencia;
 import com.orbytum.api.models.exceptions.GrupoNaoEncontradoErro;
@@ -28,6 +31,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
@@ -70,7 +75,8 @@ public class LembreteService {
     private final UsuarioService usuarioService;
     private final GrupoAcessoService grupoAcessoService;
     private final ProjetoService projetoService;
-    private final S3StorageService s3StorageService;
+    private final ArquivoStorage arquivoStorage;
+    private final StorageProperties storageProperties;
 
     @Transactional
     public LembreteResponse criar(CreateLembreteRequest request, String emailLogado) {
@@ -311,12 +317,23 @@ public class LembreteService {
                 : "ata.pdf";
 
         String key = "atas/" + evento.getId() + "/" + uuid + "_" + originalFilename;
-        logger.info("Enviando arquivo de ata do evento/lembrete {} para o S3: key={}", id, key);
-        String s3Url = s3StorageService.uploadFile(key, arquivo);
+        logger.info("Enviando arquivo de ata do evento/lembrete {}: key={}", id, key);
 
-        evento.setAtaS3Key(key);
-        evento.setAtaUrl(s3Url);
-        evento.setAtaNomeArquivo(originalFilename);
+        StorageProvider provedorAnterior = evento.getAtaStorageProvider();
+        String chaveAnterior = evento.getAtaS3Key();
+
+        ArquivoArmazenado arquivoArmazenado = arquivoStorage.salvar(key, arquivo);
+        agendarExclusaoS3EmRollback(arquivoArmazenado);
+
+        evento.setAtaStorageProvider(arquivoArmazenado.provedor());
+        evento.setAtaS3Key(arquivoArmazenado.provedor() == StorageProvider.S3
+                ? arquivoArmazenado.chave()
+                : null);
+        evento.setAtaUrl(resolverUrlAta(arquivoArmazenado, evento.getId()));
+        evento.setAtaNomeArquivo(arquivoArmazenado.nomeArquivo());
+        evento.setAtaDocumento(arquivoArmazenado.documento());
+
+        agendarExclusaoAtaAnterior(provedorAnterior, chaveAnterior);
 
         Evento salvo = eventoRepository.save(evento);
         logger.info("Ata inserida com sucesso no evento/lembrete id={}", salvo.getId());
@@ -330,11 +347,28 @@ public class LembreteService {
         Evento evento = buscarEntidade(id);
         validarAcessoAoGrupo(evento.getGrupo().getId(), solicitante);
 
-        if (!evento.isTemAta() || evento.getAtaS3Key() == null) {
+        if (!evento.isTemAta()) {
             throw new IllegalArgumentException("Este lembrete não possui arquivo de ata disponível.");
         }
 
-        return s3StorageService.downloadFile(evento.getAtaS3Key());
+        StorageProvider provedor = evento.getAtaStorageProvider();
+        if (provedor == null && evento.getAtaDocumento() != null) {
+            provedor = StorageProvider.DATABASE;
+        }
+
+        if (provedor == StorageProvider.DATABASE) {
+            Documento documento = evento.getAtaDocumento();
+            if (documento == null || documento.getDocumento() == null) {
+                throw new IllegalArgumentException("Este lembrete não possui arquivo de ata disponível.");
+            }
+            return documento.getDocumento();
+        }
+
+        if (evento.getAtaS3Key() == null || evento.getAtaS3Key().isBlank()) {
+            throw new IllegalArgumentException("Este lembrete não possui arquivo de ata disponível.");
+        }
+
+        return arquivoStorage.baixar(evento.getAtaS3Key(), StorageProvider.S3);
     }
 
     @Transactional
@@ -504,6 +538,70 @@ public class LembreteService {
                 throw new IllegalArgumentException("O arquivo de ata deve ser nos formatos PDF, DOC ou DOCX.");
             }
         }
+    }
+
+    private String resolverUrlAta(ArquivoArmazenado arquivo, Long eventoId) {
+        if (arquivo.provedor() == StorageProvider.S3) {
+            return arquivo.url();
+        }
+        return baseUrl() + "/lembretes/" + eventoId + "/ata";
+    }
+
+    private String baseUrl() {
+        String base = storageProperties.getPublicBaseUrl();
+        if (base == null || base.isBlank()) {
+            return "http://localhost:8080";
+        }
+        return base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+    }
+
+    private void agendarExclusaoS3EmRollback(ArquivoArmazenado arquivo) {
+        if (arquivo == null || arquivo.provedor() != StorageProvider.S3) {
+            return;
+        }
+        String chave = arquivo.chave();
+        if (chave == null || chave.isBlank()) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == TransactionSynchronization.STATUS_COMMITTED) {
+                    return;
+                }
+                try {
+                    arquivoStorage.excluir(chave, StorageProvider.S3);
+                } catch (RuntimeException ex) {
+                    logger.warn("Falha ao remover do S3 a ata '{}' após rollback: {}",
+                            chave, ex.getMessage());
+                }
+            }
+        });
+    }
+
+    private void agendarExclusaoAtaAnterior(StorageProvider provedor, String chave) {
+        boolean eraS3 = provedor == StorageProvider.S3
+                || (provedor == null && chave != null && !chave.isBlank());
+        if (!eraS3 || chave == null || chave.isBlank()) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            arquivoStorage.excluir(chave, StorageProvider.S3);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    arquivoStorage.excluir(chave, StorageProvider.S3);
+                } catch (RuntimeException ex) {
+                    logger.warn("Falha ao excluir a ata antiga '{}' do S3: {}", chave, ex.getMessage());
+                }
+            }
+        });
     }
 
     private LembreteResponse toResponse(Evento evento, Usuario solicitante) {

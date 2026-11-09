@@ -4,10 +4,12 @@ import com.orbytum.api.models.dto.request.CreatePublicacaoRequest;
 import com.orbytum.api.models.dto.request.EditarPublicacaoRequest;
 import com.orbytum.api.models.dto.response.PublicacaoPaginadaResponse;
 import com.orbytum.api.models.dto.response.PublicacaoResponse;
+import com.orbytum.api.service.ArquivoDownload;
 import com.orbytum.api.service.PublicacaoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -70,6 +72,19 @@ public class PublicacaoController {
             Authentication authentication) {
         PublicacaoResponse response = publicacaoService.buscarPorUuid(uuid, authentication.getName());
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/uuid/{uuid}/arquivo")
+    public ResponseEntity<byte[]> baixarArquivo(
+            @PathVariable UUID uuid,
+            Authentication authentication) {
+        ArquivoDownload download = publicacaoService.baixarArquivo(uuid, authentication.getName());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + download.nomeArquivo().replace("\"", "") + "\"")
+                .contentType(MediaType.parseMediaType(download.contentType()))
+                .body(download.bytes());
     }
 
     @DeleteMapping("/{id}")

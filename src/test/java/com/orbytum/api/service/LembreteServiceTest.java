@@ -1,10 +1,12 @@
 package com.orbytum.api.service;
 
+import com.orbytum.api.configuration.StorageProperties;
 import com.orbytum.api.models.dto.request.CreateLembreteRequest;
 import com.orbytum.api.models.dto.request.EditLembreteRequest;
 import com.orbytum.api.models.dto.response.LembretePaginadoResponse;
 import com.orbytum.api.models.dto.response.LembreteResponse;
 import com.orbytum.api.models.entity.CredenciaisLogin;
+import com.orbytum.api.models.entity.Documento;
 import com.orbytum.api.models.entity.Grupo;
 import com.orbytum.api.models.entity.Evento;
 import com.orbytum.api.models.entity.Projeto;
@@ -12,6 +14,7 @@ import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.enums.ProjetoStatus;
 import com.orbytum.api.models.enums.StatusLembrete;
+import com.orbytum.api.models.enums.StorageProvider;
 import com.orbytum.api.models.enums.TipoLembrete;
 import com.orbytum.api.models.enums.TipoRecorrencia;
 import com.orbytum.api.models.exceptions.GrupoNaoEncontradoErro;
@@ -65,7 +68,10 @@ class LembreteServiceTest {
     private ProjetoService projetoService;
 
     @Mock
-    private S3StorageService s3StorageService;
+    private ArquivoStorage arquivoStorage;
+
+    @Mock
+    private StorageProperties storageProperties;
 
     @InjectMocks
     private LembreteService lembreteService;
@@ -88,6 +94,8 @@ class LembreteServiceTest {
 
         grupo = new Grupo("Grupo de Inteligência Artificial", true);
         grupo.setId(10L);
+
+        lenient().when(storageProperties.getPublicBaseUrl()).thenReturn("http://localhost:8080");
     }
 
     private Evento criarEventoExemplo(Long id, TipoLembrete tipo, LocalDateTime dataHora) {
@@ -344,8 +352,16 @@ class LembreteServiceTest {
 
         when(usuarioService.findByEmail(EMAIL_CRIADOR)).thenReturn(Optional.of(criador));
         when(eventoRepository.findByIdComRelacionamentos(100L)).thenReturn(Optional.of(existente));
-        when(s3StorageService.uploadFile(anyString(), any(MockMultipartFile.class)))
-                .thenReturn("https://bucket.s3.amazonaws.com/atas/100/ata.pdf");
+        when(arquivoStorage.salvar(anyString(), any(MockMultipartFile.class)))
+                .thenReturn(new ArquivoArmazenado(
+                        StorageProvider.S3,
+                        "atas/100/ata.pdf",
+                        "https://bucket.s3.amazonaws.com/atas/100/ata.pdf",
+                        "ata_reuniao.pdf",
+                        "application/pdf",
+                        100L,
+                        null
+                ));
         when(eventoRepository.save(any(Evento.class))).thenAnswer(i -> i.getArgument(0));
 
         MockMultipartFile arquivo = new MockMultipartFile(
@@ -541,7 +557,30 @@ class LembreteServiceTest {
         when(usuarioService.findByEmail(EMAIL_CRIADOR)).thenReturn(Optional.of(criador));
         when(eventoRepository.findByIdComRelacionamentos(1L)).thenReturn(Optional.of(l));
         byte[] expectedBytes = "conteudo pdf".getBytes();
-        when(s3StorageService.downloadFile("atas/1/uuid_ata.pdf")).thenReturn(expectedBytes);
+        when(arquivoStorage.baixar("atas/1/uuid_ata.pdf", StorageProvider.S3)).thenReturn(expectedBytes);
+
+        byte[] result = lembreteService.downloadAta(1L, EMAIL_CRIADOR);
+
+        assertArrayEquals(expectedBytes, result);
+    }
+
+    @Test
+    @DisplayName("Download de ata salva no PostgreSQL")
+    void testDownloadAtaNoBancoComSucesso() {
+        Evento l = criarEventoExemplo(1L, TipoLembrete.REUNIAO, LocalDateTime.now().minusDays(1));
+        byte[] expectedBytes = "conteudo pdf banco".getBytes();
+        l.setAtaStorageProvider(StorageProvider.DATABASE);
+        l.setAtaDocumento(Documento.builder()
+                .id(50L)
+                .nome("ata.pdf")
+                .extensao("pdf")
+                .contentType("application/pdf")
+                .tamanho((long) expectedBytes.length)
+                .documento(expectedBytes)
+                .build());
+
+        when(usuarioService.findByEmail(EMAIL_CRIADOR)).thenReturn(Optional.of(criador));
+        when(eventoRepository.findByIdComRelacionamentos(1L)).thenReturn(Optional.of(l));
 
         byte[] result = lembreteService.downloadAta(1L, EMAIL_CRIADOR);
 
