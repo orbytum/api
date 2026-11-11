@@ -34,6 +34,7 @@ public class EditalController {
     @GetMapping
     public ResponseEntity<EditalPaginadoResponse> listar(
             @PathVariable Long grupoId,
+            @RequestParam(required = false) Long projetoId,
             @RequestParam(required = false) String palavraChave,
             @RequestParam(required = false) String organizacao,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
@@ -42,7 +43,7 @@ public class EditalController {
             @RequestParam(defaultValue = "10") int size,
             Authentication authentication) {
         EditalPaginadoResponse response = editalService.listar(
-                grupoId, palavraChave, organizacao, dataInicio, dataFim, page, size, authentication.getName());
+                grupoId, projetoId, palavraChave, organizacao, dataInicio, dataFim, page, size, authentication.getName());
         return ResponseEntity.ok(response);
     }
 

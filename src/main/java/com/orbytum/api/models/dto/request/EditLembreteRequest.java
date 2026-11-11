@@ -26,7 +26,9 @@ public record EditLembreteRequest(
         TipoRecorrencia recorrencia,
         String organizador,
         List<String> participantes,
-        List<Long> participanteIds
+        List<Long> participanteIds,
+        Long projetoId,
+        Boolean paraGrupoInteiro
 ) {
     public String getLocalFinal() {
         if (localizacao != null && !localizacao.isBlank()) {

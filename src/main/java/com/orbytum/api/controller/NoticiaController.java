@@ -37,6 +37,7 @@ public class NoticiaController {
     @GetMapping
     public ResponseEntity<NoticiaPaginadaResponse> listarNoticias(
             @RequestParam Long grupoId,
+            @RequestParam(required = false) Long projetoId,
             @RequestParam(required = false) String assunto,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
@@ -44,18 +45,19 @@ public class NoticiaController {
             @RequestParam(defaultValue = "10") int size,
             Authentication authentication) {
         NoticiaPaginadaResponse response = noticiaService.listar(
-                grupoId, assunto, dataInicio, dataFim, page, size, authentication.getName());
+                grupoId, projetoId, assunto, dataInicio, dataFim, page, size, authentication.getName());
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/pendentes")
     public ResponseEntity<NoticiaPaginadaResponse> listarPendentes(
             @RequestParam Long grupoId,
+            @RequestParam(required = false) Long projetoId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication authentication) {
         NoticiaPaginadaResponse response = noticiaService.listarPendentes(
-                grupoId, page, size, authentication.getName());
+                grupoId, projetoId, page, size, authentication.getName());
         return ResponseEntity.ok(response);
     }
 

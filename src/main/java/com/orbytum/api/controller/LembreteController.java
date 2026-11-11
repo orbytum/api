@@ -69,6 +69,7 @@ public class LembreteController {
     @Operation(summary = "Listar lembretes com filtros e paginação")
     public ResponseEntity<LembretePaginadoResponse> listarLembretes(
             @RequestParam Long grupoId,
+            @RequestParam(required = false) Long projetoId,
             @RequestParam(required = false) TipoLembrete tipo,
             @RequestParam(required = false) String busca,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
@@ -76,13 +77,14 @@ public class LembreteController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication authentication) {
-        return ResponseEntity.ok(lembreteService.listarPorGrupo(grupoId, tipo, busca, dataInicio, dataFim, page, size, authentication.getName()));
+        return ResponseEntity.ok(lembreteService.listarPorGrupo(grupoId, projetoId, tipo, busca, dataInicio, dataFim, page, size, authentication.getName()));
     }
 
     @GetMapping("/grupo/{grupoId}")
     @Operation(summary = "Listar lembretes de um grupo específico com filtros e paginação")
     public ResponseEntity<LembretePaginadoResponse> listarPorGrupo(
             @PathVariable Long grupoId,
+            @RequestParam(required = false) Long projetoId,
             @RequestParam(required = false) TipoLembrete tipo,
             @RequestParam(required = false) String busca,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
@@ -90,17 +92,18 @@ public class LembreteController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication authentication) {
-        return ResponseEntity.ok(lembreteService.listarPorGrupo(grupoId, tipo, busca, dataInicio, dataFim, page, size, authentication.getName()));
+        return ResponseEntity.ok(lembreteService.listarPorGrupo(grupoId, projetoId, tipo, busca, dataInicio, dataFim, page, size, authentication.getName()));
     }
 
     @GetMapping("/grupo/{grupoId}/todos")
     @Operation(summary = "Listar todos os lembretes ativos de um grupo (sem paginação), ordenados pela próxima ocorrência, com filtros opcionais")
     public ResponseEntity<List<LembreteResponse>> listarTodosPorGrupo(
             @PathVariable Long grupoId,
+            @RequestParam(required = false) Long projetoId,
             @RequestParam(required = false) TipoLembrete tipo,
             @RequestParam(required = false) String busca,
             Authentication authentication) {
-        return ResponseEntity.ok(lembreteService.listarTodosPorGrupo(grupoId, tipo, busca, authentication.getName()));
+        return ResponseEntity.ok(lembreteService.listarTodosPorGrupo(grupoId, projetoId, tipo, busca, authentication.getName()));
     }
 
     @GetMapping(value = "/grupo/{grupoId}/ics", produces = "text/calendar")

@@ -1,4 +1,4 @@
-package com.orbytum.api.configuration.s3;
+package com.orbytum.api.configuration;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -2,15 +2,19 @@ package com.orbytum.api.service;
 
 import com.orbytum.api.models.dto.request.CreateLembreteRequest;
 import com.orbytum.api.models.dto.request.EditLembreteRequest;
+import com.orbytum.api.configuration.StorageProperties;
 import com.orbytum.api.models.dto.response.LembretePaginadoResponse;
 import com.orbytum.api.models.dto.response.LembreteResponse;
 import com.orbytum.api.models.dto.response.ParticipanteLembreteResponse;
+import com.orbytum.api.models.entity.Documento;
 import com.orbytum.api.models.entity.Grupo;
 import com.orbytum.api.models.entity.Evento;
 import com.orbytum.api.models.entity.EventoParticipante;
+import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.enums.StatusLembrete;
+import com.orbytum.api.models.enums.StorageProvider;
 import com.orbytum.api.models.enums.TipoLembrete;
 import com.orbytum.api.models.enums.TipoRecorrencia;
 import com.orbytum.api.models.exceptions.GrupoNaoEncontradoErro;
@@ -27,6 +31,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
@@ -68,7 +74,9 @@ public class LembreteService {
     private final GrupoRepository grupoRepository;
     private final UsuarioService usuarioService;
     private final GrupoAcessoService grupoAcessoService;
-    private final S3StorageService s3StorageService;
+    private final ProjetoService projetoService;
+    private final ArquivoStorage arquivoStorage;
+    private final StorageProperties storageProperties;
 
     @Transactional
     public LembreteResponse criar(CreateLembreteRequest request, String emailLogado) {
@@ -84,6 +92,14 @@ public class LembreteService {
 
         validarAcessoAoGrupo(grupo.getId(), solicitante);
 
+        Projeto projeto = resolverProjetoDoLembrete(
+                grupo,
+                request.projetoId(),
+                request.paraGrupoInteiro(),
+                solicitante,
+                null,
+                true);
+
         String organizador = (request.organizador() != null && !request.organizador().isBlank())
                 ? request.organizador().trim()
                 : solicitante.getNome();
@@ -95,6 +111,7 @@ public class LembreteService {
         Evento evento = Evento.builder()
                 .grupo(grupo)
                 .criador(solicitante)
+                .projeto(projeto)
                 .titulo(request.titulo().trim())
                 .descricao(request.descricao() != null ? request.descricao().trim() : "")
                 .tipo(request.tipo())
@@ -132,6 +149,14 @@ public class LembreteService {
 
         validarCriadorOuAdmin(evento, solicitante, "Somente o criador do lembrete pode realizar alterações.");
 
+        Projeto projeto = resolverProjetoDoLembrete(
+                evento.getGrupo(),
+                request.projetoId(),
+                request.paraGrupoInteiro(),
+                solicitante,
+                evento.getProjeto(),
+                false);
+
         if (request.tipo() != TipoLembrete.REUNIAO && evento.isTemAta()) {
             throw new IllegalArgumentException("Não é possível alterar o tipo do lembrete pois já existe uma ata anexada a esta reunião.");
         }
@@ -144,6 +169,7 @@ public class LembreteService {
         evento.setUrl(request.link() != null ? request.link().trim() : null);
         evento.setOnline(request.link() != null && !request.link().isBlank());
         evento.setRecorrencia(request.recorrencia() != null ? request.recorrencia() : TipoRecorrencia.NENHUMA);
+        evento.setProjeto(projeto);
 
         if (request.organizador() != null && !request.organizador().isBlank()) {
             evento.setOrganizador(request.organizador().trim());
@@ -167,8 +193,10 @@ public class LembreteService {
 
         boolean isCriador = evento.getCriador().getId().equals(solicitante.getId());
         boolean isLider = grupoAcessoService.isLider(evento.getGrupo().getId(), solicitante.getId());
+        boolean isLiderProjeto = evento.getProjeto() != null
+                && grupoAcessoService.podeGerenciarProjeto(evento.getProjeto().getId(), solicitante.getId());
 
-        if (!isAdmin(solicitante) && !isCriador && !isLider) {
+        if (!isAdmin(solicitante) && !isCriador && !isLider && !isLiderProjeto) {
             throw new SemPermissaoNoGrupoErro("Você não possui permissão para excluir este lembrete.");
         }
 
@@ -180,6 +208,7 @@ public class LembreteService {
     @Transactional(readOnly = true)
     public LembretePaginadoResponse listarPorGrupo(
             Long grupoId,
+            Long projetoId,
             TipoLembrete tipo,
             String busca,
             LocalDate dataInicio,
@@ -195,10 +224,13 @@ public class LembreteService {
         String buscaTrim = (busca != null && !busca.isBlank()) ? busca.trim() : "";
         LocalDateTime inicio = dataInicio != null ? dataInicio.atStartOfDay() : null;
         LocalDateTime fim = dataFim != null ? dataFim.atTime(LocalTime.MAX) : null;
+        boolean gestor = isGestorDoGrupo(grupoId, solicitante);
 
         // Busca sem filtro de tipo para que os totais por tipo reflitam a pesquisa inteira
         List<LembreteResponse> pesquisados = eventoRepository
-                .filtrarPorGrupo(grupoId, buscaTrim, inicio, fim, Pageable.unpaged()).getContent().stream()
+                .filtrarPorGrupo(grupoId, buscaTrim, inicio, fim, projetoId, gestor,
+                        solicitante.getId(), Pageable.unpaged())
+                .getContent().stream()
                 .map(e -> toResponse(e, solicitante))
                 .toList();
 
@@ -229,13 +261,16 @@ public class LembreteService {
     }
 
     @Transactional(readOnly = true)
-    public List<LembreteResponse> listarTodosPorGrupo(Long grupoId, TipoLembrete tipo, String busca, String emailLogado) {
+    public List<LembreteResponse> listarTodosPorGrupo(Long grupoId, Long projetoId, TipoLembrete tipo, String busca, String emailLogado) {
         Usuario solicitante = usuarioAutenticado(emailLogado);
         validarAcessoAoGrupo(grupoId, solicitante);
 
         String buscaTrim = (busca != null && !busca.isBlank()) ? busca.trim() : "";
+        boolean gestor = isGestorDoGrupo(grupoId, solicitante);
 
-        return eventoRepository.filtrarPorGrupo(grupoId, buscaTrim, null, null, Pageable.unpaged()).getContent().stream()
+        return eventoRepository.filtrarPorGrupo(grupoId, buscaTrim, null, null, projetoId, gestor,
+                        solicitante.getId(), Pageable.unpaged())
+                .getContent().stream()
                 .filter(e -> tipo == null || e.getTipo() == tipo)
                 .map(e -> toResponse(e, solicitante))
                 .sorted(ORDEM_CRONOLOGICA)
@@ -256,7 +291,11 @@ public class LembreteService {
 
         validarAcessoAoGrupo(grupoId, solicitante);
 
-        List<Evento> eventos = eventoRepository.findAllByGrupoIdAndIsAtivoTrueOrderByDthInicioAsc(grupoId);
+        boolean gestor = isGestorDoGrupo(grupoId, solicitante);
+        List<Evento> eventos = eventoRepository
+                .filtrarPorGrupo(grupoId, "", null, null, null, gestor, solicitante.getId(), Pageable.unpaged())
+                .getContent();
+
         return IcsCalendarBuilder.gerar(grupo.getNome(), eventos);
     }
 
@@ -278,12 +317,23 @@ public class LembreteService {
                 : "ata.pdf";
 
         String key = "atas/" + evento.getId() + "/" + uuid + "_" + originalFilename;
-        logger.info("Enviando arquivo de ata do evento/lembrete {} para o S3: key={}", id, key);
-        String s3Url = s3StorageService.uploadFile(key, arquivo);
+        logger.info("Enviando arquivo de ata do evento/lembrete {}: key={}", id, key);
 
-        evento.setAtaS3Key(key);
-        evento.setAtaUrl(s3Url);
-        evento.setAtaNomeArquivo(originalFilename);
+        StorageProvider provedorAnterior = evento.getAtaStorageProvider();
+        String chaveAnterior = evento.getAtaS3Key();
+
+        ArquivoArmazenado arquivoArmazenado = arquivoStorage.salvar(key, arquivo);
+        agendarExclusaoS3EmRollback(arquivoArmazenado);
+
+        evento.setAtaStorageProvider(arquivoArmazenado.provedor());
+        evento.setAtaS3Key(arquivoArmazenado.provedor() == StorageProvider.S3
+                ? arquivoArmazenado.chave()
+                : null);
+        evento.setAtaUrl(resolverUrlAta(arquivoArmazenado, evento.getId()));
+        evento.setAtaNomeArquivo(arquivoArmazenado.nomeArquivo());
+        evento.setAtaDocumento(arquivoArmazenado.documento());
+
+        agendarExclusaoAtaAnterior(provedorAnterior, chaveAnterior);
 
         Evento salvo = eventoRepository.save(evento);
         logger.info("Ata inserida com sucesso no evento/lembrete id={}", salvo.getId());
@@ -297,11 +347,28 @@ public class LembreteService {
         Evento evento = buscarEntidade(id);
         validarAcessoAoGrupo(evento.getGrupo().getId(), solicitante);
 
-        if (!evento.isTemAta() || evento.getAtaS3Key() == null) {
+        if (!evento.isTemAta()) {
             throw new IllegalArgumentException("Este lembrete não possui arquivo de ata disponível.");
         }
 
-        return s3StorageService.downloadFile(evento.getAtaS3Key());
+        StorageProvider provedor = evento.getAtaStorageProvider();
+        if (provedor == null && evento.getAtaDocumento() != null) {
+            provedor = StorageProvider.DATABASE;
+        }
+
+        if (provedor == StorageProvider.DATABASE) {
+            Documento documento = evento.getAtaDocumento();
+            if (documento == null || documento.getDocumento() == null) {
+                throw new IllegalArgumentException("Este lembrete não possui arquivo de ata disponível.");
+            }
+            return documento.getDocumento();
+        }
+
+        if (evento.getAtaS3Key() == null || evento.getAtaS3Key().isBlank()) {
+            throw new IllegalArgumentException("Este lembrete não possui arquivo de ata disponível.");
+        }
+
+        return arquivoStorage.baixar(evento.getAtaS3Key(), StorageProvider.S3);
     }
 
     @Transactional
@@ -395,6 +462,62 @@ public class LembreteService {
         grupoAcessoService.validarMembro(grupoId, solicitante.getId());
     }
 
+    private boolean isGestorDoGrupo(Long grupoId, Usuario solicitante) {
+        return isAdmin(solicitante)
+                || grupoAcessoService.isCoordenadorOuAcima(grupoId, solicitante.getId());
+    }
+
+    /**
+     * Resolve o escopo do lembrete a partir do projeto e do booleano "paraGrupoInteiro".
+     * Em atualizações, quando ambos são nulos, o escopo atual é mantido.
+     */
+    private Projeto resolverProjetoDoLembrete(
+            Grupo grupo,
+            Long projetoId,
+            Boolean paraGrupoInteiro,
+            Usuario solicitante,
+            Projeto projetoAtual,
+            boolean criacao
+    ) {
+        boolean grupoInteiro = Boolean.TRUE.equals(paraGrupoInteiro);
+
+        if (grupoInteiro && projetoId != null) {
+            throw new IllegalArgumentException("Informe o projeto ou marque o lembrete para o grupo inteiro, não ambos.");
+        }
+
+        boolean semEscopo = !grupoInteiro && projetoId == null;
+        if (semEscopo && !criacao) {
+            if (projetoAtual != null) {
+                return projetoAtual;
+            }
+            grupoInteiro = true;
+        }
+
+        if (grupoInteiro) {
+            if (!isAdmin(solicitante)) {
+                grupoAcessoService.validarLider(grupo.getId(), solicitante.getId());
+            }
+            return null;
+        }
+
+        if (projetoId == null) {
+            throw new IllegalArgumentException("Informe o projeto do lembrete ou marque para o grupo inteiro.");
+        }
+
+        Projeto projeto = projetoService.findById(projetoId)
+                .orElseThrow(() -> new IllegalArgumentException("Projeto não encontrado com ID: " + projetoId));
+
+        if (projeto.getGrupo() == null || !projeto.getGrupo().getId().equals(grupo.getId())) {
+            throw new IllegalArgumentException("O projeto informado não pertence ao grupo do lembrete.");
+        }
+
+        if (!isAdmin(solicitante)) {
+            grupoAcessoService.validarPodeGerenciarProjeto(projetoId, solicitante.getId());
+        }
+
+        return projeto;
+    }
+
     private void validarCriadorOuAdmin(Evento evento, Usuario solicitante, String mensagemErro) {
         if (isAdmin(solicitante)) {
             return;
@@ -415,6 +538,70 @@ public class LembreteService {
                 throw new IllegalArgumentException("O arquivo de ata deve ser nos formatos PDF, DOC ou DOCX.");
             }
         }
+    }
+
+    private String resolverUrlAta(ArquivoArmazenado arquivo, Long eventoId) {
+        if (arquivo.provedor() == StorageProvider.S3) {
+            return arquivo.url();
+        }
+        return baseUrl() + "/lembretes/" + eventoId + "/ata";
+    }
+
+    private String baseUrl() {
+        String base = storageProperties.getPublicBaseUrl();
+        if (base == null || base.isBlank()) {
+            return "http://localhost:8080";
+        }
+        return base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+    }
+
+    private void agendarExclusaoS3EmRollback(ArquivoArmazenado arquivo) {
+        if (arquivo == null || arquivo.provedor() != StorageProvider.S3) {
+            return;
+        }
+        String chave = arquivo.chave();
+        if (chave == null || chave.isBlank()) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == TransactionSynchronization.STATUS_COMMITTED) {
+                    return;
+                }
+                try {
+                    arquivoStorage.excluir(chave, StorageProvider.S3);
+                } catch (RuntimeException ex) {
+                    logger.warn("Falha ao remover do S3 a ata '{}' após rollback: {}",
+                            chave, ex.getMessage());
+                }
+            }
+        });
+    }
+
+    private void agendarExclusaoAtaAnterior(StorageProvider provedor, String chave) {
+        boolean eraS3 = provedor == StorageProvider.S3
+                || (provedor == null && chave != null && !chave.isBlank());
+        if (!eraS3 || chave == null || chave.isBlank()) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            arquivoStorage.excluir(chave, StorageProvider.S3);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    arquivoStorage.excluir(chave, StorageProvider.S3);
+                } catch (RuntimeException ex) {
+                    logger.warn("Falha ao excluir a ata antiga '{}' do S3: {}", chave, ex.getMessage());
+                }
+            }
+        });
     }
 
     private LembreteResponse toResponse(Evento evento, Usuario solicitante) {
@@ -463,7 +650,10 @@ public class LembreteService {
                 evento.getAtaUrl(),
                 evento.getAtaNomeArquivo(),
                 evento.getDthRegistro(),
-                evento.isAtivo()
+                evento.isAtivo(),
+                evento.getProjeto() != null ? evento.getProjeto().getId() : null,
+                evento.getProjeto() != null ? evento.getProjeto().getTitulo() : null,
+                evento.getProjeto() == null
         );
     }
 }

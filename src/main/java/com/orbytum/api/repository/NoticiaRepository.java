@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,6 +39,7 @@ public interface NoticiaRepository extends JpaRepository<Noticia, Long> {
               AND (CAST(:assunto AS string) IS NULL OR CAST(:assunto AS string) = '' OR LOWER(n.assunto) LIKE LOWER(CONCAT('%', CAST(:assunto AS string), '%')))
               AND (CAST(:dataInicio AS java.time.LocalDateTime) IS NULL OR n.dthRegistro >= :dataInicio)
               AND (CAST(:dataFim AS java.time.LocalDateTime) IS NULL OR n.dthRegistro <= :dataFim)
+              AND (:projetoId IS NULL OR EXISTS (SELECT 1 FROM n.projetos p WHERE p.id = :projetoId))
             """,
             countQuery = """
             SELECT COUNT(n) FROM Noticia n
@@ -50,6 +52,7 @@ public interface NoticiaRepository extends JpaRepository<Noticia, Long> {
               AND (CAST(:assunto AS string) IS NULL OR CAST(:assunto AS string) = '' OR LOWER(n.assunto) LIKE LOWER(CONCAT('%', CAST(:assunto AS string), '%')))
               AND (CAST(:dataInicio AS java.time.LocalDateTime) IS NULL OR n.dthRegistro >= :dataInicio)
               AND (CAST(:dataFim AS java.time.LocalDateTime) IS NULL OR n.dthRegistro <= :dataFim)
+              AND (:projetoId IS NULL OR EXISTS (SELECT 1 FROM n.projetos p WHERE p.id = :projetoId))
             """)
     Page<Noticia> filtrarVigentes(
             @Param("grupoId") Long grupoId,
@@ -58,5 +61,34 @@ public interface NoticiaRepository extends JpaRepository<Noticia, Long> {
             @Param("assunto") String assunto,
             @Param("dataInicio") LocalDateTime dataInicio,
             @Param("dataFim") LocalDateTime dataFim,
+            @Param("projetoId") Long projetoId,
+            Pageable pageable);
+
+    @Query(value = """
+            SELECT DISTINCT n FROM Noticia n
+            LEFT JOIN FETCH n.grupo g
+            LEFT JOIN FETCH n.autor a
+            WHERE n.isAtivo = true
+              AND n.status = :status
+              AND g.id = :grupoId
+              AND (:projetoId IS NULL OR EXISTS (SELECT 1 FROM n.projetos p WHERE p.id = :projetoId))
+              AND (:gestor = true OR EXISTS (
+                    SELECT 1 FROM n.projetos p2 WHERE p2.id IN :projetoIdsLiderados))
+            """,
+            countQuery = """
+            SELECT COUNT(DISTINCT n) FROM Noticia n
+            WHERE n.isAtivo = true
+              AND n.status = :status
+              AND n.grupo.id = :grupoId
+              AND (:projetoId IS NULL OR EXISTS (SELECT 1 FROM n.projetos p WHERE p.id = :projetoId))
+              AND (:gestor = true OR EXISTS (
+                    SELECT 1 FROM n.projetos p2 WHERE p2.id IN :projetoIdsLiderados))
+            """)
+    Page<Noticia> filtrarPendentes(
+            @Param("grupoId") Long grupoId,
+            @Param("status") NoticiaStatus status,
+            @Param("projetoId") Long projetoId,
+            @Param("gestor") boolean gestor,
+            @Param("projetoIdsLiderados") Collection<Long> projetoIdsLiderados,
             Pageable pageable);
 }

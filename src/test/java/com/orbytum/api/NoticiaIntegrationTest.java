@@ -5,17 +5,22 @@ import com.orbytum.api.models.dto.response.NoticiaPaginadaResponse;
 import com.orbytum.api.models.dto.response.NoticiaResponse;
 import com.orbytum.api.models.entity.CredenciaisLogin;
 import com.orbytum.api.models.entity.Grupo;
+import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Role;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
+import com.orbytum.api.models.entity.joinColumns.ProjetoXUsuario;
 import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.enums.NivelMembro;
 import com.orbytum.api.models.enums.NoticiaStatus;
+import com.orbytum.api.models.enums.ProjetoStatus;
 import com.orbytum.api.models.exceptions.SemPermissaoNoGrupoErro;
 import com.orbytum.api.repository.CredenciaisLoginRepository;
 import com.orbytum.api.repository.GrupoRepository;
 import com.orbytum.api.repository.GrupoXUsuarioRepository;
 import com.orbytum.api.repository.NoticiaRepository;
+import com.orbytum.api.repository.ProjetoRepository;
+import com.orbytum.api.repository.ProjetoXUsuarioRepository;
 import com.orbytum.api.repository.RoleRepository;
 import com.orbytum.api.repository.UsuarioRepository;
 import com.orbytum.api.service.NoticiaService;
@@ -56,6 +61,12 @@ public class NoticiaIntegrationTest {
     private RoleRepository roleRepository;
 
     @Autowired
+    private ProjetoRepository projetoRepository;
+
+    @Autowired
+    private ProjetoXUsuarioRepository projetoXUsuarioRepository;
+
+    @Autowired
     private TransactionTemplate transactionTemplate;
 
     private static final String LIDER_EMAIL = "noticia.lider@teste.com";
@@ -63,6 +74,7 @@ public class NoticiaIntegrationTest {
     private static final String ESTRANGEIRO_EMAIL = "noticia.estrangeiro@teste.com";
 
     private Grupo grupo;
+    private Projeto projeto;
     private Usuario lider;
     private Usuario pesquisador;
     private Role role;
@@ -87,6 +99,10 @@ public class NoticiaIntegrationTest {
             grupo = grupoRepository.save(new Grupo("Grupo Notícias IT", lider));
             grupoXUsuarioRepository.save(new GrupoXUsuario(grupo, lider, role, NivelMembro.COORDENADOR, null, true));
             grupoXUsuarioRepository.save(new GrupoXUsuario(grupo, pesquisador, role, NivelMembro.PESQUISADOR, null, true));
+
+            projeto = projetoRepository.save(new Projeto(
+                    grupo, ProjetoStatus.EM_ANDAMENTO, "Projeto Notícias", "Assunto"));
+            projetoXUsuarioRepository.save(new ProjetoXUsuario(projeto, pesquisador, NivelMembro.LIDER));
         });
     }
 
@@ -94,6 +110,8 @@ public class NoticiaIntegrationTest {
     void tearDown() {
         transactionTemplate.executeWithoutResult(status -> {
             noticiaRepository.deleteAll();
+            projetoXUsuarioRepository.deleteAll();
+            projetoRepository.deleteAll();
             grupoXUsuarioRepository.deleteAll();
             grupoRepository.deleteAll();
             credenciaisLoginRepository.deleteAll();
@@ -106,7 +124,7 @@ public class NoticiaIntegrationTest {
 
     private NoticiaResponse criarComoPesquisador(String titulo, LocalDateTime dataFim) {
         return noticiaService.criar(
-                new CreateNoticiaRequest(grupo.getId(), titulo, "Conteúdo da notícia", "https://ref.com", "Tecnologia", null, dataFim),
+                new CreateNoticiaRequest(grupo.getId(), titulo, "Conteúdo da notícia", "https://ref.com", "Tecnologia", null, dataFim, null),
                 PESQUISADOR_EMAIL);
     }
 
@@ -116,7 +134,7 @@ public class NoticiaIntegrationTest {
 
         assertEquals(NoticiaStatus.PENDENTE, criada.status());
 
-        NoticiaPaginadaResponse listagem = noticiaService.listar(grupo.getId(), null, null, null, 1, 10, PESQUISADOR_EMAIL);
+        NoticiaPaginadaResponse listagem = noticiaService.listar(grupo.getId(), null, null, null, null, 1, 10, PESQUISADOR_EMAIL);
 
         assertEquals(0, listagem.totalElements());
     }
@@ -129,7 +147,7 @@ public class NoticiaIntegrationTest {
         assertEquals(NoticiaStatus.APROVADA, aprovada.status());
         assertNotNull(aprovada.dataFimExibicao());
 
-        NoticiaPaginadaResponse listagem = noticiaService.listar(grupo.getId(), null, null, null, 1, 10, PESQUISADOR_EMAIL);
+        NoticiaPaginadaResponse listagem = noticiaService.listar(grupo.getId(), null, null, null, null, 1, 10, PESQUISADOR_EMAIL);
 
         assertEquals(1, listagem.totalElements());
         assertEquals("Descoberta", listagem.items().get(0).titulo());
@@ -141,7 +159,7 @@ public class NoticiaIntegrationTest {
         NoticiaResponse segunda = criarComoPesquisador("Pendente 2", null);
         noticiaService.aprovar(segunda.id(), LIDER_EMAIL);
 
-        NoticiaPaginadaResponse pendentes = noticiaService.listarPendentes(grupo.getId(), 1, 10, LIDER_EMAIL);
+        NoticiaPaginadaResponse pendentes = noticiaService.listarPendentes(grupo.getId(), null, 1, 10, LIDER_EMAIL);
 
         assertEquals(1, pendentes.totalElements());
         assertEquals("Pendente 1", pendentes.items().get(0).titulo());
@@ -155,11 +173,30 @@ public class NoticiaIntegrationTest {
     }
 
     @Test
+    void liderDeProjetoRotuladoVeEaprovaNoticiaDoProjeto() {
+        NoticiaResponse criada = noticiaService.criar(
+                new CreateNoticiaRequest(grupo.getId(), "Descoberta do projeto", "Conteúdo",
+                        "https://ref.com", "Tecnologia", null, null, List.of(projeto.getId())),
+                PESQUISADOR_EMAIL);
+
+        NoticiaPaginadaResponse pendentes = noticiaService.listarPendentes(
+                grupo.getId(), projeto.getId(), 1, 10, PESQUISADOR_EMAIL);
+
+        assertEquals(1, pendentes.totalElements());
+        assertEquals(criada.id(), pendentes.items().get(0).id());
+        assertEquals(1, pendentes.items().get(0).projetos().size());
+
+        NoticiaResponse aprovada = noticiaService.aprovar(criada.id(), PESQUISADOR_EMAIL);
+
+        assertEquals(NoticiaStatus.APROVADA, aprovada.status());
+    }
+
+    @Test
     void noticiaExpiradaNaoApareceNaListagem() {
         NoticiaResponse criada = criarComoPesquisador("Antiga", LocalDateTime.now().minusDays(1));
         noticiaService.aprovar(criada.id(), LIDER_EMAIL);
 
-        NoticiaPaginadaResponse listagem = noticiaService.listar(grupo.getId(), null, null, null, 1, 10, LIDER_EMAIL);
+        NoticiaPaginadaResponse listagem = noticiaService.listar(grupo.getId(), null, null, null, null, 1, 10, LIDER_EMAIL);
 
         assertEquals(0, listagem.totalElements());
     }
@@ -170,12 +207,12 @@ public class NoticiaIntegrationTest {
         NoticiaResponse biologia = criarComoPesquisador("Bio", null);
         noticiaService.atualizar(biologia.id(),
                 new com.orbytum.api.models.dto.request.EditNoticiaRequest(
-                        biologia.titulo(), biologia.conteudo(), biologia.referencia(), "Biologia", null, null),
+                        biologia.titulo(), biologia.conteudo(), biologia.referencia(), "Biologia", null, null, null),
                 PESQUISADOR_EMAIL);
         noticiaService.aprovar(tecnologia.id(), LIDER_EMAIL);
         noticiaService.aprovar(biologia.id(), LIDER_EMAIL);
 
-        NoticiaPaginadaResponse listagem = noticiaService.listar(grupo.getId(), "Tecnologia", null, null, 1, 10, LIDER_EMAIL);
+        NoticiaPaginadaResponse listagem = noticiaService.listar(grupo.getId(), null, "Tecnologia", null, null, 1, 10, LIDER_EMAIL);
 
         assertEquals(1, listagem.totalElements());
         assertEquals("Tech", listagem.items().get(0).titulo());
@@ -186,6 +223,6 @@ public class NoticiaIntegrationTest {
         criarComoPesquisador("Descoberta", null);
 
         assertThrows(RuntimeException.class,
-                () -> noticiaService.listar(grupo.getId(), null, null, null, 1, 10, ESTRANGEIRO_EMAIL));
+                () -> noticiaService.listar(grupo.getId(), null, null, null, null, 1, 10, ESTRANGEIRO_EMAIL));
     }
 }

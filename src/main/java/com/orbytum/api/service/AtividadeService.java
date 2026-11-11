@@ -2,6 +2,7 @@ package com.orbytum.api.service;
 
 import com.orbytum.api.models.dto.request.CreateAtividadeRequest;
 import com.orbytum.api.models.dto.request.EditAtividadeRequest;
+import com.orbytum.api.models.dto.request.RejeitarAtividadeRequest;
 import com.orbytum.api.models.dto.response.AtividadePaginadoResponse;
 import com.orbytum.api.models.dto.response.AtividadeResponse;
 import com.orbytum.api.models.entity.Atividade;
@@ -13,6 +14,7 @@ import com.orbytum.api.models.exceptions.AtividadeNaoEncontradaErro;
 import com.orbytum.api.models.exceptions.AtividadeNaoPertenceAoProjetoErro;
 import com.orbytum.api.models.exceptions.ProjetoNaoEncontradoErro;
 import com.orbytum.api.models.exceptions.ResponsavelNaoPertenceAoProjetoErro;
+import com.orbytum.api.models.exceptions.SemPermissaoNoGrupoErro;
 import com.orbytum.api.models.exceptions.TransicaoAtividadeInvalidaErro;
 import com.orbytum.api.models.exceptions.UsuarioNaoEncontradoErro;
 import com.orbytum.api.repository.AtividadeRepository;
@@ -34,6 +36,7 @@ import java.util.Map;
 public class AtividadeService {
 
     private static final List<AtividadeStatus> STATUS_ABERTOS = List.of(
+            AtividadeStatus.AGUARDANDO_APROVACAO,
             AtividadeStatus.PENDENTE,
             AtividadeStatus.EM_ANDAMENTO,
             AtividadeStatus.AGUARDANDO_CONFIRMACAO);
@@ -56,6 +59,8 @@ public class AtividadeService {
                 .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário não encontrado com ID: " + request.responsavelId()));
 
         Atividade atividadePai = null;
+        AtividadeStatus statusInicial;
+
         if (request.atividadePaiId() != null) {
             atividadePai = buscarEntidade(request.atividadePaiId());
 
@@ -66,11 +71,14 @@ public class AtividadeService {
                 throw new TransicaoAtividadeInvalidaErro("Impedimentos só podem ser registrados em atividades Em Andamento");
             }
             grupoAcessoService.validarMembro(grupoId, responsavel.getId());
+            validarPodeEscreverNoProjeto(projeto, solicitante);
+            statusInicial = AtividadeStatus.PENDENTE;
         } else {
-            if (!isAdmin(solicitante)) {
-                grupoAcessoService.validarCoordenadorOuAcima(grupoId, solicitante.getId());
-            }
             validarResponsavelNoProjeto(projeto.getId(), responsavel);
+            validarPodeEscreverNoProjeto(projeto, solicitante);
+            statusInicial = isGestorDoProjeto(projeto, solicitante)
+                    ? AtividadeStatus.PENDENTE
+                    : AtividadeStatus.AGUARDANDO_APROVACAO;
         }
 
         Atividade atividade = new Atividade(
@@ -80,8 +88,9 @@ public class AtividadeService {
                 request.titulo(),
                 request.descricao(),
                 request.dthPrazo());
+        atividade.setStatus(statusInicial);
 
-        return toResponse(atividadeRepository.save(atividade));
+        return toResponse(atividadeRepository.save(atividade), solicitante);
     }
 
     @Transactional
@@ -91,9 +100,7 @@ public class AtividadeService {
         Long grupoId = atividade.getProjeto().getGrupo().getId();
 
         validarAcessoAoGrupo(grupoId, solicitante);
-        if (!isAdmin(solicitante)) {
-            grupoAcessoService.validarCoordenadorOuAcima(grupoId, solicitante.getId());
-        }
+        validarGestorDoProjeto(atividade.getProjeto(), solicitante);
 
         atividade.setTitulo(request.titulo());
         atividade.setDescricao(request.descricao());
@@ -114,7 +121,7 @@ public class AtividadeService {
             atividade.setResponsavel(responsavel);
         }
 
-        return toResponse(atividadeRepository.save(atividade));
+        return toResponse(atividadeRepository.save(atividade), solicitante);
     }
 
     @Transactional
@@ -124,14 +131,22 @@ public class AtividadeService {
         Long grupoId = atividade.getProjeto().getGrupo().getId();
 
         validarAcessoAoGrupo(grupoId, solicitante);
+        validarNaoColaborador(atividade.getProjeto(), solicitante);
+
+        if (atividade.getStatus() == AtividadeStatus.AGUARDANDO_APROVACAO
+                || novoStatus == AtividadeStatus.AGUARDANDO_APROVACAO
+                || novoStatus == AtividadeStatus.REJEITADA) {
+            throw new TransicaoAtividadeInvalidaErro(
+                    "Use os endpoints de aprovar/rejeitar para alterar o status de aprovação");
+        }
 
         if (!atividade.getStatus().podeTransicionarPara(novoStatus)) {
             throw new TransicaoAtividadeInvalidaErro(
                     "Transição de status inválida: " + atividade.getStatus() + " -> " + novoStatus);
         }
 
-        if ((novoStatus == AtividadeStatus.CONCLUIDA || novoStatus == AtividadeStatus.ENCERRADA) && !isAdmin(solicitante)) {
-            grupoAcessoService.validarCoordenadorOuAcima(grupoId, solicitante.getId());
+        if (novoStatus == AtividadeStatus.CONCLUIDA || novoStatus == AtividadeStatus.ENCERRADA) {
+            validarGestorDoProjeto(atividade.getProjeto(), solicitante);
         }
 
         atividade.setStatus(novoStatus);
@@ -139,7 +154,45 @@ public class AtividadeService {
             atividade.setDthConclusao(LocalDateTime.now());
         }
 
-        return toResponse(atividadeRepository.save(atividade));
+        return toResponse(atividadeRepository.save(atividade), solicitante);
+    }
+
+    @Transactional
+    public AtividadeResponse aprovar(Long id, String emailLogado) {
+        Atividade atividade = buscarEntidade(id);
+        Usuario solicitante = usuarioAutenticado(emailLogado);
+
+        validarAcessoAoGrupo(atividade.getProjeto().getGrupo().getId(), solicitante);
+        validarGestorDoProjeto(atividade.getProjeto(), solicitante);
+
+        if (atividade.getStatus() != AtividadeStatus.AGUARDANDO_APROVACAO) {
+            throw new TransicaoAtividadeInvalidaErro("Somente atividades aguardando aprovação podem ser aprovadas");
+        }
+
+        atividade.setStatus(AtividadeStatus.PENDENTE);
+        atividade.setMotivoRejeicao(null);
+
+        return toResponse(atividadeRepository.save(atividade), solicitante);
+    }
+
+    @Transactional
+    public AtividadeResponse rejeitar(Long id, RejeitarAtividadeRequest request, String emailLogado) {
+        Atividade atividade = buscarEntidade(id);
+        Usuario solicitante = usuarioAutenticado(emailLogado);
+
+        validarAcessoAoGrupo(atividade.getProjeto().getGrupo().getId(), solicitante);
+        validarGestorDoProjeto(atividade.getProjeto(), solicitante);
+
+        if (atividade.getStatus() != AtividadeStatus.AGUARDANDO_APROVACAO) {
+            throw new TransicaoAtividadeInvalidaErro("Somente atividades aguardando aprovação podem ser rejeitadas");
+        }
+
+        atividade.setStatus(AtividadeStatus.REJEITADA);
+        atividade.setMotivoRejeicao(request != null && request.motivo() != null
+                ? request.motivo().trim()
+                : null);
+
+        return toResponse(atividadeRepository.save(atividade), solicitante);
     }
 
     @Transactional
@@ -149,9 +202,7 @@ public class AtividadeService {
         Long grupoId = atividade.getProjeto().getGrupo().getId();
 
         validarAcessoAoGrupo(grupoId, solicitante);
-        if (!isAdmin(solicitante)) {
-            grupoAcessoService.validarCoordenadorOuAcima(grupoId, solicitante.getId());
-        }
+        validarGestorDoProjeto(atividade.getProjeto(), solicitante);
 
         atividade.setAtivo(false);
         atividadeRepository.save(atividade);
@@ -162,7 +213,7 @@ public class AtividadeService {
         Atividade atividade = buscarEntidade(id);
         Usuario solicitante = usuarioAutenticado(emailLogado);
         validarAcessoAoGrupo(atividade.getProjeto().getGrupo().getId(), solicitante);
-        return toResponse(atividade);
+        return toResponse(atividade, solicitante);
     }
 
     @Transactional(readOnly = true)
@@ -180,7 +231,7 @@ public class AtividadeService {
         boolean projetoPodeSerFinalizado = !existeAtividadeAberta(projetoId);
 
         List<AtividadeResponse> items = atividades.getContent().stream()
-                .map(atividade -> toResponse(atividade, projetoPodeSerFinalizado))
+                .map(atividade -> toResponse(atividade, projetoPodeSerFinalizado, solicitante))
                 .toList();
 
         return new AtividadePaginadoResponse(
@@ -203,13 +254,14 @@ public class AtividadeService {
                     Long projetoId = atividade.getProjeto().getId();
                     boolean finalizavel = projetosFinalizaveis.computeIfAbsent(
                             projetoId, id -> !existeAtividadeAberta(id));
-                    return toResponse(atividade, finalizavel);
+                    return toResponse(atividade, finalizavel, solicitante);
                 })
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<AtividadeResponse> listarAtrasadasPorProjeto(Long projetoId, String emailLogado) {        Projeto projeto = projetoService.findById(projetoId)
+    public List<AtividadeResponse> listarAtrasadasPorProjeto(Long projetoId, String emailLogado) {
+        Projeto projeto = projetoService.findById(projetoId)
                 .orElseThrow(() -> new ProjetoNaoEncontradoErro("Projeto não encontrado com ID: " + projetoId));
         Usuario solicitante = usuarioAutenticado(emailLogado);
         validarAcessoAoGrupo(projeto.getGrupo().getId(), solicitante);
@@ -221,7 +273,7 @@ public class AtividadeService {
         boolean projetoPodeSerFinalizado = !existeAtividadeAberta(projetoId);
 
         return atrasadas.stream()
-                .map(atividade -> toResponse(atividade, projetoPodeSerFinalizado))
+                .map(atividade -> toResponse(atividade, projetoPodeSerFinalizado, solicitante))
                 .toList();
     }
 
@@ -253,18 +305,70 @@ public class AtividadeService {
         grupoAcessoService.validarMembro(grupoId, solicitante.getId());
     }
 
+    private boolean isGestorDoProjeto(Projeto projeto, Usuario solicitante) {
+        if (isAdmin(solicitante)) {
+            return true;
+        }
+        Long grupoId = projeto.getGrupo().getId();
+        return grupoAcessoService.isCoordenadorOuAcima(grupoId, solicitante.getId())
+                || grupoAcessoService.isLiderDoProjeto(projeto.getId(), solicitante.getId());
+    }
+
+    private void validarGestorDoProjeto(Projeto projeto, Usuario solicitante) {
+        if (!isGestorDoProjeto(projeto, solicitante)) {
+            throw new SemPermissaoNoGrupoErro(
+                    "Esta operação exige permissão de Líder do grupo ou do projeto");
+        }
+    }
+
+    private void validarPodeEscreverNoProjeto(Projeto projeto, Usuario solicitante) {
+        if (isAdmin(solicitante)) {
+            return;
+        }
+
+        Long grupoId = projeto.getGrupo().getId();
+        Long usuarioId = solicitante.getId();
+
+        if (grupoAcessoService.isColaborador(grupoId, usuarioId)
+                || grupoAcessoService.isColaboradorDoProjeto(projeto.getId(), usuarioId)) {
+            throw new SemPermissaoNoGrupoErro("Colaboradores possuem acesso somente leitura");
+        }
+
+        boolean permitido = grupoAcessoService.isCoordenadorOuAcima(grupoId, usuarioId)
+                || grupoAcessoService.isLiderDoProjeto(projeto.getId(), usuarioId)
+                || grupoAcessoService.isMembroDoProjeto(projeto.getId(), usuarioId);
+
+        if (!permitido) {
+            throw new SemPermissaoNoGrupoErro("Você não participa deste projeto");
+        }
+    }
+
+    private void validarNaoColaborador(Projeto projeto, Usuario solicitante) {
+        if (isAdmin(solicitante)) {
+            return;
+        }
+        Long grupoId = projeto.getGrupo().getId();
+        if (grupoAcessoService.isColaborador(grupoId, solicitante.getId())
+                || grupoAcessoService.isColaboradorDoProjeto(projeto.getId(), solicitante.getId())) {
+            throw new SemPermissaoNoGrupoErro("Colaboradores possuem acesso somente leitura");
+        }
+    }
+
     private boolean existeAtividadeAberta(Long projetoId) {
         return atividadeRepository.countByProjetoIdAndStatusInAndIsAtivoTrue(projetoId, STATUS_ABERTOS) > 0;
     }
 
-    private AtividadeResponse toResponse(Atividade atividade) {
-        return toResponse(atividade, !existeAtividadeAberta(atividade.getProjeto().getId()));
+    private AtividadeResponse toResponse(Atividade atividade, Usuario solicitante) {
+        return toResponse(atividade, !existeAtividadeAberta(atividade.getProjeto().getId()), solicitante);
     }
 
-    private AtividadeResponse toResponse(Atividade atividade, boolean projetoPodeSerFinalizado) {
+    private AtividadeResponse toResponse(Atividade atividade, boolean projetoPodeSerFinalizado, Usuario solicitante) {
         boolean atrasada = atividade.getStatus().isAberta()
                 && atividade.getDthPrazo() != null
                 && atividade.getDthPrazo().isBefore(LocalDateTime.now());
+
+        boolean podeSerAprovada = atividade.getStatus() == AtividadeStatus.AGUARDANDO_APROVACAO
+                && isGestorDoProjeto(atividade.getProjeto(), solicitante);
 
         return new AtividadeResponse(
                 atividade.getId(),
@@ -280,6 +384,8 @@ public class AtividadeService {
                 atividade.getDthConclusao(),
                 atrasada,
                 atividade.isAtivo(),
-                projetoPodeSerFinalizado);
+                projetoPodeSerFinalizado,
+                atividade.getMotivoRejeicao(),
+                podeSerAprovada);
     }
 }

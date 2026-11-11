@@ -13,6 +13,7 @@ import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.enums.NivelMembro;
 import com.orbytum.api.models.exceptions.GrupoNaoEncontradoErro;
 import com.orbytum.api.models.exceptions.ProjetoNaoEncontradoErro;
+import com.orbytum.api.models.exceptions.SemPermissaoNoGrupoErro;
 import com.orbytum.api.models.exceptions.UsuarioNaoEncontradoErro;
 import com.orbytum.api.repository.ProjetoXUsuarioRepository;
 import com.orbytum.api.service.GrupoAcessoService;
@@ -47,9 +48,30 @@ public class ProjetoFachada {
         Projeto projeto = new Projeto(grupo, request.status(), request.titulo(), request.assunto());
         Projeto projetoSalvo = projetoService.save(projeto);
 
-        NivelMembro nivelSolicitante = grupoAcessoService.nivelDoUsuario(grupo.getId(), solicitante.getId());
-        adicionarParticipante(projetoSalvo, solicitante,
-                nivelSolicitante != null ? nivelSolicitante : NivelMembro.LIDER);
+        Usuario liderProjeto = solicitante;
+        if (request.liderProjetoId() != null) {
+            if (!isAdmin(solicitante)) {
+                grupoAcessoService.validarLider(grupo.getId(), solicitante.getId());
+            }
+            liderProjeto = usuarioService.findById(request.liderProjetoId())
+                    .orElseThrow(() -> new UsuarioNaoEncontradoErro(
+                            "Usuário não encontrado com ID: " + request.liderProjetoId()));
+            grupoAcessoService.validarMembro(grupo.getId(), liderProjeto.getId());
+            if (grupoAcessoService.isColaborador(grupo.getId(), liderProjeto.getId())) {
+                throw new SemPermissaoNoGrupoErro("Um colaborador não pode ser definido como líder do projeto");
+            }
+        }
+
+        if (liderProjeto.getId().equals(solicitante.getId())) {
+            salvarParticipante(projetoSalvo, solicitante, NivelMembro.LIDER);
+        } else {
+            NivelMembro nivelSolicitante = grupoAcessoService.nivelDoUsuario(grupo.getId(), solicitante.getId());
+            if (nivelSolicitante == NivelMembro.LIDER || nivelSolicitante == null) {
+                nivelSolicitante = NivelMembro.PESQUISADOR;
+            }
+            salvarParticipante(projetoSalvo, solicitante, nivelSolicitante);
+            salvarParticipante(projetoSalvo, liderProjeto, NivelMembro.LIDER);
+        }
 
         return toResponse(projetoSalvo);
     }
@@ -106,6 +128,7 @@ public class ProjetoFachada {
         return toResponse(projetoService.finalizarProjeto(projeto));
     }
 
+    @Transactional
     public List<ProjetoResponse> listarProjetosPorGrupo(Long grupoId) {
         return projetoService.findAllAtivosByGrupoId(grupoId)
                 .stream()
@@ -113,10 +136,12 @@ public class ProjetoFachada {
                 .toList();
     }
 
+    @Transactional
     public ProjetoResponse buscarProjeto(Long id) {
         return toResponse(buscarProjetoEntidade(id));
     }
 
+    @Transactional
     public List<ParticipanteResponse> listarParticipantes(Long projetoId) {
         buscarProjetoEntidade(projetoId);
         return projetoXUsuarioRepository.findAllByProjetoIdAndIsAtivoTrue(projetoId).stream()
@@ -136,19 +161,24 @@ public class ProjetoFachada {
 
         grupoAcessoService.validarMembro(projeto.getGrupo().getId(), participante.getId());
 
-        ProjetoXUsuario vinculo = projetoXUsuarioRepository
-                .findByProjetoIdAndUsuarioIdAndIsAtivoTrue(projetoId, participante.getId())
-                .orElse(null);
+        NivelMembro nivelSolicitado = request.nivel() != null ? request.nivel() : NivelMembro.PESQUISADOR;
+        NivelMembro nivelGrupo = grupoAcessoService.nivelDoUsuario(projeto.getGrupo().getId(), participante.getId());
 
-        if (vinculo != null) {
-            vinculo.setNivel(request.nivel() != null ? request.nivel() : NivelMembro.PESQUISADOR);
-            vinculo.setAtivo(true);
-        } else {
-            vinculo = new ProjetoXUsuario(projeto, participante,
-                    request.nivel() != null ? request.nivel() : NivelMembro.PESQUISADOR);
+        if (nivelGrupo == NivelMembro.COLABORADOR) {
+            nivelSolicitado = NivelMembro.COLABORADOR;
         }
 
-        return toParticipanteResponse(projetoXUsuarioRepository.save(vinculo));
+        if (nivelSolicitado == NivelMembro.LIDER) {
+            if (nivelGrupo == NivelMembro.COLABORADOR) {
+                throw new SemPermissaoNoGrupoErro("Um colaborador não pode ser definido como líder do projeto");
+            }
+            if (!isAdmin(solicitante)) {
+                grupoAcessoService.validarLider(projeto.getGrupo().getId(), solicitante.getId());
+            }
+            rebaixarLideresAtuais(projetoId, participante.getId());
+        }
+
+        return toParticipanteResponse(salvarParticipante(projeto, participante, nivelSolicitado));
     }
 
     @Transactional
@@ -166,8 +196,29 @@ public class ProjetoFachada {
         projetoXUsuarioRepository.save(vinculo);
     }
 
-    private void adicionarParticipante(Projeto projeto, Usuario usuario, NivelMembro nivel) {
-        projetoXUsuarioRepository.save(new ProjetoXUsuario(projeto, usuario, nivel));
+    private ProjetoXUsuario salvarParticipante(Projeto projeto, Usuario usuario, NivelMembro nivel) {
+        ProjetoXUsuario vinculo = projetoXUsuarioRepository
+                .findByProjetoIdAndUsuarioIdAndIsAtivoTrue(projeto.getId(), usuario.getId())
+                .orElse(null);
+
+        if (vinculo != null) {
+            vinculo.setNivel(nivel != null ? nivel : NivelMembro.PESQUISADOR);
+            vinculo.setAtivo(true);
+        } else {
+            vinculo = new ProjetoXUsuario(projeto, usuario, nivel != null ? nivel : NivelMembro.PESQUISADOR);
+        }
+
+        return projetoXUsuarioRepository.save(vinculo);
+    }
+
+    private void rebaixarLideresAtuais(Long projetoId, Long novoLiderId) {
+        projetoXUsuarioRepository.findAllByProjetoIdAndNivelAndIsAtivoTrue(projetoId, NivelMembro.LIDER)
+                .stream()
+                .filter(vinculo -> !vinculo.getUsuario().getId().equals(novoLiderId))
+                .forEach(vinculo -> {
+                    vinculo.setNivel(NivelMembro.PESQUISADOR);
+                    projetoXUsuarioRepository.save(vinculo);
+                });
     }
 
     private Projeto buscarProjetoEntidade(Long id) {
@@ -203,6 +254,13 @@ public class ProjetoFachada {
     }
 
     private ProjetoResponse toResponse(Projeto projeto) {
+        ProjetoXUsuario lider = projetoXUsuarioRepository
+                .findFirstByProjetoIdAndNivelAndIsAtivoTrue(projeto.getId(), NivelMembro.LIDER)
+                .orElse(null);
+
+        Long liderProjetoId = lider != null && lider.getUsuario() != null ? lider.getUsuario().getId() : null;
+        String liderProjetoNome = lider != null && lider.getUsuario() != null ? lider.getUsuario().getNome() : null;
+
         return new ProjetoResponse(
                 projeto.getId(),
                 projeto.getGrupo().getId(),
@@ -212,6 +270,8 @@ public class ProjetoFachada {
                 projeto.getDthRegistro(),
                 projeto.isAtivo(),
                 projeto.isInicial(),
-                projeto.isFavorito());
+                projeto.isFavorito(),
+                liderProjetoId,
+                liderProjetoNome);
     }
 }

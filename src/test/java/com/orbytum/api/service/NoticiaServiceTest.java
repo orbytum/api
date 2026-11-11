@@ -8,10 +8,13 @@ import com.orbytum.api.models.dto.response.NoticiaResponse;
 import com.orbytum.api.models.entity.CredenciaisLogin;
 import com.orbytum.api.models.entity.Grupo;
 import com.orbytum.api.models.entity.Noticia;
+import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.enums.NoticiaStatus;
+import com.orbytum.api.models.enums.ProjetoStatus;
 import com.orbytum.api.models.exceptions.NoticiaNaoPendenteErro;
+import com.orbytum.api.models.exceptions.SemPermissaoNoGrupoErro;
 import com.orbytum.api.repository.NoticiaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +49,12 @@ class NoticiaServiceTest {
 
     @Mock
     private GrupoAcessoService grupoAcessoService;
+
+    @Mock
+    private ProjetoService projetoService;
+
+    @Mock
+    private com.orbytum.api.repository.ProjetoXUsuarioRepository projetoXUsuarioRepository;
 
     @InjectMocks
     private NoticiaService noticiaService;
@@ -84,7 +93,7 @@ class NoticiaServiceTest {
         when(noticiaRepository.save(any(Noticia.class))).thenAnswer(inv -> inv.getArgument(0));
 
         NoticiaResponse response = noticiaService.criar(
-                new CreateNoticiaRequest(1L, "Novo título", "Novo conteúdo", "https://ref.com", "Ciência", null, null),
+                new CreateNoticiaRequest(1L, "Novo título", "Novo conteúdo", "https://ref.com", "Ciência", null, null, null),
                 EMAIL);
 
         assertEquals(NoticiaStatus.PENDENTE, response.status());
@@ -94,9 +103,40 @@ class NoticiaServiceTest {
     }
 
     @Test
+    void colaboradorNaoPodeCriarNoticia() {
+        when(grupoService.findById(1L)).thenReturn(Optional.of(grupo));
+        when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
+        doThrow(new SemPermissaoNoGrupoErro("Somente leitura"))
+                .when(grupoAcessoService).validarNaoColaborador(1L, 20L);
+
+        assertThrows(SemPermissaoNoGrupoErro.class, () -> noticiaService.criar(
+                new CreateNoticiaRequest(1L, "T", "C", null, "A", null, null, null), EMAIL));
+    }
+
+    @Test
+    void liderDeProjetoRotuladoAprovaNoticia() {
+        Noticia pendente = noticia(NoticiaStatus.PENDENTE, autor, null);
+        Projeto projeto = new Projeto(grupo, ProjetoStatus.EM_ANDAMENTO, "Projeto rotulado", "Assunto");
+        projeto.setId(50L);
+        pendente.getProjetos().add(projeto);
+
+        when(noticiaRepository.findByIdAndIsAtivoTrue(1L)).thenReturn(Optional.of(pendente));
+        when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
+        when(grupoAcessoService.isLiderDoProjeto(50L, 20L)).thenReturn(true);
+        when(noticiaRepository.save(any(Noticia.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        NoticiaResponse response = noticiaService.aprovar(1L, EMAIL);
+
+        assertEquals(NoticiaStatus.APROVADA, response.status());
+        assertEquals(1, response.projetos().size());
+        assertEquals(50L, response.projetos().get(0).id());
+    }
+
+    @Test
     void aprovarPorCoordenadorDefineStatusEPrazoPadrao() {
         when(noticiaRepository.findByIdAndIsAtivoTrue(1L)).thenReturn(Optional.of(noticia(NoticiaStatus.PENDENTE, autor, null)));
         when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
+        when(grupoAcessoService.isCoordenadorOuAcima(1L, 20L)).thenReturn(true);
         when(noticiaRepository.save(any(Noticia.class))).thenAnswer(inv -> inv.getArgument(0));
 
         NoticiaResponse response = noticiaService.aprovar(1L, EMAIL);
@@ -105,7 +145,7 @@ class NoticiaServiceTest {
         assertNotNull(response.dataFimExibicao());
         assertEquals(20L, response.aprovadorId());
         assertNotNull(response.dthAprovacao());
-        verify(grupoAcessoService).validarCoordenadorOuAcima(1L, 20L);
+        verify(grupoAcessoService).isCoordenadorOuAcima(1L, 20L);
     }
 
     @Test
@@ -113,6 +153,7 @@ class NoticiaServiceTest {
         when(noticiaRepository.findByIdAndIsAtivoTrue(1L))
                 .thenReturn(Optional.of(noticia(NoticiaStatus.APROVADA, autor, LocalDateTime.now().plusDays(5))));
         when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
+        when(grupoAcessoService.isCoordenadorOuAcima(1L, 20L)).thenReturn(true);
 
         assertThrows(NoticiaNaoPendenteErro.class, () -> noticiaService.aprovar(1L, EMAIL));
     }
@@ -121,6 +162,7 @@ class NoticiaServiceTest {
     void rejeitarPendenteGravaMotivo() {
         when(noticiaRepository.findByIdAndIsAtivoTrue(1L)).thenReturn(Optional.of(noticia(NoticiaStatus.PENDENTE, autor, null)));
         when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
+        when(grupoAcessoService.isCoordenadorOuAcima(1L, 20L)).thenReturn(true);
         when(noticiaRepository.save(any(Noticia.class))).thenAnswer(inv -> inv.getArgument(0));
 
         NoticiaResponse response = noticiaService.rejeitar(1L, new RejeitarNoticiaRequest("Falta referência"), EMAIL);
@@ -137,7 +179,7 @@ class NoticiaServiceTest {
         when(grupoAcessoService.isCoordenadorOuAcima(1L, 10L)).thenReturn(false);
 
         EditNoticiaRequest request =
-                new EditNoticiaRequest("Título editado", "Conteúdo editado", null, "Assunto", null, null);
+                new EditNoticiaRequest("Título editado", "Conteúdo editado", null, "Assunto", null, null, null);
 
         assertThrows(NoticiaNaoPendenteErro.class, () -> noticiaService.atualizar(1L, request, "autor@test.com"));
     }
@@ -152,7 +194,7 @@ class NoticiaServiceTest {
         when(noticiaRepository.save(any(Noticia.class))).thenAnswer(inv -> inv.getArgument(0));
 
         EditNoticiaRequest request =
-                new EditNoticiaRequest("Título novo", "Conteúdo novo", "https://nova.com", "Assunto", null, null);
+                new EditNoticiaRequest("Título novo", "Conteúdo novo", "https://nova.com", "Assunto", null, null, null);
 
         NoticiaResponse response = noticiaService.atualizar(1L, request, "autor@test.com");
 
@@ -165,14 +207,14 @@ class NoticiaServiceTest {
         Noticia aprovada = noticia(NoticiaStatus.APROVADA, autor, LocalDateTime.now().plusDays(10));
         when(grupoService.findById(1L)).thenReturn(Optional.of(grupo));
         when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
-        when(noticiaRepository.filtrarVigentes(eq(1L), eq(NoticiaStatus.APROVADA), any(), any(), any(), any(), any()))
+        when(noticiaRepository.filtrarVigentes(eq(1L), eq(NoticiaStatus.APROVADA), any(), any(), any(), any(), isNull(), any()))
                 .thenReturn(new PageImpl<>(List.of(aprovada)));
 
-        NoticiaPaginadaResponse response = noticiaService.listar(1L, "  Tecnologia  ", null, null, 1, 10, EMAIL);
+        NoticiaPaginadaResponse response = noticiaService.listar(1L, null, "  Tecnologia  ", null, null, 1, 10, EMAIL);
 
         assertEquals(1, response.items().size());
         assertEquals(NoticiaStatus.APROVADA, response.items().get(0).status());
-        verify(noticiaRepository).filtrarVigentes(eq(1L), eq(NoticiaStatus.APROVADA), any(), eq("Tecnologia"), any(), any(), any());
+        verify(noticiaRepository).filtrarVigentes(eq(1L), eq(NoticiaStatus.APROVADA), any(), eq("Tecnologia"), any(), any(), isNull(), any());
     }
 
     @Test
@@ -184,6 +226,6 @@ class NoticiaServiceTest {
         LocalDateTime fim = inicio.minusDays(1);
 
         assertThrows(IllegalArgumentException.class, () -> noticiaService.criar(
-                new CreateNoticiaRequest(1L, "T", "C", null, "A", inicio, fim), EMAIL));
+                new CreateNoticiaRequest(1L, "T", "C", null, "A", inicio, fim, null), EMAIL));
     }
 }

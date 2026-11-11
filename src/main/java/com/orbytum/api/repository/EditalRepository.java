@@ -26,6 +26,7 @@ public interface EditalRepository extends JpaRepository<Edital, Long> {
                    OR LOWER(e.organizador) LIKE LOWER(CONCAT('%', CAST(:organizacao AS string), '%')))
               AND (CAST(:dataInicio AS java.time.LocalDateTime) IS NULL OR e.dthAbertura >= :dataInicio)
               AND (CAST(:dataFim AS java.time.LocalDateTime) IS NULL OR e.dthEncerramento <= :dataFim)
+              AND (:projetoId IS NULL OR EXISTS (SELECT 1 FROM e.projetos p WHERE p.id = :projetoId))
             ORDER BY e.dthEncerramento ASC
             """,
             countQuery = """
@@ -38,9 +39,11 @@ public interface EditalRepository extends JpaRepository<Edital, Long> {
                    OR LOWER(e.organizador) LIKE LOWER(CONCAT('%', CAST(:organizacao AS string), '%')))
               AND (CAST(:dataInicio AS java.time.LocalDateTime) IS NULL OR e.dthAbertura >= :dataInicio)
               AND (CAST(:dataFim AS java.time.LocalDateTime) IS NULL OR e.dthEncerramento <= :dataFim)
+              AND (:projetoId IS NULL OR EXISTS (SELECT 1 FROM e.projetos p WHERE p.id = :projetoId))
             """)
     Page<Edital> filtrarPorGrupo(
             @Param("grupoId") Long grupoId,
+            @Param("projetoId") Long projetoId,
             @Param("palavraChave") String palavraChave,
             @Param("organizacao") String organizacao,
             @Param("dataInicio") LocalDateTime dataInicio,

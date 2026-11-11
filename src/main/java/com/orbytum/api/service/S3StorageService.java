@@ -1,9 +1,10 @@
 package com.orbytum.api.service;
 
-import com.orbytum.api.configuration.s3.S3Properties;
+import com.orbytum.api.configuration.S3Properties;
 import com.orbytum.api.models.exceptions.S3StorageException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,6 +27,9 @@ import java.io.InputStream;
 import java.time.Duration;
 
 @Service
+@ConditionalOnExpression(
+        "'${orbytum.storage.provider:auto}'.toLowerCase() != 'database' "
+                + "&& '${aws.s3.bucket-name:}' != ''")
 public class S3StorageService {
 
     private static final Logger logger = LoggerFactory.getLogger(S3StorageService.class);
@@ -38,6 +42,11 @@ public class S3StorageService {
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
         this.properties = properties;
+    }
+
+    public boolean isConfigured() {
+        String bucket = properties.getBucketName();
+        return bucket != null && !bucket.isBlank();
     }
 
     public String uploadFile(String key, InputStream inputStream, long contentLength, String contentType) {

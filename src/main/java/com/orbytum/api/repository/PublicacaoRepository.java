@@ -27,6 +27,7 @@ public interface PublicacaoRepository extends JpaRepository<Publicacao, Long> {
               AND (CAST(:dataInicio AS java.time.LocalDateTime) IS NULL OR p.dthRegistro >= :dataInicio)
               AND (CAST(:dataFim AS java.time.LocalDateTime) IS NULL OR p.dthRegistro <= :dataFim)
               AND (:projetoId IS NULL OR proj.id = :projetoId)
+              AND (:grupoId IS NULL OR proj.grupo.id = :grupoId)
             """,
             countQuery = """
             SELECT COUNT(p) FROM Publicacao p
@@ -35,12 +36,14 @@ public interface PublicacaoRepository extends JpaRepository<Publicacao, Long> {
               AND (CAST(:dataInicio AS java.time.LocalDateTime) IS NULL OR p.dthRegistro >= :dataInicio)
               AND (CAST(:dataFim AS java.time.LocalDateTime) IS NULL OR p.dthRegistro <= :dataFim)
               AND (:projetoId IS NULL OR p.projeto.id = :projetoId)
+              AND (:grupoId IS NULL OR p.projeto.grupo.id = :grupoId)
             """)
     Page<Publicacao> filtrarPublicacoes(
             @Param("titulo") String titulo,
             @Param("dataInicio") LocalDateTime dataInicio,
             @Param("dataFim") LocalDateTime dataFim,
             @Param("projetoId") Long projetoId,
+            @Param("grupoId") Long grupoId,
             Pageable pageable
     );
 }

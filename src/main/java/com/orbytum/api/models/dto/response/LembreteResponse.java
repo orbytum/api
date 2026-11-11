@@ -31,5 +31,8 @@ public record LembreteResponse(
         String ataUrl,
         String ataNomeArquivo,
         LocalDateTime dthRegistro,
-        boolean isAtivo
+        boolean isAtivo,
+        Long projetoId,
+        String projetoNome,
+        boolean paraGrupoInteiro
 ) {}

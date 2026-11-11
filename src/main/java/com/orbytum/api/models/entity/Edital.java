@@ -8,7 +8,9 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "edital")
@@ -47,4 +49,12 @@ public class Edital {
     @OneToMany(mappedBy = "edital", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<EditalXGrupo> grupos = new ArrayList<>();
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "edital_x_projeto",
+            joinColumns = @JoinColumn(name = "edital_id"),
+            inverseJoinColumns = @JoinColumn(name = "projeto_id"))
+    @Builder.Default
+    private Set<Projeto> projetos = new HashSet<>();
 }

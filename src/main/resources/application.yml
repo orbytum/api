@@ -17,6 +17,10 @@ spring:
         use_sql_comments: true
   flyway:
     enabled: false
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
   mail:
     host: ${SPRING_MAIL_HOST:smtp.gmail.com}
     port: ${SPRING_MAIL_PORT:587}
@@ -41,6 +45,11 @@ orbytum:
   front-end: ${FRONT_END_URL:http://localhost:3000}
   noticias:
     prazo-exibicao-dias: ${ORBYTUM_NOTICIAS_PRAZO_EXIBICAO_DIAS:30}
+  storage:
+    provider: ${STORAGE_PROVIDER:auto}
+    fallback-enabled: ${STORAGE_FALLBACK_ENABLED:true}
+    max-file-size-bytes: ${STORAGE_MAX_FILE_SIZE_BYTES:20971520}
+    public-base-url: ${API_PUBLIC_URL:http://localhost:8080}
 
 aws:
   s3:

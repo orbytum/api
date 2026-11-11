@@ -3,6 +3,7 @@ package com.orbytum.api.controller;
 import com.orbytum.api.models.dto.request.AtualizarStatusAtividadeRequest;
 import com.orbytum.api.models.dto.request.CreateAtividadeRequest;
 import com.orbytum.api.models.dto.request.EditAtividadeRequest;
+import com.orbytum.api.models.dto.request.RejeitarAtividadeRequest;
 import com.orbytum.api.models.dto.response.AtividadePaginadoResponse;
 import com.orbytum.api.models.dto.response.AtividadeResponse;
 import com.orbytum.api.service.AtividadeService;
@@ -53,6 +54,21 @@ public class AtividadeController {
             @Valid @RequestBody AtualizarStatusAtividadeRequest request,
             Authentication authentication) {
         return ResponseEntity.ok(atividadeService.atualizarStatus(id, request.status(), authentication.getName()));
+    }
+
+    @PatchMapping("/{id}/aprovar")
+    public ResponseEntity<AtividadeResponse> aprovarAtividade(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(atividadeService.aprovar(id, authentication.getName()));
+    }
+
+    @PatchMapping("/{id}/rejeitar")
+    public ResponseEntity<AtividadeResponse> rejeitarAtividade(
+            @PathVariable Long id,
+            @RequestBody(required = false) RejeitarAtividadeRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(atividadeService.rejeitar(id, request, authentication.getName()));
     }
 
     @DeleteMapping("/{id}")

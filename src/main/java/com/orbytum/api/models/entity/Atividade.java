@@ -58,6 +58,9 @@ public class Atividade {
     @Nonnull
     private LocalDateTime dthRegistro;
 
+    @Column(length = 255)
+    private String motivoRejeicao;
+
     @Nonnull
     private boolean isAtivo;
 
