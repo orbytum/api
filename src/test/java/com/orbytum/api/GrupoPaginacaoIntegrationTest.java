@@ -97,18 +97,19 @@ public class GrupoPaginacaoIntegrationTest {
     }
 
     @Test
-    void testCriarGrupoComEmailLiderInexistenteLancaExcecao() {
+    void testCriarGrupoComEmailLiderInexistenteGeraConviteSemErro() {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(normalAdminUser.getEmail(), null, List.of())
         );
 
         CreateGroupRequest request = new CreateGroupRequest("Grupo Teste Sem Lider", "naoexistente@empresa.com");
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
-            grupoService.criarGrupo(request);
-        });
+        GrupoResponse response = grupoService.criarGrupo(request);
 
-        assertTrue(ex.getMessage().contains("Não foi encontrado nenhum usuário cadastrado no sistema"));
+        assertNotNull(response);
+        assertEquals("Grupo Teste Sem Lider", response.nome());
+        assertEquals(0, response.totalParticipantes());
+        assertNull(response.nomeLider());
     }
 
     @Test

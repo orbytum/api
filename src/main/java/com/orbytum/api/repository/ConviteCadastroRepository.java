@@ -21,21 +21,21 @@ public interface ConviteCadastroRepository extends JpaRepository<ConviteCadastro
     @Query(
         value = """
             SELECT c FROM ConviteCadastro c
-            WHERE (:email IS NULL OR :email = '' OR LOWER(c.email) LIKE LOWER(CONCAT('%', :email, '%')))
+            WHERE (CAST(:email AS string) IS NULL OR CAST(:email AS string) = '' OR LOWER(c.email) LIKE LOWER(CONCAT('%', CAST(:email AS string), '%')))
               AND (
-                (:status = 'ativos' AND c.isAtivo = true AND c.dthExpiracao > :now)
-                OR (:status = 'inativos' AND (c.isAtivo = false OR c.dthExpiracao <= :now))
-                OR (:status = 'todos' OR :status IS NULL OR :status = '')
+                (CAST(:status AS string) = 'ativos' AND c.isAtivo = true AND c.dthExpiracao > :now)
+                OR (CAST(:status AS string) = 'inativos' AND (c.isAtivo = false OR c.dthExpiracao <= :now))
+                OR (CAST(:status AS string) = 'todos' OR CAST(:status AS string) IS NULL OR CAST(:status AS string) = '')
               )
             ORDER BY c.dthRegistro DESC
         """,
         countQuery = """
             SELECT COUNT(c) FROM ConviteCadastro c
-            WHERE (:email IS NULL OR :email = '' OR LOWER(c.email) LIKE LOWER(CONCAT('%', :email, '%')))
+            WHERE (CAST(:email AS string) IS NULL OR CAST(:email AS string) = '' OR LOWER(c.email) LIKE LOWER(CONCAT('%', CAST(:email AS string), '%')))
               AND (
-                (:status = 'ativos' AND c.isAtivo = true AND c.dthExpiracao > :now)
-                OR (:status = 'inativos' AND (c.isAtivo = false OR c.dthExpiracao <= :now))
-                OR (:status = 'todos' OR :status IS NULL OR :status = '')
+                (CAST(:status AS string) = 'ativos' AND c.isAtivo = true AND c.dthExpiracao > :now)
+                OR (CAST(:status AS string) = 'inativos' AND (c.isAtivo = false OR c.dthExpiracao <= :now))
+                OR (CAST(:status AS string) = 'todos' OR CAST(:status AS string) IS NULL OR CAST(:status AS string) = '')
               )
         """
     )

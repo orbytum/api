@@ -2,6 +2,7 @@ package com.orbytum.api.repository;
 
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
+import com.orbytum.api.models.enums.NivelMembro;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,6 +13,9 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 import java.util.UUID;
 import com.orbytum.api.models.entity.Grupo;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Repository
 public interface GrupoXUsuarioRepository extends JpaRepository<GrupoXUsuario, UUID> {
@@ -27,7 +31,25 @@ public interface GrupoXUsuarioRepository extends JpaRepository<GrupoXUsuario, UU
 
     boolean existsByGrupoIdAndUsuarioEmailAndIsAtivoTrue(Long grupoId, String email);
 
+    boolean existsByGrupoIdAndNivelAndIsAtivoTrue(Long grupoId, NivelMembro nivel);
+
+    long countByGrupoIdAndNivelAndIsAtivoTrue(Long grupoId, NivelMembro nivel);
+
     List<GrupoXUsuario> findAllByGrupoIdAndIsAtivoTrue(Long grupoId);
+
+    @Query("""
+        SELECT gxu FROM GrupoXUsuario gxu
+        JOIN gxu.usuario u
+        WHERE gxu.grupo.id = :grupoId
+          AND gxu.isAtivo = true
+          AND (CAST(:nome AS string) IS NULL OR CAST(:nome AS string) = '' OR LOWER(u.nome) LIKE LOWER(CONCAT('%', CAST(:nome AS string), '%')))
+        ORDER BY u.nome ASC
+    """)
+    Page<GrupoXUsuario> filtrarPesquisadores(
+            @Param("grupoId") Long grupoId,
+            @Param("nome") String nome,
+            Pageable pageable
+    );
 
     @Query("""
         SELECT gxu FROM GrupoXUsuario gxu
@@ -40,3 +62,4 @@ public interface GrupoXUsuarioRepository extends JpaRepository<GrupoXUsuario, UU
     """)
     List<GrupoXUsuario> findAllByUsuarioEmailAndIsAtivoTrueAndGrupoIsAtivoTrue(@Param("email") String email);
 }
+

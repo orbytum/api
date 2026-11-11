@@ -3,7 +3,6 @@ package com.orbytum.api.controller;
 import com.orbytum.api.service.AuthService;
 import com.orbytum.api.models.dto.request.LoginRequest;
 import com.orbytum.api.models.dto.request.RegisterAdminRequest;
-import com.orbytum.api.models.dto.request.RegisterRequest;
 import com.orbytum.api.models.dto.response.AuthResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

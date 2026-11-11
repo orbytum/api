@@ -1,7 +1,7 @@
 package com.orbytum.api.models.entity;
 
 import com.orbytum.api.models.converter.ProjetoStatusAttributeConverter;
-import com.orbytum.api.models.entity.joinColumns.EditalXProjeto;
+import com.orbytum.api.models.entity.joinColumns.ProjetoXUsuario;
 import com.orbytum.api.models.enums.ProjetoStatus;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
@@ -24,6 +24,7 @@ public class Projeto {
 
     @Nonnull
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "grupo_id")
     private Grupo grupo;
 
     @Nonnull
@@ -42,8 +43,37 @@ public class Projeto {
     @Nonnull
     private boolean isAtivo;
 
+    @Nonnull
+    private boolean isInicial;
+
+    @Nonnull
+    private boolean isFavorito;
+
     @OneToMany(mappedBy = "projeto", fetch = FetchType.LAZY)
-    private List<EditalXProjeto> editaisProjetos;
+    private List<ProjetoXUsuario> participantes;
+
+    public Projeto(Grupo grupo, ProjetoStatus status, String titulo, String assunto) {
+        this.grupo = grupo;
+        this.status = status;
+        this.titulo = titulo;
+        this.assunto = assunto;
+        this.dthRegistro = LocalDateTime.now();
+        this.isAtivo = true;
+        this.isInicial = false;
+        this.isFavorito = false;
+    }
+
+    public Projeto(Grupo grupo, ProjetoStatus status, String titulo, String assunto, boolean isInicial) {
+        this.grupo = grupo;
+        this.status = status;
+        this.titulo = titulo;
+        this.assunto = assunto;
+        this.dthRegistro = LocalDateTime.now();
+        this.isAtivo = true;
+        this.isInicial = isInicial;
+        this.isFavorito = false;
+
+    }
 
 }
 

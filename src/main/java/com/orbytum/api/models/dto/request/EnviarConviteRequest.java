@@ -1,5 +1,6 @@
 package com.orbytum.api.models.dto.request;
 
+import com.orbytum.api.models.enums.NivelMembro;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,5 +15,11 @@ public record EnviarConviteRequest(
         @Email(message = "E-mail em formato inválido")
         String email,
 
-        List<Long> idsProjeto
+        List<Long> idsProjeto,
+
+        Integer diasValidade,
+
+        Long idRole,
+
+        NivelMembro nivel
 ) {}

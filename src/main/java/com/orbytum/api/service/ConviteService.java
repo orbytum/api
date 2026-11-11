@@ -18,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import com.orbytum.api.models.entity.*;
 import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.enums.AccessLevel;
+import com.orbytum.api.models.enums.NivelMembro;
 import com.orbytum.api.models.exceptions.*;
 import com.orbytum.api.repository.ConviteCadastroRepository;
 import com.orbytum.api.repository.ConviteGrupoRepository;
@@ -48,6 +49,7 @@ public class ConviteService {
     private final UsuarioService usuarioService;
     private final GrupoXUsuarioService grupoXUsuarioService;
     private final GrupoXUsuarioRepository grupoXUsuarioRepository;
+    private final GrupoAcessoService grupoAcessoService;
     private final ProjetoService projetoService;
     private final RoleRepository roleRepository;
     private final EmailService emailService;
@@ -55,11 +57,11 @@ public class ConviteService {
     private final JwtUtil jwtUtil;
 
     @Transactional
-    public ConviteGrupoEnviadoResponse enviarConviteGrupo(Usuario remetente, Long grupoId, String emailConvidado, List<Long> projetoIds) {
+    public ConviteGrupoEnviadoResponse enviarConviteGrupo(Usuario remetente, Long grupoId, String emailConvidado, List<Long> projetoIds, Integer diasValidade, Long idRole, NivelMembro nivel) {
         Grupo grupo = grupoService.findById(grupoId)
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo não encontrado com ID: " + grupoId));
 
-        validarPermissaoConviteGrupo(remetente, grupoId);
+        validarPermissaoConviteGrupo(remetente, grupoId, nivel);
 
         Usuario convidado = usuarioService.findByEmail(emailConvidado)
                 .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário convidado não encontrado com e-mail: " + emailConvidado));
@@ -70,13 +72,37 @@ public class ConviteService {
 
         List<Projeto> projetos = validarProjetos(grupoId, projetoIds);
 
-        LocalDateTime dthExpiracao = LocalDateTime.now().plusDays(7);
-        ConviteGrupo conviteGrupo = new ConviteGrupo(grupo, convidado, remetente, projetos, dthExpiracao);
+        Role role = resolverRole(nivel, idRole);
+
+        String token = UUID.randomUUID().toString();
+        int dias = (diasValidade != null && diasValidade > 0) ? diasValidade : 7;
+        LocalDateTime dthExpiracao = LocalDateTime.now().plusDays(dias);
+        ConviteGrupo conviteGrupo = new ConviteGrupo(grupo, convidado, remetente, token, role, projetos, dthExpiracao);
+        conviteGrupo.setEmailConvidado(emailConvidado);
+        conviteGrupo.setNivel(nivel != null ? nivel : NivelMembro.PESQUISADOR);
+        conviteGrupo.setLimiteUso(1);
         conviteGrupo = conviteGrupoRepository.save(conviteGrupo);
 
         List<Long> idsProjetosSalvos = conviteGrupo.getProjetos() != null
                 ? conviteGrupo.getProjetos().stream().map(Projeto::getId).collect(Collectors.toList())
                 : List.of();
+
+        String urlConvite = "/convites/aceitar/grupo/" + token;
+
+        String assunto = "Você foi convidado para se juntar a um grupo de pesquisa";
+        String templateName = "convite-grupo-template";
+        Map<String, Object> variaveis = Map.of(
+                "nomeGrupo", grupo.getNome(),
+                "loginUrl", "http://localhost:5173" + urlConvite
+        );
+
+        EmailRequest emailReq = EmailRequest.comTemplate(emailConvidado, assunto, templateName, variaveis);
+
+        try {
+            emailService.sendEmail(emailReq);
+        } catch (Exception e) {
+            log.warn("Não foi possível enviar o e-mail de convite para {}: {}", emailConvidado, e.getMessage());
+        }
 
         return new ConviteGrupoEnviadoResponse(
                 conviteGrupo.getId(),
@@ -95,18 +121,17 @@ public class ConviteService {
         Grupo grupo = grupoService.findById(request.idGrupo())
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo não encontrado com ID: " + request.idGrupo()));
 
-        validarPermissaoConviteGrupo(remetente, request.idGrupo());
+        validarPermissaoConviteGrupo(remetente, request.idGrupo(), request.nivel());
 
         List<Projeto> projetos = validarProjetos(request.idGrupo(), request.idsProjeto());
 
-        Role role = null;
-        if (request.idRole() != null) {
-            role = roleRepository.findById(request.idRole())
-                    .orElseThrow(() -> new IllegalArgumentException("Cargo não encontrado com ID: " + request.idRole()));
-        }
+        Role role = resolverRole(request.nivel(), request.idRole());
 
         Integer limiteUso = request.limiteUso();
-        if (role != null && isLiderRole(role)) {
+        if (limiteUso == null || limiteUso <= 0) {
+            limiteUso = 5;
+        }
+        if (request.nivel() == NivelMembro.LIDER) {
             limiteUso = 1;
         }
 
@@ -115,6 +140,7 @@ public class ConviteService {
         LocalDateTime dthExpiracao = LocalDateTime.now().plusDays(diasValidade);
 
         ConviteGrupo conviteGrupo = new ConviteGrupo(grupo, remetente, token, projetos, dthExpiracao, role, limiteUso);
+        conviteGrupo.setNivel(request.nivel() != null ? request.nivel() : NivelMembro.PESQUISADOR);
         conviteGrupo = conviteGrupoRepository.save(conviteGrupo);
 
         List<Long> idsProjetosSalvos = conviteGrupo.getProjetos() != null
@@ -179,7 +205,7 @@ public class ConviteService {
         String templateName = "convite-cadastro-template";
         Map<String, Object> variaveis = Map.of(
                 "nomeOrganizacao", "Orbytum",
-                "loginUrl", "http://localhost:8080" + url
+                "loginUrl", "http://localhost:5173" + url
         );
 
         EmailRequest emailReq = EmailRequest.comTemplate(request.email(), assunto, templateName, variaveis);
@@ -279,41 +305,22 @@ public class ConviteService {
 
     @Transactional
     public ConviteGrupoEnviadoResponse aceitarConviteGrupo(String token, Usuario usuarioLogado) {
-        ConviteGrupo conviteGrupo = conviteGrupoRepository.findByTokenAndIsAtivoTrue(token)
-                .orElseThrow(() -> new ConviteInvalidoOuExpiradoErro("Convite por link inválido ou inativo"));
-
-        if (conviteGrupo.getDthExpiracao().isBefore(LocalDateTime.now())) {
-            conviteGrupo.setAtivo(false);
-            conviteGrupoRepository.save(conviteGrupo);
-            throw new ConviteInvalidoOuExpiradoErro("Este convite por link já expirou");
-        }
-
-        if (conviteGrupo.getLimiteUso() != null && conviteGrupo.getUsos() != null && conviteGrupo.getUsos() >= conviteGrupo.getLimiteUso()) {
-            conviteGrupo.setAtivo(false);
-            conviteGrupoRepository.save(conviteGrupo);
-            throw new ConviteInvalidoOuExpiradoErro("Este convite por link já atingiu o limite de usos");
-        }
+        ConviteGrupo conviteGrupo = carregarConviteValido(token);
 
         Grupo grupo = conviteGrupo.getGrupo();
         if (grupoXUsuarioService.isUsuarioNoGrupo(grupo.getId(), usuarioLogado.getId())) {
             throw new UsuarioJaNoGrupoErro("Você já pertence a este grupo");
         }
 
-        Role role = conviteGrupo.getRole();
-        if (role == null) {
-            role = roleRepository.findByNome("Membro")
-                    .orElseGet(() -> roleRepository.findAll().stream().findFirst().orElse(null));
-        }
+        validarLiderDisponivel(conviteGrupo);
 
-        GrupoXUsuario gxu = new GrupoXUsuario(grupo, usuarioLogado, role, true);
+        Role role = resolverRole(conviteGrupo.getNivel(),
+                conviteGrupo.getRole() != null ? conviteGrupo.getRole().getId() : null);
+
+        GrupoXUsuario gxu = new GrupoXUsuario(grupo, usuarioLogado, role, conviteGrupo.getNivel(), null, true);
         grupoXUsuarioRepository.save(gxu);
 
-        int novosUsos = (conviteGrupo.getUsos() == null ? 0 : conviteGrupo.getUsos()) + 1;
-        conviteGrupo.setUsos(novosUsos);
-        if (conviteGrupo.getLimiteUso() != null && novosUsos >= conviteGrupo.getLimiteUso()) {
-            conviteGrupo.setAtivo(false);
-        }
-        conviteGrupoRepository.save(conviteGrupo);
+        consumirConvite(conviteGrupo);
 
         List<Long> idsProjetos = conviteGrupo.getProjetos() != null
                 ? conviteGrupo.getProjetos().stream().map(Projeto::getId).collect(Collectors.toList())
@@ -329,6 +336,107 @@ public class ConviteService {
                 conviteGrupo.getDthExpiracao(),
                 conviteGrupo.isAtivo()
         );
+    }
+
+    @Transactional
+    public AuthResponse aceitarConviteGrupoCadastro(String token, RegisterRequest request) {
+        ConviteGrupo conviteGrupo = carregarConviteValido(token);
+
+        String email = (conviteGrupo.getEmailConvidado() != null && !conviteGrupo.getEmailConvidado().isBlank())
+                ? conviteGrupo.getEmailConvidado()
+                : request.email();
+
+        if (email == null || email.isBlank()) {
+            throw new ConviteInvalidoOuExpiradoErro("O e-mail é obrigatório para concluir o cadastro");
+        }
+
+        if (credenciaisLoginService.existsByEmail(email)) {
+            throw new EmailJaCadastradoErro("Já existe um usuário cadastrado com este e-mail");
+        }
+
+        validarLiderDisponivel(conviteGrupo);
+
+        Usuario usuario = new Usuario(request.nome(), email, request.telefone(), request.titulo());
+        usuario = usuarioService.save(usuario);
+
+        CredenciaisLogin credenciais = new CredenciaisLogin(
+                email,
+                passwordEncoder.encode(request.senha()),
+                AccessLevel.USER,
+                usuario,
+                conviteGrupo.getUsuarioRemetente());
+        credenciaisLoginService.save(credenciais);
+
+        Role role = resolverRole(conviteGrupo.getNivel(),
+                conviteGrupo.getRole() != null ? conviteGrupo.getRole().getId() : null);
+
+        GrupoXUsuario gxu = new GrupoXUsuario(conviteGrupo.getGrupo(), usuario, role, conviteGrupo.getNivel(), null, true);
+        grupoXUsuarioRepository.save(gxu);
+
+        consumirConvite(conviteGrupo);
+
+        UserDetails userDetails = User.builder()
+                .username(email)
+                .password(credenciais.getSenha())
+                .authorities(Collections.emptyList())
+                .build();
+
+        String bearerToken = jwtUtil.generateToken(userDetails, AccessLevel.USER, Collections.emptyList());
+        return new AuthResponse(bearerToken, "Bearer");
+    }
+
+    private ConviteGrupo carregarConviteValido(String token) {
+        ConviteGrupo conviteGrupo = conviteGrupoRepository.findByTokenAndIsAtivoTrue(token)
+                .orElseThrow(() -> new ConviteInvalidoOuExpiradoErro("Convite por link inválido ou inativo"));
+
+        if (conviteGrupo.getDthExpiracao().isBefore(LocalDateTime.now())) {
+            conviteGrupo.setAtivo(false);
+            conviteGrupoRepository.save(conviteGrupo);
+            throw new ConviteInvalidoOuExpiradoErro("Este convite por link já expirou");
+        }
+
+        if (conviteGrupo.getLimiteUso() != null && conviteGrupo.getUsos() != null && conviteGrupo.getUsos() >= conviteGrupo.getLimiteUso()) {
+            conviteGrupo.setAtivo(false);
+            conviteGrupoRepository.save(conviteGrupo);
+            throw new ConviteInvalidoOuExpiradoErro("Este convite por link já atingiu o limite de usos");
+        }
+
+        return conviteGrupo;
+    }
+
+    private void consumirConvite(ConviteGrupo conviteGrupo) {
+        int novosUsos = (conviteGrupo.getUsos() == null ? 0 : conviteGrupo.getUsos()) + 1;
+        conviteGrupo.setUsos(novosUsos);
+        if (conviteGrupo.getLimiteUso() != null && novosUsos >= conviteGrupo.getLimiteUso()) {
+            conviteGrupo.setAtivo(false);
+        }
+        conviteGrupoRepository.save(conviteGrupo);
+    }
+
+    private void validarLiderDisponivel(ConviteGrupo conviteGrupo) {
+        if (conviteGrupo.getNivel() == NivelMembro.LIDER
+                && grupoXUsuarioRepository.existsByGrupoIdAndNivelAndIsAtivoTrue(
+                        conviteGrupo.getGrupo().getId(), NivelMembro.LIDER)) {
+            throw new GrupoJaPossuiLiderErro("Este grupo de pesquisa já possui um líder ativo");
+        }
+    }
+
+    private Role resolverRole(NivelMembro nivel, Long idRole) {
+        if (idRole != null) {
+            return roleRepository.findById(idRole)
+                    .orElseThrow(() -> new IllegalArgumentException("Cargo não encontrado com ID: " + idRole));
+        }
+
+        NivelMembro alvo = nivel != null ? nivel : NivelMembro.PESQUISADOR;
+        String nomeRole = switch (alvo) {
+            case LIDER -> "Líder";
+            case COORDENADOR -> "Coordenador";
+            case PESQUISADOR -> "Membro";
+            case COLABORADOR -> "Colaborador";
+        };
+
+        return roleRepository.findByNomeIgnoreCase(nomeRole)
+                .orElseGet(() -> roleRepository.save(new Role(nomeRole, List.of(), alvo == NivelMembro.LIDER)));
     }
 
     @Transactional
@@ -389,7 +497,7 @@ public class ConviteService {
         return projetos;
     }
 
-    private void validarPermissaoConviteGrupo(Usuario remetente, Long grupoId) {
+    private void validarPermissaoConviteGrupo(Usuario remetente, Long grupoId, NivelMembro nivel) {
         boolean isAdmin = remetente.getCredenciaisLogin() != null &&
                 remetente.getCredenciaisLogin().getAccessLevel() == AccessLevel.ADMIN;
 
@@ -397,22 +505,23 @@ public class ConviteService {
             return;
         }
 
-        Optional<GrupoXUsuario> gxuOpt = grupoXUsuarioService.findByGrupoIdAndUsuarioId(grupoId, remetente.getId());
-        if (gxuOpt.isEmpty()) {
+        NivelMembro nivelRemetente = grupoAcessoService.nivelDoUsuario(grupoId, remetente.getId());
+        if (nivelRemetente == null) {
             throw new SemPermissaoConvidarErro("Você não possui permissão para enviar convites para este grupo");
         }
 
-        GrupoXUsuario gxu = gxuOpt.get();
-        if (!isLiderRole(gxu.getRole())) {
-            throw new SemPermissaoConvidarErro("Você não possui permissão para enviar convites para este grupo. É necessário ser líder do grupo.");
-        }
-    }
+        NivelMembro alvo = nivel != null ? nivel : NivelMembro.PESQUISADOR;
 
-    private boolean isLiderRole(Role role) {
-        if (role == null) {
-            return false;
+        if (alvo == NivelMembro.LIDER) {
+            throw new SemPermissaoConvidarErro("Apenas o Administrador pode convidar líderes");
         }
-        return role.isLider();
+        if (alvo == NivelMembro.COORDENADOR && !nivelRemetente.isPeloMenos(NivelMembro.LIDER)) {
+            throw new SemPermissaoConvidarErro("Apenas o Líder do grupo pode convidar coordenadores");
+        }
+        if ((alvo == NivelMembro.PESQUISADOR || alvo == NivelMembro.COLABORADOR)
+                && !nivelRemetente.isPeloMenos(NivelMembro.COORDENADOR)) {
+            throw new SemPermissaoConvidarErro("Apenas Líder ou Coordenador podem convidar pesquisadores e colaboradores");
+        }
     }
 
     public ConviteGrupoEnviadoResponse enviarConvite(EnviarConviteRequest request, String emailLogado) {
@@ -422,7 +531,10 @@ public class ConviteService {
                 remetente,
                 request.idGrupo(),
                 request.email(),
-                request.idsProjeto()
+                request.idsProjeto(),
+                request.diasValidade(),
+                request.idRole(),
+                request.nivel()
         );
     }
 
@@ -467,14 +579,10 @@ public class ConviteService {
                 .orElseThrow(() -> new ConviteInvalidoOuExpiradoErro("Convite por link inválido ou inativo"));
 
         if (conviteGrupo.getDthExpiracao().isBefore(LocalDateTime.now())) {
-            conviteGrupo.setAtivo(false);
-            conviteGrupoRepository.save(conviteGrupo);
             throw new ConviteInvalidoOuExpiradoErro("Este convite por link já expirou");
         }
 
-        if (conviteGrupo.getLimiteUso() != null && conviteGrupo.getUsos() != null && conviteGrupo.getUsos() >= conviteGrupo.getLimiteUso()) {
-            conviteGrupo.setAtivo(false);
-            conviteGrupoRepository.save(conviteGrupo);
+        if (conviteGrupo.getLimiteUso() != null && conviteGrupo.getLimiteUso() > 0 && conviteGrupo.getUsos() != null && conviteGrupo.getUsos() >= conviteGrupo.getLimiteUso()) {
             throw new ConviteInvalidoOuExpiradoErro("Este convite por link já atingiu o limite de usos");
         }
 
@@ -489,6 +597,7 @@ public class ConviteService {
                 grupo != null ? grupo.getNome() : null,
                 remetente != null ? remetente.getNome() : null,
                 role != null ? role.getNome() : "Membro",
+                conviteGrupo.getNivel(),
                 conviteGrupo.getDthExpiracao(),
                 conviteGrupo.isAtivo()
         );

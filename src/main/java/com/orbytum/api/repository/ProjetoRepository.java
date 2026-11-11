@@ -9,4 +9,8 @@ import java.util.List;
 @Repository
 public interface ProjetoRepository extends JpaRepository<Projeto, Long> {
     List<Projeto> findAllByIdIn(List<Long> ids);
+
+    List<Projeto> findAllByIsAtivoTrue();
+
+    List<Projeto> findAllByGrupoIdAndIsAtivoTrue(Long grupoId);
 }

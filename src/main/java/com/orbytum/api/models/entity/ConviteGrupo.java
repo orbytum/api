@@ -1,5 +1,6 @@
 package com.orbytum.api.models.entity;
 
+import com.orbytum.api.models.enums.NivelMembro;
 import com.orbytum.api.models.enums.TipoConvite;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
@@ -31,6 +32,8 @@ public class ConviteGrupo {
     @JoinColumn(name = "usuario_convidado_id")
     private Usuario usuarioConvidado;
 
+    private String emailConvidado;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_remetente_id")
     private Usuario usuarioRemetente;
@@ -38,6 +41,11 @@ public class ConviteGrupo {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id")
     private Role role;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    @Builder.Default
+    private NivelMembro nivel = NivelMembro.PESQUISADOR;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -61,8 +69,13 @@ public class ConviteGrupo {
     @Nonnull
     private boolean isAtivo;
 
-    public ConviteGrupo(Grupo grupo, Usuario usuarioConvidado, Usuario usuarioRemetente, List<Projeto> projetos, LocalDateTime dthExpiracao) {
+    public ConviteGrupo(Grupo grupo, Usuario usuarioRemetente, String token, List<Projeto> projetos, LocalDateTime dthExpiracao) {
+        this(grupo, usuarioRemetente, token, projetos, dthExpiracao, null, null);
+    }
+
+    public ConviteGrupo(Grupo grupo, Usuario usuarioConvidado, Usuario usuarioRemetente, List<Projeto> projetos, LocalDateTime dthExpiracao, String token) {
         this.grupo = grupo;
+        this.token = token;
         this.usuarioConvidado = usuarioConvidado;
         this.usuarioRemetente = usuarioRemetente;
         this.projetos = projetos;
@@ -85,10 +98,6 @@ public class ConviteGrupo {
         this.isAtivo = true;
     }
 
-    public ConviteGrupo(Grupo grupo, Usuario usuarioRemetente, String token, List<Projeto> projetos, LocalDateTime dthExpiracao) {
-        this(grupo, usuarioRemetente, token, projetos, dthExpiracao, null, null);
-    }
-
     public ConviteGrupo(Grupo grupo, Usuario usuarioRemetente, String token, List<Projeto> projetos, LocalDateTime dthExpiracao, Role role, Integer limiteUso) {
         this.grupo = grupo;
         this.usuarioRemetente = usuarioRemetente;
@@ -101,5 +110,6 @@ public class ConviteGrupo {
         this.usos = 0;
         this.isAtivo = true;
     }
+
 }
 

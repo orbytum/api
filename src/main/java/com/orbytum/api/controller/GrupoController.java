@@ -22,6 +22,7 @@ import com.orbytum.api.models.dto.response.GrupoPaginadoResponse;
 import com.orbytum.api.models.dto.response.GrupoResponse;
 import com.orbytum.api.models.dto.response.LiderResponse;
 import com.orbytum.api.models.dto.response.MeuGrupoResponse;
+import com.orbytum.api.models.dto.response.PesquisadorPaginadoResponse;
 import com.orbytum.api.models.dto.response.PesquisadorResponse;
 import org.springframework.security.core.Authentication;
 
@@ -97,9 +98,12 @@ public class GrupoController {
     }
 
     @GetMapping("/{grupoId}/pesquisadores")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'admin', 'ROLE_ADMIN')")
-    public ResponseEntity<List<PesquisadorResponse>> listarPesquisadores(@PathVariable Long grupoId) {
-        List<PesquisadorResponse> response = grupoService.listarPesquisadores(grupoId);
+    public ResponseEntity<PesquisadorPaginadoResponse> listarPesquisadores(
+            @PathVariable Long grupoId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String nome) {
+        PesquisadorPaginadoResponse response = grupoService.listarPesquisadores(grupoId, page, size, nome);
         return ResponseEntity.ok(response);
     }
 
