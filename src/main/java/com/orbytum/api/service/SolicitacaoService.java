@@ -46,6 +46,7 @@ public class SolicitacaoService {
     private final CredenciaisLoginService credenciaisLoginService;
     private final MaterialRepository materialRepository;
     private final MaterialEmprestimoRepository materialEmprestimoRepository;
+    private final GrupoAcessoService grupoAcessoService;
 
     @Transactional
     public SolicitacaoResponse criar(CriarSolicitacaoRequest request, String emailLogado) {
@@ -53,7 +54,15 @@ public class SolicitacaoService {
         Usuario usuario = buscarUsuario(emailLogado);
         Projeto projeto = buscarProjeto(request.projetoId());
 
-        GrupoXUsuario vinculo = validarPermissaoMembro(projeto.getGrupo().getId(), usuario);
+        Long grupoId = projeto.getGrupo().getId();
+        GrupoXUsuario vinculo = grupoXUsuarioRepository
+                .findByGrupoIdAndUsuarioIdAndIsAtivoTrue(grupoId, usuario.getId())
+                .orElseThrow(() -> new AccessDeniedException(
+                        "Apenas o líder do projeto ou o Líder do grupo podem criar solicitações"));
+        boolean liderDoGrupo = grupoAcessoService.isLider(grupoId, usuario.getId());
+        if (!liderDoGrupo && !grupoAcessoService.isLiderDoProjeto(projeto.getId(), usuario.getId())) {
+            throw new AccessDeniedException("Apenas o líder do projeto ou o Líder do grupo podem criar solicitações");
+        }
 
         boolean isUsoMaterial = "uso_material".equalsIgnoreCase(request.tipo());
 
@@ -79,12 +88,20 @@ public class SolicitacaoService {
         MaterialEmprestimoSolicitacao solicitacao = MaterialEmprestimoSolicitacao.builder()
                 .usuario(vinculo)
                 .projeto(projeto)
+                .titulo(request.titulo())
+                .descricao(request.descricao())
                 .justificativa(request.justificativa())
                 .isInterna(isUsoMaterial)
-                .status(SolicitacaoStatus.PENDENTE)
                 .isAprovada(false)
                 .dthSolicitacao(LocalDateTime.now())
                 .build();
+
+        // Quando o próprio Líder do grupo solicita, a primeira etapa é dispensada.
+        if (liderDoGrupo) {
+            registrarAprovacaoDoLider(solicitacao, usuario);
+        } else {
+            solicitacao.setStatus(SolicitacaoStatus.PENDENTE);
+        }
 
         if (request.valor() != null || request.quantidade() != null || material != null) {
             solicitacao.getItems().add(MaterialEmprestimoSolicitacaoItem.builder()
@@ -97,22 +114,57 @@ public class SolicitacaoService {
         return mapearParaResponse(solicitacaoRepository.save(solicitacao));
     }
 
+    /** Todas as solicitações do sistema; exclusivo do administrador, que decide a segunda etapa. */
+    @Transactional(readOnly = true)
+    public List<SolicitacaoResponse> listarTodas(String emailLogado) {
+        Usuario usuario = buscarUsuario(emailLogado);
+        if (!isAdmin(usuario)) {
+            throw new AccessDeniedException("Apenas o administrador pode listar as solicitações de todos os grupos");
+        }
+        return solicitacaoRepository.findAllByOrderByDthSolicitacaoDesc().stream()
+                .map(this::mapearParaResponse)
+                .toList();
+    }
+
+    /** Solicitações do grupo: administrador e Líder do grupo veem todas; os demais, as dos seus projetos. */
+    @Transactional(readOnly = true)
+    public List<SolicitacaoResponse> listarPorGrupo(Long grupoId, String emailLogado) {
+        Usuario usuario = buscarUsuario(emailLogado);
+        boolean veTodas = isAdmin(usuario) || grupoAcessoService.isLider(grupoId, usuario.getId());
+        if (!veTodas) {
+            validarPermissaoMembro(grupoId, usuario);
+        }
+        return solicitacaoRepository.findAllByProjetoGrupoId(grupoId).stream()
+                .filter(s -> veTodas || grupoAcessoService.podeAcessarProjeto(s.getProjeto().getId(), usuario.getId()))
+                .sorted((a, b) -> b.getDthSolicitacao().compareTo(a.getDthSolicitacao()))
+                .map(this::mapearParaResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<SolicitacaoResponse> listarPorProjeto(Long projetoId, String emailLogado) {
         Usuario usuario = buscarUsuario(emailLogado);
         Projeto projeto = buscarProjeto(projetoId);
 
         validarPermissaoMembro(projeto.getGrupo().getId(), usuario);
+        if (!isAdmin(usuario)) {
+            grupoAcessoService.validarAcessoAoProjeto(projetoId, usuario.getId());
+        }
 
         return solicitacaoRepository.findAllByProjetoId(projetoId).stream()
                 .map(this::mapearParaResponse)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public SolicitacaoResponse buscarPorId(Long id, String emailLogado) {
         Usuario usuario = buscarUsuario(emailLogado);
         MaterialEmprestimoSolicitacao solicitacao = buscarSolicitacao(id);
 
         validarPermissaoMembro(solicitacao.getProjeto().getGrupo().getId(), usuario);
+        if (!isAdmin(usuario)) {
+            grupoAcessoService.validarAcessoAoProjeto(solicitacao.getProjeto().getId(), usuario.getId());
+        }
 
         return mapearParaResponse(solicitacao);
     }
@@ -124,10 +176,8 @@ public class SolicitacaoService {
 
         validarPermissaoAlteracao(solicitacao, usuario);
 
-        if (solicitacao.getStatus() != null && solicitacao.getStatus() != SolicitacaoStatus.PENDENTE) {
-            throw new IllegalArgumentException("Apenas solicitações pendentes podem ser alteradas");
-        }
-
+        solicitacao.setTitulo(request.titulo());
+        solicitacao.setDescricao(request.descricao());
         solicitacao.setJustificativa(request.justificativa());
         if (!solicitacao.getItems().isEmpty()) {
             if (request.valor() != null) solicitacao.getItems().get(0).setValor(request.valor());
@@ -144,10 +194,6 @@ public class SolicitacaoService {
 
         validarPermissaoAlteracao(solicitacao, usuario);
 
-        if (solicitacao.getStatus() != null && solicitacao.getStatus() != SolicitacaoStatus.PENDENTE) {
-            throw new IllegalArgumentException("Apenas solicitações pendentes podem ser removidas");
-        }
-
         solicitacaoRepository.delete(solicitacao);
     }
 
@@ -156,10 +202,23 @@ public class SolicitacaoService {
         Usuario usuario = buscarUsuario(emailLogado);
         MaterialEmprestimoSolicitacao solicitacao = buscarSolicitacao(id);
 
-        validarPermissaoLiderOuAdmin(solicitacao.getProjeto().getGrupo().getId(), usuario);
+        Long grupoId = solicitacao.getProjeto().getGrupo().getId();
 
-        if (solicitacao.getStatus() != null && solicitacao.getStatus() != SolicitacaoStatus.PENDENTE) {
-            throw new IllegalArgumentException("Apenas solicitações pendentes podem ser aprovadas");
+        // Primeira etapa: o Líder do grupo aprova e encaminha ao administrador.
+        if (solicitacao.getStatus() == SolicitacaoStatus.PENDENTE) {
+            if (!grupoAcessoService.isLider(grupoId, usuario.getId())) {
+                throw new AccessDeniedException("A primeira aprovação da solicitação cabe ao Líder do grupo");
+            }
+            registrarAprovacaoDoLider(solicitacao, usuario);
+            return mapearParaResponse(solicitacaoRepository.save(solicitacao));
+        }
+
+        // Segunda etapa: o administrador decide.
+        if (solicitacao.getStatus() != SolicitacaoStatus.AGUARDANDO_ADMINISTRADOR) {
+            throw new IllegalArgumentException("Esta solicitação não está aguardando aprovação");
+        }
+        if (!isAdmin(usuario)) {
+            throw new AccessDeniedException("Após a aprovação do Líder do grupo, a decisão cabe ao administrador");
         }
 
         solicitacao.setAprovada(true);
@@ -193,10 +252,18 @@ public class SolicitacaoService {
         Usuario usuario = buscarUsuario(emailLogado);
         MaterialEmprestimoSolicitacao solicitacao = buscarSolicitacao(id);
 
-        validarPermissaoLiderOuAdmin(solicitacao.getProjeto().getGrupo().getId(), usuario);
+        Long grupoId = solicitacao.getProjeto().getGrupo().getId();
 
-        if (solicitacao.getStatus() != null && solicitacao.getStatus() != SolicitacaoStatus.PENDENTE) {
-            throw new IllegalArgumentException("Apenas solicitações pendentes podem ser rejeitadas");
+        if (solicitacao.getStatus() == SolicitacaoStatus.PENDENTE) {
+            if (!grupoAcessoService.isLider(grupoId, usuario.getId())) {
+                throw new AccessDeniedException("A primeira avaliação da solicitação cabe ao Líder do grupo");
+            }
+        } else if (solicitacao.getStatus() == SolicitacaoStatus.AGUARDANDO_ADMINISTRADOR) {
+            if (!isAdmin(usuario)) {
+                throw new AccessDeniedException("Após a aprovação do Líder do grupo, a decisão cabe ao administrador");
+            }
+        } else {
+            throw new IllegalArgumentException("Esta solicitação não está aguardando aprovação");
         }
 
         solicitacao.setAprovada(false);
@@ -271,60 +338,51 @@ public class SolicitacaoService {
                 .orElseThrow(() -> new AccessDeniedException("Você não possui permissão neste grupo de pesquisa"));
     }
 
+    private void registrarAprovacaoDoLider(MaterialEmprestimoSolicitacao solicitacao, Usuario lider) {
+        solicitacao.setStatus(SolicitacaoStatus.AGUARDANDO_ADMINISTRADOR);
+        solicitacao.setAprovadorLider(lider);
+        solicitacao.setDthAprovacaoLider(LocalDateTime.now());
+    }
+
+    /**
+     * Pendente: o autor ou o Líder do grupo alteram/cancelam.
+     * Aguardando administrador: somente o Líder do grupo, que já a aprovou.
+     */
     private void validarPermissaoAlteracao(MaterialEmprestimoSolicitacao solicitacao, Usuario usuario) {
-        if (solicitacao.isAprovada()) {
-            throw new IllegalArgumentException("Solicitações já aprovadas não podem ser alteradas ou canceladas");
+        SolicitacaoStatus status = solicitacao.getStatus();
+        if (status != SolicitacaoStatus.PENDENTE && status != SolicitacaoStatus.AGUARDANDO_ADMINISTRADOR) {
+            throw new IllegalArgumentException("Solicitações já decididas não podem ser alteradas ou canceladas");
         }
 
-        if (isAdmin(usuario)) {
+        if (grupoAcessoService.isLider(solicitacao.getProjeto().getGrupo().getId(), usuario.getId())) {
             return;
         }
-
-        boolean isAutor = solicitacao.getUsuario() != null &&
-                solicitacao.getUsuario().getUsuario().getId().equals(usuario.getId());
-
-        if (!isAutor) {
-            GrupoXUsuario vinculo = grupoXUsuarioRepository
-                    .findByGrupoIdAndUsuarioIdAndIsAtivoTrue(solicitacao.getProjeto().getGrupo().getId(), usuario.getId())
-                    .orElseThrow(() -> new AccessDeniedException("Acesso negado"));
-
-            if (vinculo.getRole() == null || !vinculo.getRole().isLider()) {
-                throw new AccessDeniedException("Apenas o autor ou o líder do grupo podem realizar esta ação");
-            }
+        if (status == SolicitacaoStatus.PENDENTE && isAutor(solicitacao, usuario)) {
+            return;
         }
+        throw new AccessDeniedException(status == SolicitacaoStatus.PENDENTE
+                ? "Apenas o autor ou o Líder do grupo podem realizar esta ação"
+                : "Após a aprovação, apenas o Líder do grupo pode alterar ou cancelar a solicitação");
     }
 
     private void validarPermissaoConclusao(MaterialEmprestimoSolicitacao solicitacao, Usuario usuario) {
-        if (isAdmin(usuario)) {
+        if (isAdmin(usuario) || isAutor(solicitacao, usuario)
+                || grupoAcessoService.isLider(solicitacao.getProjeto().getGrupo().getId(), usuario.getId())) {
             return;
         }
-
-        boolean isAutor = solicitacao.getUsuario() != null &&
-                solicitacao.getUsuario().getUsuario().getId().equals(usuario.getId());
-
-        if (!isAutor) {
-            GrupoXUsuario vinculo = grupoXUsuarioRepository
-                    .findByGrupoIdAndUsuarioIdAndIsAtivoTrue(solicitacao.getProjeto().getGrupo().getId(), usuario.getId())
-                    .orElseThrow(() -> new AccessDeniedException("Acesso negado"));
-
-            if (vinculo.getRole() == null || !vinculo.getRole().isLider()) {
-                throw new AccessDeniedException("Apenas o autor ou o líder do grupo podem realizar esta ação");
-            }
-        }
+        throw new AccessDeniedException("Apenas o autor, o Líder do grupo ou o administrador podem concluir a solicitação");
     }
 
     private void validarPermissaoLiderOuAdmin(Long grupoId, Usuario usuario) {
-        if (isAdmin(usuario)) {
+        if (isAdmin(usuario) || grupoAcessoService.isLider(grupoId, usuario.getId())) {
             return;
         }
+        throw new AccessDeniedException("Apenas o Líder do grupo ou o administrador podem encerrar a solicitação");
+    }
 
-        GrupoXUsuario vinculo = grupoXUsuarioRepository
-                .findByGrupoIdAndUsuarioIdAndIsAtivoTrue(grupoId, usuario.getId())
-                .orElseThrow(() -> new AccessDeniedException("Acesso negado"));
-
-        if (vinculo.getRole() == null || !vinculo.getRole().isLider()) {
-            throw new AccessDeniedException("Apenas líderes do grupo de pesquisa ou administradores podem aprovar ou rejeitar solicitações");
-        }
+    private boolean isAutor(MaterialEmprestimoSolicitacao solicitacao, Usuario usuario) {
+        return solicitacao.getUsuario() != null && solicitacao.getUsuario().getUsuario() != null
+                && solicitacao.getUsuario().getUsuario().getId().equals(usuario.getId());
     }
 
     private void validarTipo(String tipo) {
@@ -369,14 +427,16 @@ public class SolicitacaoService {
 
         return new SolicitacaoResponse(
                 s.getId(),
-                s.getJustificativa(),
-                s.getJustificativa(),
+                s.getTitulo() != null ? s.getTitulo() : s.getJustificativa(),
+                s.getDescricao() != null ? s.getDescricao() : s.getJustificativa(),
                 s.getJustificativa(),
                 s.getStatus(),
                 s.isInterna(),
                 s.isAprovada(),
                 s.getProjeto() != null ? s.getProjeto().getId() : null,
                 s.getProjeto() != null ? s.getProjeto().getTitulo() : null,
+                s.getProjeto() != null ? s.getProjeto().getGrupo().getId() : null,
+                s.getProjeto() != null ? s.getProjeto().getGrupo().getNome() : null,
                 s.getUsuario() != null && s.getUsuario().getUsuario() != null ? s.getUsuario().getUsuario().getId() : null,
                 s.getUsuario() != null && s.getUsuario().getUsuario() != null ? s.getUsuario().getUsuario().getNome() : null,
                 materialId,
@@ -384,7 +444,9 @@ public class SolicitacaoService {
                 qtd,
                 valor,
                 s.getDthSolicitacao(),
-                s.getDthResposta()
+                s.getDthResposta(),
+                s.getAprovadorLider() != null ? s.getAprovadorLider().getNome() : null,
+                s.getDthAprovacaoLider()
         );
     }
 }

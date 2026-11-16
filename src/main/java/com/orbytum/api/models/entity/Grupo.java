@@ -7,7 +7,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -33,6 +35,12 @@ public class Grupo {
 
     @OneToMany(mappedBy = "grupo", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Projeto> projetos;
+
+    /** REQ-060: palavras-chave dos temas do grupo, usadas para filtrar editais relevantes. */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "grupo_palavra_chave", joinColumns = @JoinColumn(name = "grupo_id"))
+    @Column(name = "palavra", nullable = false, length = 60)
+    private Set<String> palavrasChave = new LinkedHashSet<>();
 
     public Grupo(String nome, Usuario criador) {
         this.nome = nome;

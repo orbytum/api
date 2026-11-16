@@ -34,6 +34,12 @@ public class MaterialEmprestimoSolicitacao {
     @Builder.Default
     private List<MaterialEmprestimoSolicitacaoItem> items = new ArrayList<>();
 
+    @Column(length = 200)
+    private String titulo;
+
+    @Column(columnDefinition = "TEXT")
+    private String descricao;
+
     @Nonnull
     private String justificativa;
 
@@ -50,5 +56,11 @@ public class MaterialEmprestimoSolicitacao {
     private LocalDateTime dthSolicitacao;
 
     private LocalDateTime dthResposta;
+
+    /** Líder do grupo que aprovou a primeira etapa (ou que criou a solicitação). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Usuario aprovadorLider;
+
+    private LocalDateTime dthAprovacaoLider;
 
 }

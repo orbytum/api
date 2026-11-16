@@ -111,7 +111,8 @@ public class ProjetoFachada {
 
         Usuario solicitante = usuarioAutenticado();
         if (!isAdmin(solicitante)) {
-            grupoAcessoService.validarMembro(projeto.getGrupo().getId(), solicitante.getId());
+            grupoAcessoService.validarAcessoAoProjeto(projeto.getId(), solicitante.getId());
+            grupoAcessoService.validarPodeEscreverNoProjeto(projeto.getId(), solicitante.getId());
         }
 
         projeto.setFavorito(!projeto.isFavorito());
@@ -130,20 +131,29 @@ public class ProjetoFachada {
 
     @Transactional
     public List<ProjetoResponse> listarProjetosPorGrupo(Long grupoId) {
+        Usuario solicitante = usuarioAutenticado();
+        boolean veTodos = isAdmin(solicitante) || grupoAcessoService.isLider(grupoId, solicitante.getId());
+        if (!veTodos) {
+            grupoAcessoService.validarMembro(grupoId, solicitante.getId());
+        }
+        // fora o líder do grupo, cada integrante vê apenas os projetos de que participa
         return projetoService.findAllAtivosByGrupoId(grupoId)
                 .stream()
+                .filter(p -> veTodos || grupoAcessoService.isMembroDoProjeto(p.getId(), solicitante.getId()))
                 .map(this::toResponse)
                 .toList();
     }
 
     @Transactional
     public ProjetoResponse buscarProjeto(Long id) {
-        return toResponse(buscarProjetoEntidade(id));
+        Projeto projeto = buscarProjetoEntidade(id);
+        validarAcessoAoProjeto(projeto);
+        return toResponse(projeto);
     }
 
     @Transactional
     public List<ParticipanteResponse> listarParticipantes(Long projetoId) {
-        buscarProjetoEntidade(projetoId);
+        validarAcessoAoProjeto(buscarProjetoEntidade(projetoId));
         return projetoXUsuarioRepository.findAllByProjetoIdAndIsAtivoTrue(projetoId).stream()
                 .map(this::toParticipanteResponse)
                 .toList();
@@ -226,6 +236,13 @@ public class ProjetoFachada {
                 .orElseThrow(() -> new ProjetoNaoEncontradoErro("Projeto não encontrado com ID: " + id));
     }
 
+    private void validarAcessoAoProjeto(Projeto projeto) {
+        Usuario solicitante = usuarioAutenticado();
+        if (!isAdmin(solicitante)) {
+            grupoAcessoService.validarAcessoAoProjeto(projeto.getId(), solicitante.getId());
+        }
+    }
+
     private Usuario usuarioAutenticado() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return usuarioService.findByEmail(email)
@@ -236,7 +253,7 @@ public class ProjetoFachada {
         if (isAdmin(solicitante)) {
             return;
         }
-        grupoAcessoService.validarCoordenadorOuAcima(grupoId, solicitante.getId());
+        grupoAcessoService.validarLider(grupoId, solicitante.getId());
     }
 
     private boolean isAdmin(Usuario solicitante) {

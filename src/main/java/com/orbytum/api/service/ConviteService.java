@@ -430,7 +430,6 @@ public class ConviteService {
         NivelMembro alvo = nivel != null ? nivel : NivelMembro.PESQUISADOR;
         String nomeRole = switch (alvo) {
             case LIDER -> "Líder";
-            case COORDENADOR -> "Coordenador";
             case PESQUISADOR -> "Membro";
             case COLABORADOR -> "Colaborador";
         };
@@ -505,23 +504,8 @@ public class ConviteService {
             return;
         }
 
-        NivelMembro nivelRemetente = grupoAcessoService.nivelDoUsuario(grupoId, remetente.getId());
-        if (nivelRemetente == null) {
-            throw new SemPermissaoConvidarErro("Você não possui permissão para enviar convites para este grupo");
-        }
-
-        NivelMembro alvo = nivel != null ? nivel : NivelMembro.PESQUISADOR;
-
-        if (alvo == NivelMembro.LIDER) {
-            throw new SemPermissaoConvidarErro("Apenas o Administrador pode convidar líderes");
-        }
-        if (alvo == NivelMembro.COORDENADOR && !nivelRemetente.isPeloMenos(NivelMembro.LIDER)) {
-            throw new SemPermissaoConvidarErro("Apenas o Líder do grupo pode convidar coordenadores");
-        }
-        if ((alvo == NivelMembro.PESQUISADOR || alvo == NivelMembro.COLABORADOR)
-                && !nivelRemetente.isPeloMenos(NivelMembro.COORDENADOR)) {
-            throw new SemPermissaoConvidarErro("Apenas Líder ou Coordenador podem convidar pesquisadores e colaboradores");
-        }
+        // apenas o administrador admite novos membros no sistema e os adiciona a grupos de pesquisa
+        throw new SemPermissaoConvidarErro("Apenas o administrador pode adicionar membros a grupos de pesquisa");
     }
 
     public ConviteGrupoEnviadoResponse enviarConvite(EnviarConviteRequest request, String emailLogado) {

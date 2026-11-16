@@ -2,6 +2,7 @@ package com.orbytum.api.controller;
 
 import com.orbytum.api.models.dto.request.CreateLembreteRequest;
 import com.orbytum.api.models.dto.request.EditLembreteRequest;
+import com.orbytum.api.models.dto.response.AssinaturaCalendarioResponse;
 import com.orbytum.api.models.dto.response.LembretePaginadoResponse;
 import com.orbytum.api.models.dto.response.LembreteResponse;
 import com.orbytum.api.models.enums.TipoLembrete;
@@ -104,6 +105,14 @@ public class LembreteController {
             @RequestParam(required = false) String busca,
             Authentication authentication) {
         return ResponseEntity.ok(lembreteService.listarTodosPorGrupo(grupoId, projetoId, tipo, busca, authentication.getName()));
+    }
+
+    @GetMapping("/grupo/{grupoId}/assinatura")
+    @Operation(summary = "Gerar link de assinatura da agenda do grupo (Google Calendar, Outlook)")
+    public ResponseEntity<AssinaturaCalendarioResponse> gerarAssinatura(
+            @PathVariable Long grupoId,
+            Authentication authentication) {
+        return ResponseEntity.ok(lembreteService.gerarAssinatura(grupoId, authentication.getName()));
     }
 
     @GetMapping(value = "/grupo/{grupoId}/ics", produces = "text/calendar")

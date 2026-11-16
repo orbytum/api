@@ -7,6 +7,7 @@ public record MeuGrupoResponse(
         String nome,
         String role,
         NivelMembro nivel,
-        boolean isLider
+        boolean isLider,
+        Long usuarioId
 ) {
 }

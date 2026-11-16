@@ -2,6 +2,7 @@ package com.orbytum.api.models.dto.response;
 
 import com.orbytum.api.models.entity.Publicacao;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -14,7 +15,10 @@ public record PublicacaoResponse(
         String projetoTitulo,
         String url,
         LocalDateTime dthRegistro,
-        boolean isAtivo
+        boolean isAtivo,
+        String tipo,
+        LocalDate dataPublicacao,
+        String link
 ) {
     public static PublicacaoResponse fromEntity(Publicacao publicacao) {
         if (publicacao == null) {
@@ -33,7 +37,10 @@ public record PublicacaoResponse(
                 projetoTitulo,
                 publicacao.getUrl(),
                 publicacao.getDthRegistro(),
-                publicacao.isAtivo()
+                publicacao.isAtivo(),
+                publicacao.getTipo(),
+                publicacao.getDataPublicacao(),
+                publicacao.getLink()
         );
     }
 }

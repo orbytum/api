@@ -36,7 +36,8 @@ public enum AtividadeStatus {
         return switch (this) {
             case AGUARDANDO_APROVACAO -> destino == PENDENTE || destino == REJEITADA;
             case PENDENTE -> destino == EM_ANDAMENTO;
-            case EM_ANDAMENTO -> destino == AGUARDANDO_CONFIRMACAO;
+            // o pesquisador pode concluir sozinho ou pedir a confirmação do líder do projeto
+            case EM_ANDAMENTO -> destino == AGUARDANDO_CONFIRMACAO || destino == CONCLUIDA;
             case AGUARDANDO_CONFIRMACAO -> destino == CONCLUIDA;
             case CONCLUIDA -> destino == ENCERRADA;
             case ENCERRADA -> false;

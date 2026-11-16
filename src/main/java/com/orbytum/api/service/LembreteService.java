@@ -4,6 +4,7 @@ import com.orbytum.api.models.dto.request.CreateLembreteRequest;
 import com.orbytum.api.models.dto.request.EditLembreteRequest;
 import com.orbytum.api.configuration.StorageProperties;
 import com.orbytum.api.models.dto.response.LembretePaginadoResponse;
+import com.orbytum.api.models.dto.response.AssinaturaCalendarioResponse;
 import com.orbytum.api.models.dto.response.LembreteResponse;
 import com.orbytum.api.models.dto.response.ParticipanteLembreteResponse;
 import com.orbytum.api.models.entity.Documento;
@@ -18,6 +19,7 @@ import com.orbytum.api.models.enums.StorageProvider;
 import com.orbytum.api.models.enums.TipoLembrete;
 import com.orbytum.api.models.enums.TipoRecorrencia;
 import com.orbytum.api.models.exceptions.GrupoNaoEncontradoErro;
+import com.orbytum.api.models.exceptions.LembreteNaoEncontradoErro;
 import com.orbytum.api.models.exceptions.EventoNaoEncontradoErro;
 import com.orbytum.api.models.exceptions.SemPermissaoNoGrupoErro;
 import com.orbytum.api.models.exceptions.UsuarioNaoEncontradoErro;
@@ -25,6 +27,7 @@ import com.orbytum.api.repository.GrupoRepository;
 import com.orbytum.api.repository.EventoParticipanteRepository;
 import com.orbytum.api.repository.EventoRepository;
 import com.orbytum.api.util.IcsCalendarBuilder;
+import com.orbytum.api.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,6 +80,7 @@ public class LembreteService {
     private final ProjetoService projetoService;
     private final ArquivoStorage arquivoStorage;
     private final StorageProperties storageProperties;
+    private final JwtUtil jwtUtil;
 
     @Transactional
     public LembreteResponse criar(CreateLembreteRequest request, String emailLogado) {
@@ -139,6 +143,12 @@ public class LembreteService {
         Usuario solicitante = usuarioAutenticado(emailLogado);
         Evento evento = buscarEntidade(id);
         validarAcessoAoGrupo(evento.getGrupo().getId(), solicitante);
+        // REQ-093: lembrete de projeto só é visível aos participantes do projeto e aos gestores do grupo
+        if (evento.getProjeto() != null
+                && !isGestorDoGrupo(evento.getGrupo().getId(), solicitante)
+                && !grupoAcessoService.isMembroDoProjeto(evento.getProjeto().getId(), solicitante.getId())) {
+            throw new LembreteNaoEncontradoErro("Lembrete não encontrado com ID: " + id);
+        }
         return toResponse(evento, solicitante);
     }
 
@@ -283,8 +293,44 @@ public class LembreteService {
      */
     @Transactional(readOnly = true)
     public byte[] exportarIcs(Long grupoId, String emailLogado) {
-        Usuario solicitante = usuarioAutenticado(emailLogado);
+        return gerarIcs(grupoId, usuarioAutenticado(emailLogado));
+    }
 
+    /**
+     * REQ-069: gera o link de assinatura da agenda do grupo para o usuário logado.
+     * Google Calendar e Outlook consultam o link periodicamente e mantêm a agenda sincronizada.
+     */
+    @Transactional(readOnly = true)
+    public AssinaturaCalendarioResponse gerarAssinatura(Long grupoId, String emailLogado) {
+        Usuario solicitante = usuarioAutenticado(emailLogado);
+        grupoRepository.findById(grupoId)
+                .filter(Grupo::isAtivo)
+                .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo não encontrado com ID: " + grupoId));
+        validarAcessoAoGrupo(grupoId, solicitante);
+        String token = jwtUtil.gerarTokenCalendario(solicitante.getId(), grupoId);
+        String base = storageProperties.getPublicBaseUrl().replaceAll("/+$", "");
+        return new AssinaturaCalendarioResponse(base + "/calendario/feed/" + token);
+    }
+
+    /**
+     * REQ-069: conteúdo .ics do link de assinatura. Revalida o acesso a cada consulta, de modo que
+     * o link deixa de funcionar quando o usuário é desativado ou sai do grupo.
+     */
+    @Transactional(readOnly = true)
+    public byte[] exportarIcsAssinatura(String token) {
+        JwtUtil.TokenCalendario dados;
+        try {
+            dados = jwtUtil.lerTokenCalendario(token);
+        } catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) {
+            throw new GrupoNaoEncontradoErro("Link de agenda inválido.");
+        }
+        Usuario usuario = usuarioService.findById(dados.usuarioId())
+                .filter(Usuario::isAtivo)
+                .orElseThrow(() -> new GrupoNaoEncontradoErro("Link de agenda inválido."));
+        return gerarIcs(dados.grupoId(), usuario);
+    }
+
+    private byte[] gerarIcs(Long grupoId, Usuario solicitante) {
         Grupo grupo = grupoRepository.findById(grupoId)
                 .filter(Grupo::isAtivo)
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo não encontrado com ID: " + grupoId));
@@ -376,6 +422,18 @@ public class LembreteService {
         Usuario solicitante = usuarioAutenticado(emailLogado);
         Evento evento = buscarEntidade(id);
         validarAcessoAoGrupo(evento.getGrupo().getId(), solicitante);
+        if (!isAdmin(solicitante)) {
+            // colaborador é somente leitura; lembrete de projeto exige acesso ao projeto
+            if (grupoAcessoService.isColaborador(evento.getGrupo().getId(), solicitante.getId())
+                    || (evento.getProjeto() != null && grupoAcessoService.isColaboradorDoProjeto(
+                            evento.getProjeto().getId(), solicitante.getId()))) {
+                throw new SemPermissaoNoGrupoErro("Colaboradores possuem acesso somente leitura");
+            }
+            if (evento.getProjeto() != null && !isGestorDoGrupo(evento.getGrupo().getId(), solicitante)
+                    && !grupoAcessoService.isMembroDoProjeto(evento.getProjeto().getId(), solicitante.getId())) {
+                throw new LembreteNaoEncontradoErro("Lembrete não encontrado com ID: " + id);
+            }
+        }
 
         EventoParticipante participante = evento.getParticipantes().stream()
                 .filter(p -> p.getUsuario() != null && p.getUsuario().getId().equals(solicitante.getId()))
@@ -464,7 +522,7 @@ public class LembreteService {
 
     private boolean isGestorDoGrupo(Long grupoId, Usuario solicitante) {
         return isAdmin(solicitante)
-                || grupoAcessoService.isCoordenadorOuAcima(grupoId, solicitante.getId());
+                || grupoAcessoService.isLider(grupoId, solicitante.getId());
     }
 
     /**

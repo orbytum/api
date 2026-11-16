@@ -76,6 +76,9 @@ class AtividadeServiceTest {
         solicitante = new Usuario(20L, "Solicitante", EMAIL, "2", "Ms",
                 LocalDateTime.now(), true, credenciaisSolicitante);
         lenient().when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(solicitante));
+        // por padrão o solicitante participa do projeto (pesquisador comum)
+        lenient().when(grupoAcessoService.isMembroDoProjeto(anyLong(), anyLong())).thenReturn(true);
+        lenient().when(grupoAcessoService.podeAcessarProjeto(anyLong(), anyLong())).thenReturn(true);
         lenient().when(atividadeRepository.save(any(Atividade.class))).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(atividadeRepository.countByProjetoIdAndStatusInAndIsAtivoTrue(anyLong(), any()))
                 .thenReturn(1L);
@@ -113,12 +116,43 @@ class AtividadeServiceTest {
     }
 
     @Test
-    void concluirExigeCoordenador() {
+    void pesquisadorConcluiAtividadeSozinho() {
+        when(atividadeRepository.findByIdComRelacionamentos(1L))
+                .thenReturn(Optional.of(atividade(AtividadeStatus.EM_ANDAMENTO, LocalDateTime.now().plusDays(1))));
+
+        AtividadeResponse response = atividadeService.atualizarStatus(1L, AtividadeStatus.CONCLUIDA, EMAIL);
+
+        assertEquals(AtividadeStatus.CONCLUIDA, response.status());
+        assertNotNull(response.dthConclusao());
+    }
+
+    @Test
+    void pesquisadorConcluiAtividadeAguardandoConfirmacao() {
         when(atividadeRepository.findByIdComRelacionamentos(1L))
                 .thenReturn(Optional.of(atividade(AtividadeStatus.AGUARDANDO_CONFIRMACAO, LocalDateTime.now().plusDays(1))));
 
+        AtividadeResponse response = atividadeService.atualizarStatus(1L, AtividadeStatus.CONCLUIDA, EMAIL);
+
+        assertEquals(AtividadeStatus.CONCLUIDA, response.status());
+    }
+
+    @Test
+    void encerrarExigeLiderDoGrupoOuDoProjeto() {
+        when(atividadeRepository.findByIdComRelacionamentos(1L))
+                .thenReturn(Optional.of(atividade(AtividadeStatus.CONCLUIDA, LocalDateTime.now().plusDays(1))));
+
         assertThrows(SemPermissaoNoGrupoErro.class,
-                () -> atividadeService.atualizarStatus(1L, AtividadeStatus.CONCLUIDA, EMAIL));
+                () -> atividadeService.atualizarStatus(1L, AtividadeStatus.ENCERRADA, EMAIL));
+    }
+
+    @Test
+    void quemNaoParticipaDoProjetoNaoMoveAtividade() {
+        when(atividadeRepository.findByIdComRelacionamentos(1L))
+                .thenReturn(Optional.of(atividade(AtividadeStatus.PENDENTE, LocalDateTime.now().plusDays(1))));
+        when(grupoAcessoService.isMembroDoProjeto(anyLong(), anyLong())).thenReturn(false);
+
+        assertThrows(SemPermissaoNoGrupoErro.class,
+                () -> atividadeService.atualizarStatus(1L, AtividadeStatus.EM_ANDAMENTO, EMAIL));
     }
 
     @Test
@@ -205,7 +239,7 @@ class AtividadeServiceTest {
         when(projetoService.findById(5L)).thenReturn(Optional.of(projeto));
         when(usuarioService.findById(10L)).thenReturn(Optional.of(responsavel));
         when(grupoAcessoService.isMembroDoProjeto(5L, 10L)).thenReturn(true);
-        when(grupoAcessoService.isCoordenadorOuAcima(1L, 20L)).thenReturn(true);
+        when(grupoAcessoService.isLider(1L, 20L)).thenReturn(true);
 
         AtividadeResponse response = atividadeService.criar(createRequest(10L, null), EMAIL);
 
@@ -221,7 +255,7 @@ class AtividadeServiceTest {
                 .thenReturn(Optional.of(atividade(AtividadeStatus.PENDENTE, LocalDateTime.now().plusDays(1))));
         when(usuarioService.findById(99L)).thenReturn(Optional.of(responsavel));
         when(grupoAcessoService.isMembroDoProjeto(5L, 10L)).thenReturn(false);
-        when(grupoAcessoService.isCoordenadorOuAcima(1L, 20L)).thenReturn(true);
+        when(grupoAcessoService.isLider(1L, 20L)).thenReturn(true);
 
         EditAtividadeRequest request = new EditAtividadeRequest(99L, "Novo título", "Nova descrição", null);
 
@@ -263,7 +297,7 @@ class AtividadeServiceTest {
     void deletarFazSoftDeleteSemRemoverLinha() {
         Atividade alvo = atividade(AtividadeStatus.PENDENTE, LocalDateTime.now().plusDays(1));
         when(atividadeRepository.findByIdComRelacionamentos(1L)).thenReturn(Optional.of(alvo));
-        when(grupoAcessoService.isCoordenadorOuAcima(1L, 20L)).thenReturn(true);
+        when(grupoAcessoService.isLider(1L, 20L)).thenReturn(true);
 
         atividadeService.deletar(1L, EMAIL);
 
