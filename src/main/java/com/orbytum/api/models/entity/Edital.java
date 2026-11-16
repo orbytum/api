@@ -1,5 +1,6 @@
 package com.orbytum.api.models.entity;
 
+import com.orbytum.api.models.entity.joinColumns.EditalXDocumento;
 import com.orbytum.api.models.entity.joinColumns.EditalXGrupo;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
@@ -57,4 +58,8 @@ public class Edital {
             inverseJoinColumns = @JoinColumn(name = "projeto_id"))
     @Builder.Default
     private Set<Projeto> projetos = new HashSet<>();
+
+    @OneToMany(mappedBy = "edital", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<EditalXDocumento> documentos = new ArrayList<>();
 }
