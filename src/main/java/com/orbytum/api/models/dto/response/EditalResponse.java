@@ -1,7 +1,9 @@
 package com.orbytum.api.models.dto.response;
 
+import com.orbytum.api.models.entity.Documento;
 import com.orbytum.api.models.entity.Edital;
 import com.orbytum.api.models.entity.Projeto;
+import com.orbytum.api.models.entity.joinColumns.EditalXDocumento;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -16,7 +18,8 @@ public record EditalResponse(
         String uri,
         LocalDateTime dthAbertura,
         LocalDateTime dthEncerramento,
-        List<ProjetoRotuloResponse> projetos
+        List<ProjetoRotuloResponse> projetos,
+        List<DocumentoResponse> documentos
 ) {
     public static EditalResponse fromEntity(Edital edital) {
         return fromEntity(edital, null);
@@ -36,6 +39,15 @@ public record EditalResponse(
                 .map(ProjetoRotuloResponse::fromEntity)
                 .toList();
 
+        List<DocumentoResponse> documentos = edital.getDocumentos() == null
+                ? List.of()
+                : edital.getDocumentos().stream()
+                .map(EditalXDocumento::getDocumento)
+                .sorted(Comparator.comparing(Documento::getDthCriacao,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(DocumentoResponse::fromEntity)
+                .toList();
+
         return new EditalResponse(
                 edital.getId(),
                 edital.getOrganizador(),
@@ -44,6 +56,7 @@ public record EditalResponse(
                 edital.getUri(),
                 edital.getDthAbertura(),
                 edital.getDthEncerramento(),
-                projetos);
+                projetos,
+                documentos);
     }
 }

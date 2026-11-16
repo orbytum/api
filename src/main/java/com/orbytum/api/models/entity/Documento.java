@@ -1,10 +1,13 @@
 package com.orbytum.api.models.entity;
 
+import com.orbytum.api.models.entity.joinColumns.EditalXDocumento;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -44,4 +47,8 @@ public class Documento {
 
     @OneToOne(mappedBy = "ataDocumento", fetch = FetchType.LAZY)
     private Evento evento;
+
+    @OneToMany(mappedBy = "documento", fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<EditalXDocumento> editais = new ArrayList<>();
 }
