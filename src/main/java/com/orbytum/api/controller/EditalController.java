@@ -2,18 +2,24 @@ package com.orbytum.api.controller;
 
 import com.orbytum.api.models.dto.request.CriarEditalRequest;
 import com.orbytum.api.models.dto.request.EditarEditalRequest;
+import com.orbytum.api.models.dto.response.DocumentoResponse;
 import com.orbytum.api.models.dto.response.EditalPaginadoResponse;
 import com.orbytum.api.models.dto.response.EditalResponse;
+import com.orbytum.api.service.ArquivoDownload;
 import com.orbytum.api.service.EditalService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/grupos/{grupoId}/editais")
@@ -71,5 +77,60 @@ public class EditalController {
             Authentication authentication) {
         editalService.removerDoGrupo(id, grupoId, authentication.getName());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/documentos")
+    public ResponseEntity<List<DocumentoResponse>> listarDocumentos(
+            @PathVariable Long grupoId,
+            @PathVariable Long id,
+            Authentication authentication) {
+        return ResponseEntity.ok(editalService.listarDocumentos(id, grupoId, authentication.getName()));
+    }
+
+    @PostMapping(value = "/{id}/documentos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<DocumentoResponse> anexarDocumento(
+            @PathVariable Long grupoId,
+            @PathVariable Long id,
+            @RequestParam("arquivo") MultipartFile arquivo,
+            Authentication authentication) {
+        DocumentoResponse response = editalService.anexarDocumento(id, grupoId, arquivo, authentication.getName());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PutMapping("/{id}/documentos/{documentoId}")
+    public ResponseEntity<DocumentoResponse> vincularDocumento(
+            @PathVariable Long grupoId,
+            @PathVariable Long id,
+            @PathVariable Long documentoId,
+            Authentication authentication) {
+        DocumentoResponse response = editalService.vincularDocumento(
+                id, grupoId, documentoId, authentication.getName());
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}/documentos/{documentoId}")
+    public ResponseEntity<Void> removerDocumento(
+            @PathVariable Long grupoId,
+            @PathVariable Long id,
+            @PathVariable Long documentoId,
+            Authentication authentication) {
+        editalService.removerDocumento(id, grupoId, documentoId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/documentos/{documentoId}/arquivo")
+    public ResponseEntity<byte[]> baixarDocumento(
+            @PathVariable Long grupoId,
+            @PathVariable Long id,
+            @PathVariable Long documentoId,
+            Authentication authentication) {
+        ArquivoDownload download = editalService.baixarDocumento(
+                id, grupoId, documentoId, authentication.getName());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + download.nomeArquivo().replace("\"", "") + "\"")
+                .contentType(MediaType.parseMediaType(download.contentType()))
+                .body(download.bytes());
     }
 }

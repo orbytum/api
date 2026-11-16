@@ -2,14 +2,18 @@ package com.orbytum.api.service;
 
 import com.orbytum.api.models.dto.request.CriarEditalRequest;
 import com.orbytum.api.models.dto.request.EditarEditalRequest;
+import com.orbytum.api.models.dto.response.DocumentoResponse;
 import com.orbytum.api.models.dto.response.EditalPaginadoResponse;
 import com.orbytum.api.models.dto.response.EditalResponse;
+import com.orbytum.api.models.entity.Documento;
 import com.orbytum.api.models.entity.Edital;
 import com.orbytum.api.models.entity.Grupo;
 import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Usuario;
+import com.orbytum.api.models.entity.joinColumns.EditalXDocumento;
 import com.orbytum.api.models.entity.joinColumns.EditalXGrupo;
 import com.orbytum.api.models.enums.AccessLevel;
+import com.orbytum.api.models.exceptions.DocumentoNaoEncontradoErro;
 import com.orbytum.api.models.exceptions.EditalJaVinculadoErro;
 import com.orbytum.api.models.exceptions.EditalNaoEncontradoErro;
 import com.orbytum.api.models.exceptions.GrupoNaoEncontradoErro;
@@ -23,10 +27,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -42,6 +48,7 @@ public class EditalService {
     private final UsuarioService usuarioService;
     private final GrupoAcessoService grupoAcessoService;
     private final ProjetoService projetoService;
+    private final DocumentoService documentoService;
 
     @Transactional
     public EditalResponse criar(Long grupoId, CriarEditalRequest request, String emailLogado) {
@@ -154,8 +161,117 @@ public class EditalService {
         long totalVinculos = editalXGrupoRepository.countByEditalId(editalId);
         editalXGrupoRepository.delete(vinculo);
         if (totalVinculos <= 1) {
+            List<Documento> documentos = edital.getDocumentos().stream()
+                    .map(EditalXDocumento::getDocumento)
+                    .toList();
+            edital.getDocumentos().clear();
+            editalRepository.saveAndFlush(edital);
             editalRepository.delete(edital);
+            documentos.forEach(documentoService::excluirSeOrfao);
         }
+    }
+
+    @Transactional
+    public DocumentoResponse anexarDocumento(
+            Long editalId,
+            Long grupoId,
+            MultipartFile arquivo,
+            String emailLogado) {
+        Usuario solicitante = usuarioAutenticado(emailLogado);
+        validarPodeGerenciar(grupoId, solicitante);
+        Edital edital = buscarEditalDoGrupo(editalId, grupoId);
+
+        if (arquivo == null || arquivo.isEmpty()) {
+            throw new IllegalArgumentException("O arquivo do documento é obrigatório.");
+        }
+
+        Documento documento = documentoService.salvar(arquivo, editalId);
+        vincularDocumentoAoEdital(edital, documento);
+        editalRepository.save(edital);
+
+        return DocumentoResponse.fromEntity(documento);
+    }
+
+    @Transactional
+    public DocumentoResponse vincularDocumento(
+            Long editalId,
+            Long grupoId,
+            Long documentoId,
+            String emailLogado) {
+        Usuario solicitante = usuarioAutenticado(emailLogado);
+        validarPodeGerenciar(grupoId, solicitante);
+        Edital edital = buscarEditalDoGrupo(editalId, grupoId);
+
+        Documento documento = documentoService.buscar(documentoId);
+        vincularDocumentoAoEdital(edital, documento);
+        editalRepository.save(edital);
+
+        return DocumentoResponse.fromEntity(documento);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DocumentoResponse> listarDocumentos(Long editalId, Long grupoId, String emailLogado) {
+        Usuario solicitante = usuarioAutenticado(emailLogado);
+        validarMembro(grupoId, solicitante);
+        Edital edital = buscarEditalDoGrupo(editalId, grupoId);
+
+        return edital.getDocumentos().stream()
+                .map(EditalXDocumento::getDocumento)
+                .sorted(Comparator.comparing(Documento::getDthCriacao,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(DocumentoResponse::fromEntity)
+                .toList();
+    }
+
+    @Transactional
+    public void removerDocumento(
+            Long editalId,
+            Long grupoId,
+            Long documentoId,
+            String emailLogado) {
+        Usuario solicitante = usuarioAutenticado(emailLogado);
+        validarPodeGerenciar(grupoId, solicitante);
+        Edital edital = buscarEditalDoGrupo(editalId, grupoId);
+        EditalXDocumento vinculo = buscarVinculoDocumentoDoEdital(edital, documentoId);
+        Documento documento = vinculo.getDocumento();
+
+        edital.getDocumentos().remove(vinculo);
+        editalRepository.saveAndFlush(edital);
+        documentoService.excluirSeOrfao(documento);
+    }
+
+    @Transactional(readOnly = true)
+    public ArquivoDownload baixarDocumento(
+            Long editalId,
+            Long grupoId,
+            Long documentoId,
+            String emailLogado) {
+        Usuario solicitante = usuarioAutenticado(emailLogado);
+        validarMembro(grupoId, solicitante);
+        Edital edital = buscarEditalDoGrupo(editalId, grupoId);
+        Documento documento = buscarDocumentoDoEdital(edital, documentoId);
+
+        return documentoService.baixar(documento);
+    }
+
+    private void vincularDocumentoAoEdital(Edital edital, Documento documento) {
+        boolean jaVinculado = edital.getDocumentos().stream()
+                .anyMatch(vinculo -> Objects.equals(vinculo.getDocumento().getId(), documento.getId()));
+        if (!jaVinculado) {
+            edital.getDocumentos().add(new EditalXDocumento(edital, documento));
+        }
+    }
+
+    private EditalXDocumento buscarVinculoDocumentoDoEdital(Edital edital, Long documentoId) {
+        return edital.getDocumentos().stream()
+                .filter(vinculo -> Objects.equals(vinculo.getDocumento().getId(), documentoId))
+                .findFirst()
+                .orElseThrow(() -> new DocumentoNaoEncontradoErro(
+                        "Documento não vinculado a este edital."));
+    }
+
+    private Documento buscarDocumentoDoEdital(Edital edital, Long documentoId) {
+        return buscarVinculoDocumentoDoEdital(edital, documentoId).getDocumento();
     }
 
     private Edital buscarEditalDoGrupo(Long editalId, Long grupoId) {

@@ -1,13 +1,16 @@
 package com.orbytum.api.service;
 
 import com.orbytum.api.models.dto.request.CriarEditalRequest;
+import com.orbytum.api.models.dto.response.DocumentoResponse;
 import com.orbytum.api.models.dto.response.EditalPaginadoResponse;
 import com.orbytum.api.models.dto.response.EditalResponse;
 import com.orbytum.api.models.entity.CredenciaisLogin;
+import com.orbytum.api.models.entity.Documento;
 import com.orbytum.api.models.entity.Edital;
 import com.orbytum.api.models.entity.Grupo;
 import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Usuario;
+import com.orbytum.api.models.entity.joinColumns.EditalXDocumento;
 import com.orbytum.api.models.entity.joinColumns.EditalXGrupo;
 import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.enums.ProjetoStatus;
@@ -23,6 +26,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -56,6 +61,9 @@ class EditalServiceTest {
 
     @Mock
     private ProjetoService projetoService;
+
+    @Mock
+    private DocumentoService documentoService;
 
     @InjectMocks
     private EditalService editalService;
@@ -235,5 +243,89 @@ class EditalServiceTest {
 
         verify(editalXGrupoRepository).delete(vinculo);
         verify(editalRepository).delete(edital);
+    }
+
+    @Test
+    void anexarDocumentoVinculaAoEdital() {
+        Edital edital = editalExistente(7L);
+        Documento documento = Documento.builder()
+                .id(3L)
+                .nome("edital.pdf")
+                .extensao("pdf")
+                .contentType("application/pdf")
+                .tamanho(10L)
+                .dthCriacao(LocalDateTime.now())
+                .documento(new byte[]{1, 2, 3})
+                .build();
+        MultipartFile arquivo = new MockMultipartFile(
+                "arquivo", "edital.pdf", "application/pdf", new byte[]{1, 2, 3});
+
+        when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
+        when(editalRepository.findById(7L)).thenReturn(Optional.of(edital));
+        when(editalXGrupoRepository.existsByEditalIdAndGrupoId(7L, 1L)).thenReturn(true);
+        when(documentoService.salvar(arquivo, 7L)).thenReturn(documento);
+
+        DocumentoResponse response = editalService.anexarDocumento(7L, 1L, arquivo, EMAIL);
+
+        assertEquals(3L, response.id());
+        assertEquals("edital.pdf", response.nome());
+        assertTrue(edital.getDocumentos().stream()
+                .anyMatch(vinculo -> vinculo.getDocumento() == documento));
+        verify(editalRepository).save(edital);
+    }
+
+    @Test
+    void listarDocumentosDoEdital() {
+        Edital edital = editalExistente(7L);
+        Documento documento = Documento.builder()
+                .id(3L)
+                .nome("anexo.pdf")
+                .extensao("pdf")
+                .dthCriacao(LocalDateTime.now())
+                .documento(new byte[]{1})
+                .build();
+        edital.getDocumentos().add(new EditalXDocumento(edital, documento));
+
+        when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
+        when(editalRepository.findById(7L)).thenReturn(Optional.of(edital));
+        when(editalXGrupoRepository.existsByEditalIdAndGrupoId(7L, 1L)).thenReturn(true);
+
+        List<DocumentoResponse> documentos = editalService.listarDocumentos(7L, 1L, EMAIL);
+
+        assertEquals(1, documentos.size());
+        assertEquals(3L, documentos.get(0).id());
+        verify(grupoAcessoService).validarMembro(1L, 20L);
+    }
+
+    @Test
+    void removerDocumentoDesvinculaDoEdital() {
+        Edital edital = editalExistente(7L);
+        Documento documento = Documento.builder()
+                .id(3L)
+                .nome("anexo.pdf")
+                .extensao("pdf")
+                .documento(new byte[]{1})
+                .build();
+        edital.getDocumentos().add(new EditalXDocumento(edital, documento));
+
+        when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
+        when(editalRepository.findById(7L)).thenReturn(Optional.of(edital));
+        when(editalXGrupoRepository.existsByEditalIdAndGrupoId(7L, 1L)).thenReturn(true);
+
+        editalService.removerDocumento(7L, 1L, 3L, EMAIL);
+
+        assertTrue(edital.getDocumentos().isEmpty());
+        verify(documentoService).excluirSeOrfao(documento);
+    }
+
+    private Edital editalExistente(Long id) {
+        return Edital.builder()
+                .id(id)
+                .organizador("CNPq")
+                .descricao("Edital de tecnologia")
+                .uri(URI)
+                .dthAbertura(LocalDateTime.now())
+                .dthEncerramento(LocalDateTime.now().plusDays(10))
+                .build();
     }
 }
