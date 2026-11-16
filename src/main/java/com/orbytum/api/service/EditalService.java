@@ -110,7 +110,62 @@ public class EditalService {
     public EditalResponse buscar(Long editalId, Long grupoId, String emailLogado) {
         Usuario solicitante = usuarioAutenticado(emailLogado);
         validarMembro(grupoId, solicitante);
-        return EditalResponse.fromEntity(buscarEditalDoGrupo(editalId, grupoId), grupoId);
+        Edital edital = buscarEditalDoGrupo(editalId, grupoId);
+        if (!podeVer(edital, grupoId, solicitante)) {
+            throw new EditalNaoEncontradoErro("Edital não encontrado para este grupo.");
+        }
+        return EditalResponse.fromEntity(edital, grupoId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> listarPalavrasChave(Long grupoId, String emailLogado) {
+        Usuario solicitante = usuarioAutenticado(emailLogado);
+        validarMembro(grupoId, solicitante);
+        return List.copyOf(buscarGrupo(grupoId).getPalavrasChave());
+    }
+
+    @Transactional
+    public List<String> atualizarPalavrasChave(Long grupoId, List<String> palavras, String emailLogado) {
+        Usuario solicitante = usuarioAutenticado(emailLogado);
+        if (!isAdmin(solicitante)) {
+            grupoAcessoService.validarLider(grupoId, solicitante.getId());
+        }
+        Grupo grupo = buscarGrupo(grupoId);
+        Set<String> normalizadas = new java.util.LinkedHashSet<>();
+        for (String palavra : palavras == null ? List.<String>of() : palavras) {
+            String valor = normalizar(palavra);
+            if (valor == null) {
+                continue;
+            }
+            if (valor.length() > 60) {
+                throw new IllegalArgumentException("Cada palavra-chave deve ter no máximo 60 caracteres.");
+            }
+            if (normalizadas.stream().noneMatch(valor::equalsIgnoreCase)) {
+                normalizadas.add(valor);
+            }
+        }
+        grupo.getPalavrasChave().clear();
+        grupo.getPalavrasChave().addAll(normalizadas);
+        return List.copyOf(normalizadas);
+    }
+
+    /**
+     * REQ-093: edital sem projetos do grupo é público; com projetos, só participantes desses projetos,
+     * Líderes do grupo e administradores o veem.
+     */
+    private boolean podeVer(Edital edital, Long grupoId, Usuario solicitante) {
+        if (isGestor(grupoId, solicitante)) {
+            return true;
+        }
+        List<Projeto> projetosDoGrupo = edital.getProjetos().stream()
+                .filter(p -> p.getGrupo() != null && grupoId.equals(p.getGrupo().getId()))
+                .toList();
+        return projetosDoGrupo.isEmpty() || projetosDoGrupo.stream()
+                .anyMatch(p -> grupoAcessoService.isMembroDoProjeto(p.getId(), solicitante.getId()));
+    }
+
+    private boolean isGestor(Long grupoId, Usuario solicitante) {
+        return isAdmin(solicitante) || grupoAcessoService.isLider(grupoId, solicitante.getId());
     }
 
     @Transactional(readOnly = true)
@@ -121,6 +176,7 @@ public class EditalService {
             String organizacao,
             LocalDate dataInicio,
             LocalDate dataFim,
+            boolean somenteRelevantes,
             int page,
             int size,
             String emailLogado) {
@@ -136,7 +192,8 @@ public class EditalService {
         LocalDateTime fim = dataFim != null ? dataFim.atTime(LocalTime.MAX) : null;
 
         Page<Edital> resultado = editalRepository.filtrarPorGrupo(
-                grupoId, projetoId, normalizar(palavraChave), normalizar(organizacao), inicio, fim, pageable);
+                grupoId, projetoId, normalizar(palavraChave), normalizar(organizacao), inicio, fim,
+                somenteRelevantes, isGestor(grupoId, solicitante), solicitante.getId(), pageable);
 
         return new EditalPaginadoResponse(
                 resultado.getContent().stream()

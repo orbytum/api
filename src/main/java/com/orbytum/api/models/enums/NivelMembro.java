@@ -6,8 +6,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum NivelMembro {
 
-    LIDER(3),
-    COORDENADOR(2),
+    LIDER(2),
     PESQUISADOR(1),
     COLABORADOR(0);
 

@@ -1,0 +1,63 @@
+---
+config:
+  layout: elk
+---
+erDiagram
+  EDITAL ||--o{ EDITAL_X_GRUPO : "edital_id"
+  GRUPO ||--o{ EDITAL_X_GRUPO : "grupo_id"
+  EDITAL ||--o{ EDITAL_X_PROJETO : "edital_id"
+  PROJETO ||--o{ EDITAL_X_PROJETO : "projeto_id"
+  USUARIO o|--o{ NOTICIA : "aprovador_id"
+  USUARIO o|--o{ NOTICIA : "autor_id"
+  GRUPO o|--o{ NOTICIA : "grupo_id"
+  NOTICIA ||--o{ NOTICIA_X_PROJETO : "noticia_id"
+  PROJETO ||--o{ NOTICIA_X_PROJETO : "projeto_id"
+  NOTICIA {
+    bigint id PK
+    varchar assunto
+    text conteudo
+    timestamp data_fim_exibicao
+    timestamp data_inicio_exibicao
+    timestamp dth_aprovacao
+    timestamp dth_registro
+    boolean is_ativo
+    varchar motivo_rejeicao
+    varchar referencia
+    integer status
+    varchar titulo
+    uuid uuid
+    bigint aprovador_id FK
+    bigint autor_id FK
+    bigint grupo_id FK
+  }
+  NOTICIA_X_PROJETO {
+    bigint noticia_id PK, FK
+    bigint projeto_id PK, FK
+  }
+  EDITAL {
+    bigint id PK
+    text descricao
+    timestamp dth_abertura
+    timestamp dth_encerramento
+    varchar organizador
+    varchar uri
+    numeric valor
+  }
+  EDITAL_X_GRUPO {
+    bigint id PK
+    bigint edital_id FK
+    bigint grupo_id FK
+  }
+  EDITAL_X_PROJETO {
+    bigint edital_id PK, FK
+    bigint projeto_id PK, FK
+  }
+  GRUPO {
+    bigint id PK
+  }
+  PROJETO {
+    bigint id PK
+  }
+  USUARIO {
+    bigint id PK
+  }

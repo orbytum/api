@@ -2,6 +2,7 @@ package com.orbytum.api.service;
 
 import com.orbytum.api.configuration.StorageProperties;
 import com.orbytum.api.models.dto.request.CreatePublicacaoRequest;
+import com.orbytum.api.models.dto.request.EditarPublicacaoRequest;
 import com.orbytum.api.models.dto.response.PublicacaoPaginadaResponse;
 import com.orbytum.api.models.dto.response.PublicacaoResponse;
 import com.orbytum.api.models.entity.CredenciaisLogin;
@@ -106,8 +107,10 @@ class PublicacaoServiceTest {
                 "Título Artigo",
                 "Descrição do Artigo Científico",
                 10L,
-                pdfFile
-        );
+                pdfFile,
+                "Artigo",
+                java.time.LocalDate.of(2026, 5, 10),
+                null);
 
         when(projetoRepository.findById(10L)).thenReturn(Optional.of(projeto));
         when(arquivoStorage.salvar(anyString(), any(MultipartFile.class)))
@@ -160,8 +163,10 @@ class PublicacaoServiceTest {
                 "Título Fallback",
                 "Descrição Fallback",
                 10L,
-                pdfFile
-        );
+                pdfFile,
+                "Artigo",
+                java.time.LocalDate.of(2026, 5, 10),
+                null);
 
         Documento documento = Documento.builder()
                 .id(99L)
@@ -210,7 +215,7 @@ class PublicacaoServiceTest {
                 "arquivo", "pesquisa.pdf", "application/pdf", "%PDF-1.4".getBytes(StandardCharsets.UTF_8));
 
         CreatePublicacaoRequest request = new CreatePublicacaoRequest(
-                "Título Artigo", "Descrição", 10L, pdfFile);
+                "Título Artigo", "Descrição", 10L, pdfFile, "Artigo", java.time.LocalDate.of(2026, 5, 10), null);
 
         when(projetoRepository.findById(10L)).thenReturn(Optional.of(projeto));
         when(grupoAcessoService.podeGerenciarProjeto(10L, 1L)).thenReturn(false);
@@ -233,8 +238,10 @@ class PublicacaoServiceTest {
                 "Título",
                 "Descrição",
                 10L,
-                txtFile
-        );
+                txtFile,
+                "Artigo",
+                java.time.LocalDate.of(2026, 5, 10),
+                null);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> publicacaoService.criarPublicacao(request, EMAIL));
@@ -257,8 +264,10 @@ class PublicacaoServiceTest {
                 "Título",
                 "Descrição",
                 10L,
-                fileWithWrongType
-        );
+                fileWithWrongType,
+                "Artigo",
+                java.time.LocalDate.of(2026, 5, 10),
+                null);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> publicacaoService.criarPublicacao(request, EMAIL));
@@ -280,8 +289,10 @@ class PublicacaoServiceTest {
                 "Título",
                 "Descrição",
                 10L,
-                emptyFile
-        );
+                emptyFile,
+                "Artigo",
+                java.time.LocalDate.of(2026, 5, 10),
+                null);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> publicacaoService.criarPublicacao(request, EMAIL));
@@ -302,8 +313,10 @@ class PublicacaoServiceTest {
                 "Título",
                 "Descrição",
                 999L,
-                pdfFile
-        );
+                pdfFile,
+                "Artigo",
+                java.time.LocalDate.of(2026, 5, 10),
+                null);
 
         when(projetoRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -326,7 +339,7 @@ class PublicacaoServiceTest {
                 .build();
 
         when(projetoRepository.findById(10L)).thenReturn(Optional.of(projeto));
-        when(publicacaoRepository.filtrarPublicacoes(eq("Artigo"), any(), any(), eq(10L), isNull(), any(Pageable.class)))
+        when(publicacaoRepository.filtrarPublicacoes(eq("Artigo"), any(), any(), eq(10L), isNull(), isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(p)));
 
         PublicacaoPaginadaResponse response = publicacaoService.listarPublicacoes(
@@ -401,5 +414,92 @@ class PublicacaoServiceTest {
 
         assertThrows(PublicacaoNaoEncontradaErro.class, () -> publicacaoService.inativarPublicacao(99L, EMAIL));
         verify(publicacaoRepository, never()).save(any());
+    }
+
+    // ---------------------------------------------------------------- REQ-088: tipo, data e link
+
+    private MockMultipartFile pdf() {
+        return new MockMultipartFile("arquivo", "artigo.pdf", "application/pdf",
+                "%PDF-1.4 teste".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void prepararCriacao(MockMultipartFile arquivo) {
+        when(projetoRepository.findById(10L)).thenReturn(Optional.of(projeto));
+        when(arquivoStorage.salvar(anyString(), any(MultipartFile.class)))
+                .thenReturn(new ArquivoArmazenado(StorageProvider.DATABASE, "publicacoes/x.pdf", null,
+                        "artigo.pdf", "application/pdf", arquivo.getSize(), null));
+        when(publicacaoRepository.save(any(Publicacao.class))).thenAnswer(invocation -> {
+            Publicacao p = invocation.getArgument(0);
+            p.setId(5L);
+            return p;
+        });
+    }
+
+    @Test
+    void testCriarPublicacaoSalvaTipoDataELink() {
+        MockMultipartFile arquivo = pdf();
+        prepararCriacao(arquivo);
+
+        PublicacaoResponse response = publicacaoService.criarPublicacao(new CreatePublicacaoRequest(
+                "Título", "Descrição", 10L, arquivo, "  Livro ", java.time.LocalDate.of(2026, 3, 1),
+                " https://doi.org/10.1000/xyz "), EMAIL);
+
+        assertEquals("Livro", response.tipo());
+        assertEquals(java.time.LocalDate.of(2026, 3, 1), response.dataPublicacao());
+        assertEquals("https://doi.org/10.1000/xyz", response.link());
+    }
+
+    @Test
+    void testCriarPublicacaoComLinkVazioGravaNulo() {
+        MockMultipartFile arquivo = pdf();
+        prepararCriacao(arquivo);
+
+        PublicacaoResponse response = publicacaoService.criarPublicacao(new CreatePublicacaoRequest(
+                "Título", "Descrição", 10L, arquivo, "Artigo", java.time.LocalDate.of(2026, 3, 1), "   "), EMAIL);
+
+        assertNull(response.link());
+    }
+
+    @Test
+    void testCriarPublicacaoRejeitaLinkSemHttpAntesDeSalvarArquivo() {
+        CreatePublicacaoRequest request = new CreatePublicacaoRequest(
+                "Título", "Descrição", 10L, pdf(), "Artigo", java.time.LocalDate.of(2026, 3, 1), "doi.org/10.1000/xyz");
+
+        assertThrows(IllegalArgumentException.class, () -> publicacaoService.criarPublicacao(request, EMAIL));
+        verify(arquivoStorage, never()).salvar(anyString(), any(MultipartFile.class));
+    }
+
+    @Test
+    void testAtualizarPublicacaoMantemOuAlteraTipoDataELink() {
+        Publicacao existente = new Publicacao();
+        existente.setId(5L);
+        existente.setUuid(java.util.UUID.randomUUID());
+        existente.setTitulo("Título");
+        existente.setDescricao("Descrição");
+        existente.setProjeto(projeto);
+        existente.setUrl("http://localhost:8080/publicacoes/uuid/x/arquivo");
+        existente.setDthRegistro(LocalDateTime.now());
+        existente.setAtivo(true);
+        existente.setTipo("Livro");
+        existente.setDataPublicacao(java.time.LocalDate.of(2025, 1, 2));
+        existente.setLink("https://doi.org/antigo");
+        when(publicacaoRepository.findByIdAndIsAtivoTrue(5L)).thenReturn(Optional.of(existente));
+        when(publicacaoRepository.save(any(Publicacao.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PublicacaoResponse semMudanca = publicacaoService.atualizarPublicacao(5L,
+                new EditarPublicacaoRequest("Novo título", "Descrição", null, null, null, null, null), EMAIL);
+
+        assertEquals("Novo título", semMudanca.titulo());
+        assertEquals("Livro", semMudanca.tipo());
+        assertEquals(java.time.LocalDate.of(2025, 1, 2), semMudanca.dataPublicacao());
+        assertEquals("https://doi.org/antigo", semMudanca.link());
+
+        PublicacaoResponse alterada = publicacaoService.atualizarPublicacao(5L,
+                new EditarPublicacaoRequest("Novo título", "Descrição", null, null, "Tese",
+                        java.time.LocalDate.of(2026, 6, 30), ""), EMAIL);
+
+        assertEquals("Tese", alterada.tipo());
+        assertEquals(java.time.LocalDate.of(2026, 6, 30), alterada.dataPublicacao());
+        assertNull(alterada.link());
     }
 }

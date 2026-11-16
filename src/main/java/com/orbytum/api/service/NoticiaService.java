@@ -170,7 +170,25 @@ public class NoticiaService {
         Noticia noticia = buscarEntidade(id);
         Usuario solicitante = usuarioAutenticado(emailLogado);
         validarAcessoAoGrupo(noticia.getGrupo().getId(), solicitante);
+        if (!podeVer(noticia, solicitante)) {
+            throw new NoticiaNaoEncontradaErro("Notícia não encontrada com ID: " + id);
+        }
         return toResponse(noticia);
+    }
+
+    /** REQ-093: notícia sem projetos é pública no grupo; com projetos, só participantes, autor e gestores a veem. */
+    private boolean podeVer(Noticia noticia, Usuario solicitante) {
+        if (isGestor(noticia.getGrupo().getId(), solicitante)
+                || (noticia.getAutor() != null && noticia.getAutor().getId().equals(solicitante.getId()))
+                || noticia.getProjetos().isEmpty()) {
+            return true;
+        }
+        return noticia.getProjetos().stream()
+                .anyMatch(p -> grupoAcessoService.isMembroDoProjeto(p.getId(), solicitante.getId()));
+    }
+
+    private boolean isGestor(Long grupoId, Usuario solicitante) {
+        return isAdmin(solicitante) || grupoAcessoService.isLider(grupoId, solicitante.getId());
     }
 
     @Transactional(readOnly = true)
@@ -204,6 +222,8 @@ public class NoticiaService {
                 inicio,
                 fim,
                 projetoId,
+                isGestor(grupo.getId(), solicitante),
+                solicitante.getId(),
                 pageable);
 
         List<NoticiaResponse> items = resultado.getContent().stream()
@@ -231,12 +251,12 @@ public class NoticiaService {
         validarAcessoAoGrupo(grupo.getId(), solicitante);
 
         boolean gestor = isAdmin(solicitante)
-                || grupoAcessoService.isCoordenadorOuAcima(grupo.getId(), solicitante.getId());
+                || grupoAcessoService.isLider(grupo.getId(), solicitante.getId());
 
         List<Long> projetosLiderados = projetosLideradosPeloUsuario(solicitante.getId());
         if (!gestor && projetosLiderados.isEmpty()) {
             throw new SemPermissaoNoGrupoErro(
-                    "Apenas Líder/Coordenador do grupo ou líder de um projeto rotulado pode listar notícias pendentes");
+                    "Apenas o Líder do grupo ou o líder de um projeto rotulado pode listar notícias pendentes");
         }
 
         List<Long> filtroProjetos = projetosLiderados.isEmpty() ? List.of(-1L) : projetosLiderados;
@@ -298,16 +318,16 @@ public class NoticiaService {
         boolean isAutor = noticia.getAutor() != null
                 && noticia.getAutor().getId().equals(solicitante.getId());
 
-        if (grupoAcessoService.isCoordenadorOuAcima(grupoId, solicitante.getId())) {
+        if (grupoAcessoService.isLider(grupoId, solicitante.getId())) {
             return;
         }
 
         if (!isAutor) {
-            throw new SemPermissaoNoGrupoErro("Apenas o autor ou Líder/Coordenador podem alterar esta notícia");
+            throw new SemPermissaoNoGrupoErro("Apenas o autor ou o Líder do grupo podem alterar esta notícia");
         }
 
         if (noticia.getStatus() == NoticiaStatus.APROVADA) {
-            throw new NoticiaNaoPendenteErro("Notícia publicada só pode ser alterada por Líder ou Coordenador do grupo");
+            throw new NoticiaNaoPendenteErro("Notícia publicada só pode ser alterada pelo Líder do grupo");
         }
     }
 
@@ -331,7 +351,7 @@ public class NoticiaService {
         }
 
         Long grupoId = noticia.getGrupo().getId();
-        if (grupoAcessoService.isCoordenadorOuAcima(grupoId, solicitante.getId())) {
+        if (grupoAcessoService.isLider(grupoId, solicitante.getId())) {
             return;
         }
 
@@ -341,7 +361,7 @@ public class NoticiaService {
 
         if (!liderDeProjetoRotulado) {
             throw new SemPermissaoNoGrupoErro(
-                    "Apenas Líder/Coordenador do grupo ou líder de um projeto rotulado pode aprovar esta notícia");
+                    "Apenas o Líder do grupo ou o líder de um projeto rotulado pode aprovar esta notícia");
         }
     }
 

@@ -15,6 +15,8 @@ public record SolicitacaoResponse(
         boolean isAprovada,
         Long projetoId,
         String projetoTitulo,
+        Long grupoId,
+        String grupoNome,
         Long usuarioId,
         String usuarioNome,
         Long materialId,
@@ -22,5 +24,7 @@ public record SolicitacaoResponse(
         Integer quantidade,
         BigDecimal valor,
         LocalDateTime dthSolicitacao,
-        LocalDateTime dthResposta
+        LocalDateTime dthResposta,
+        String aprovadorLiderNome,
+        LocalDateTime dthAprovacaoLider
 ) {}

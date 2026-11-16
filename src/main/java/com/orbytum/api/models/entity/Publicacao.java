@@ -5,6 +5,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -52,5 +53,17 @@ public class Publicacao {
 
     @Column(name = "storage_key", length = 500)
     private String storageKey;
+
+    /** REQ-088: tipo da publicação (ex.: Artigo, Livro, Tese). */
+    @Column(name = "tipo", length = 20)
+    private String tipo;
+
+    /** REQ-088: data em que a publicação foi publicada (difere da data de cadastro). */
+    @Column(name = "data_publicacao")
+    private LocalDate dataPublicacao;
+
+    /** REQ-088: link externo da publicação (ex.: DOI ou página do periódico). */
+    @Column(name = "link", length = 500)
+    private String link;
 
 }

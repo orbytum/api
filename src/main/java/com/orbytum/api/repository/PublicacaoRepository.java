@@ -37,6 +37,9 @@ public interface PublicacaoRepository extends JpaRepository<Publicacao, Long> {
               AND (CAST(:dataFim AS java.time.LocalDateTime) IS NULL OR p.dthRegistro <= :dataFim)
               AND (:projetoId IS NULL OR p.projeto.id = :projetoId)
               AND (:grupoId IS NULL OR p.projeto.grupo.id = :grupoId)
+              AND (:usuarioId IS NULL OR p.projeto.id IN (
+                    SELECT pxu.projeto.id FROM ProjetoXUsuario pxu
+                    WHERE pxu.usuario.id = :usuarioId AND pxu.isAtivo = true))
             """)
     Page<Publicacao> filtrarPublicacoes(
             @Param("titulo") String titulo,
@@ -44,6 +47,7 @@ public interface PublicacaoRepository extends JpaRepository<Publicacao, Long> {
             @Param("dataFim") LocalDateTime dataFim,
             @Param("projetoId") Long projetoId,
             @Param("grupoId") Long grupoId,
+            @Param("usuarioId") Long usuarioId,
             Pageable pageable
     );
 }

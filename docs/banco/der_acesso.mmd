@@ -1,0 +1,88 @@
+---
+config:
+  layout: elk
+---
+erDiagram
+  GRUPO o|--o{ CONVITE_GRUPO : "grupo_id"
+  ROLE o|--o{ CONVITE_GRUPO : "role_id"
+  USUARIO o|--o{ CONVITE_GRUPO : "usuario_convidado_id"
+  USUARIO o|--o{ CONVITE_GRUPO : "usuario_remetente_id"
+  CONVITE_GRUPO ||--o{ CONVITEXPROJETO : "convite_id"
+  PROJETO ||--o{ CONVITEXPROJETO : "projeto_id"
+  USUARIO o|--o{ CREDENCIAIS_LOGIN : "criador_id"
+  USUARIO o|--o{ GRUPO : "criador_id"
+  GRUPO o|--o{ GRUPOXUSUARIO : "grupo_id"
+  ROLE o|--o{ GRUPOXUSUARIO : "role_id"
+  USUARIO o|--o{ GRUPOXUSUARIO : "usuario_id"
+  ROLE ||--o{ ROLEXPERMISSAO : "role_id"
+  USUARIO {
+    bigint id PK
+    timestamp dth_registro
+    varchar email
+    boolean is_ativo
+    varchar nome
+    varchar telefone
+    varchar titulo
+  }
+  CREDENCIAIS_LOGIN {
+    bigint id PK
+    varchar access_level
+    varchar email
+    boolean is_ativo
+    varchar senha
+    bigint criador_id FK
+  }
+  ROLE {
+    bigint id PK
+    boolean is_lider
+    varchar nome
+  }
+  ROLEXPERMISSAO {
+    bigint role_id FK
+    varchar permissoes
+  }
+  GRUPO {
+    bigint id PK
+    boolean is_ativo
+    varchar nome
+    bigint criador_id FK
+  }
+  GRUPOXUSUARIO {
+    uuid id PK
+    varchar funcao
+    boolean is_ativo
+    varchar nivel
+    bigint grupo_id FK
+    bigint role_id FK
+    bigint usuario_id FK
+  }
+  CONVITE_GRUPO {
+    bigint id PK
+    timestamp dth_expiracao
+    timestamp dth_registro
+    varchar email_convidado
+    boolean is_ativo
+    integer limite_uso
+    varchar nivel
+    varchar token
+    integer usos
+    bigint grupo_id FK
+    bigint role_id FK
+    bigint usuario_convidado_id FK
+    bigint usuario_remetente_id FK
+  }
+  CONVITEXPROJETO {
+    bigint convite_id FK
+    bigint projeto_id FK
+  }
+  CONVITE_CADASTRO {
+    bigint id PK
+    timestamp dth_expiracao
+    timestamp dth_registro
+    varchar email
+    boolean is_ativo
+    varchar token
+  }
+  PROJETO {
+    bigint id PK
+  }

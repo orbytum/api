@@ -53,16 +53,14 @@ class GrupoAcessoServiceTest {
                 .thenReturn(Optional.of(vinculo(NivelMembro.LIDER)));
 
         assertTrue(grupoAcessoService.isLider(1L, 10L));
-        assertTrue(grupoAcessoService.isCoordenadorOuAcima(1L, 10L));
     }
 
     @Test
-    void pesquisadorNaoEhCoordenador() {
+    void pesquisadorNaoEhLider() {
         when(grupoXUsuarioRepository.findByGrupoIdAndUsuarioIdAndIsAtivoTrue(1L, 10L))
                 .thenReturn(Optional.of(vinculo(NivelMembro.PESQUISADOR)));
 
         assertFalse(grupoAcessoService.isLider(1L, 10L));
-        assertFalse(grupoAcessoService.isCoordenadorOuAcima(1L, 10L));
     }
 
     @Test

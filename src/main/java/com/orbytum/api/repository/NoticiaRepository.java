@@ -40,6 +40,11 @@ public interface NoticiaRepository extends JpaRepository<Noticia, Long> {
               AND (CAST(:dataInicio AS java.time.LocalDateTime) IS NULL OR n.dthRegistro >= :dataInicio)
               AND (CAST(:dataFim AS java.time.LocalDateTime) IS NULL OR n.dthRegistro <= :dataFim)
               AND (:projetoId IS NULL OR EXISTS (SELECT 1 FROM n.projetos p WHERE p.id = :projetoId))
+              AND (:gestor = true OR n.autor.id = :usuarioId
+                   OR NOT EXISTS (SELECT 1 FROM n.projetos pv)
+                   OR EXISTS (SELECT 1 FROM n.projetos pm WHERE pm.id IN (
+                        SELECT pxu.projeto.id FROM ProjetoXUsuario pxu
+                        WHERE pxu.usuario.id = :usuarioId AND pxu.isAtivo = true)))
             """,
             countQuery = """
             SELECT COUNT(n) FROM Noticia n
@@ -53,6 +58,11 @@ public interface NoticiaRepository extends JpaRepository<Noticia, Long> {
               AND (CAST(:dataInicio AS java.time.LocalDateTime) IS NULL OR n.dthRegistro >= :dataInicio)
               AND (CAST(:dataFim AS java.time.LocalDateTime) IS NULL OR n.dthRegistro <= :dataFim)
               AND (:projetoId IS NULL OR EXISTS (SELECT 1 FROM n.projetos p WHERE p.id = :projetoId))
+              AND (:gestor = true OR n.autor.id = :usuarioId
+                   OR NOT EXISTS (SELECT 1 FROM n.projetos pv)
+                   OR EXISTS (SELECT 1 FROM n.projetos pm WHERE pm.id IN (
+                        SELECT pxu.projeto.id FROM ProjetoXUsuario pxu
+                        WHERE pxu.usuario.id = :usuarioId AND pxu.isAtivo = true)))
             """)
     Page<Noticia> filtrarVigentes(
             @Param("grupoId") Long grupoId,
@@ -62,6 +72,8 @@ public interface NoticiaRepository extends JpaRepository<Noticia, Long> {
             @Param("dataInicio") LocalDateTime dataInicio,
             @Param("dataFim") LocalDateTime dataFim,
             @Param("projetoId") Long projetoId,
+            @Param("gestor") boolean gestor,
+            @Param("usuarioId") Long usuarioId,
             Pageable pageable);
 
     @Query(value = """

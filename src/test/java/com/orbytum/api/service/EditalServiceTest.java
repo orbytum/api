@@ -89,7 +89,7 @@ class EditalServiceTest {
     }
 
     @Test
-    void criarEditalComoCoordenadorVinculaAoGrupo() {
+    void criarEditalComoLiderVinculaAoGrupo() {
         when(grupoService.findById(1L)).thenReturn(Optional.of(grupo));
         when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
         when(editalRepository.findByUri(URI)).thenReturn(Optional.empty());
@@ -211,10 +211,10 @@ class EditalServiceTest {
                 .build();
 
         when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
-        when(editalRepository.filtrarPorGrupo(eq(1L), isNull(), eq("Tecnologia"), eq("CNPq"), isNull(), isNull(), any(Pageable.class)))
+        when(editalRepository.filtrarPorGrupo(eq(1L), isNull(), eq("Tecnologia"), eq("CNPq"), isNull(), isNull(), eq(false), anyBoolean(), any(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(edital)));
 
-        EditalPaginadoResponse response = editalService.listar(1L, null, "  Tecnologia  ", "  CNPq  ", null, null, 1, 10, EMAIL);
+        EditalPaginadoResponse response = editalService.listar(1L, null, "  Tecnologia  ", "  CNPq  ", null, null, false, 1, 10, EMAIL);
 
         assertEquals(1, response.items().size());
         assertEquals("CNPq", response.items().get(0).organizador());

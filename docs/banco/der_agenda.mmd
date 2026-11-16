@@ -1,0 +1,60 @@
+---
+config:
+  layout: elk
+---
+erDiagram
+  DOCUMENTO o|--o{ EVENTO : "ata_documento_id"
+  USUARIO ||--o{ EVENTO : "criador_id"
+  GRUPO ||--o{ EVENTO : "grupo_id"
+  PROJETO o|--o{ EVENTO : "projeto_id"
+  EVENTO ||--o{ EVENTO_PARTICIPANTE : "evento_id"
+  USUARIO o|--o{ EVENTO_PARTICIPANTE : "usuario_id"
+  EVENTO {
+    bigint id PK
+    varchar ata_nome_arquivo
+    varchar ata_s3_key
+    varchar ata_storage_provider
+    varchar ata_url
+    varchar descricao
+    timestamp dth_fim
+    timestamp dth_inicio
+    timestamp dth_registro
+    boolean is_ativo
+    boolean is_online
+    varchar localizacao
+    varchar organizador
+    varchar recorrencia
+    varchar tipo
+    varchar titulo
+    varchar url
+    bigint ata_documento_id FK
+    bigint criador_id FK
+    bigint grupo_id FK
+    bigint projeto_id FK
+  }
+  EVENTO_PARTICIPANTE {
+    bigint id PK
+    varchar nome
+    boolean presenca_confirmada
+    bigint evento_id FK
+    bigint usuario_id FK
+  }
+  DOCUMENTO {
+    bigint id PK
+    varchar chave
+    varchar content_type
+    bytea documento
+    timestamp dth_criacao
+    varchar extensao
+    varchar nome
+    bigint tamanho
+  }
+  GRUPO {
+    bigint id PK
+  }
+  PROJETO {
+    bigint id PK
+  }
+  USUARIO {
+    bigint id PK
+  }

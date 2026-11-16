@@ -84,6 +84,7 @@ public class PublicacaoService {
         }
 
         validarArquivoPdf(request.arquivo());
+        String link = normalizarLink(request.link());
 
         Projeto projeto = buscarProjeto(request.projetoId());
         Usuario solicitante = usuarioAutenticado(emailLogado);
@@ -107,6 +108,9 @@ public class PublicacaoService {
                 .documento(arquivo.documento())
                 .dthRegistro(LocalDateTime.now())
                 .isAtivo(true)
+                .tipo(request.tipo().trim())
+                .dataPublicacao(request.dataPublicacao())
+                .link(link)
                 .build();
 
         Publicacao salva = publicacaoRepository.save(publicacao);
@@ -141,6 +145,15 @@ public class PublicacaoService {
 
         publicacao.setTitulo(request.titulo().trim());
         publicacao.setDescricao(request.descricao().trim());
+        if (request.tipo() != null && !request.tipo().isBlank()) {
+            publicacao.setTipo(request.tipo().trim());
+        }
+        if (request.dataPublicacao() != null) {
+            publicacao.setDataPublicacao(request.dataPublicacao());
+        }
+        if (request.link() != null) {
+            publicacao.setLink(normalizarLink(request.link()));
+        }
 
         if (request.arquivo() != null && !request.arquivo().isEmpty()) {
             validarArquivoPdf(request.arquivo());
@@ -175,6 +188,7 @@ public class PublicacaoService {
             String emailLogado
     ) {
         Usuario solicitante = usuarioAutenticado(emailLogado);
+        Long restringirAoUsuario = null;
 
         if (projetoId != null) {
             Projeto projeto = buscarProjeto(projetoId);
@@ -182,6 +196,9 @@ public class PublicacaoService {
         } else if (grupoId != null) {
             if (!isAdmin(solicitante)) {
                 grupoAcessoService.validarMembro(grupoId, solicitante.getId());
+                if (!grupoAcessoService.isLider(grupoId, solicitante.getId())) {
+                    restringirAoUsuario = solicitante.getId();
+                }
             }
         } else {
             throw new IllegalArgumentException("Informe o grupoId ou o projetoId para listar publicações.");
@@ -201,6 +218,7 @@ public class PublicacaoService {
                 fim,
                 projetoId,
                 grupoId,
+                restringirAoUsuario,
                 pageable
         );
 
@@ -317,7 +335,7 @@ public class PublicacaoService {
         if (projeto == null || projeto.getGrupo() == null) {
             throw new SemPermissaoNoGrupoErro("Você não possui acesso às publicações deste projeto");
         }
-        grupoAcessoService.validarMembro(projeto.getGrupo().getId(), solicitante.getId());
+        grupoAcessoService.validarAcessoAoProjeto(projeto.getId(), solicitante.getId());
     }
 
     private void validarGestorDoProjeto(Projeto projeto, Usuario solicitante) {
@@ -407,6 +425,18 @@ public class PublicacaoService {
                 }
             }
         });
+    }
+
+    /** REQ-088: link externo opcional; vazio vira nulo e, quando informado, deve ser http(s). */
+    private String normalizarLink(String link) {
+        if (link == null || link.isBlank()) {
+            return null;
+        }
+        String valor = link.trim();
+        if (!valor.matches("^https?://\\S+$")) {
+            throw new IllegalArgumentException("O link da publicação deve começar com http:// ou https://.");
+        }
+        return valor;
     }
 
     private String extrairChaveS3(String url) {

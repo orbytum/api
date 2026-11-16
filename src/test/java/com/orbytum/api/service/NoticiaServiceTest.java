@@ -133,10 +133,10 @@ class NoticiaServiceTest {
     }
 
     @Test
-    void aprovarPorCoordenadorDefineStatusEPrazoPadrao() {
+    void aprovarPorLiderDoGrupoDefineStatusEPrazoPadrao() {
         when(noticiaRepository.findByIdAndIsAtivoTrue(1L)).thenReturn(Optional.of(noticia(NoticiaStatus.PENDENTE, autor, null)));
         when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
-        when(grupoAcessoService.isCoordenadorOuAcima(1L, 20L)).thenReturn(true);
+        when(grupoAcessoService.isLider(1L, 20L)).thenReturn(true);
         when(noticiaRepository.save(any(Noticia.class))).thenAnswer(inv -> inv.getArgument(0));
 
         NoticiaResponse response = noticiaService.aprovar(1L, EMAIL);
@@ -145,7 +145,7 @@ class NoticiaServiceTest {
         assertNotNull(response.dataFimExibicao());
         assertEquals(20L, response.aprovadorId());
         assertNotNull(response.dthAprovacao());
-        verify(grupoAcessoService).isCoordenadorOuAcima(1L, 20L);
+        verify(grupoAcessoService).isLider(1L, 20L);
     }
 
     @Test
@@ -153,7 +153,7 @@ class NoticiaServiceTest {
         when(noticiaRepository.findByIdAndIsAtivoTrue(1L))
                 .thenReturn(Optional.of(noticia(NoticiaStatus.APROVADA, autor, LocalDateTime.now().plusDays(5))));
         when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
-        when(grupoAcessoService.isCoordenadorOuAcima(1L, 20L)).thenReturn(true);
+        when(grupoAcessoService.isLider(1L, 20L)).thenReturn(true);
 
         assertThrows(NoticiaNaoPendenteErro.class, () -> noticiaService.aprovar(1L, EMAIL));
     }
@@ -162,7 +162,7 @@ class NoticiaServiceTest {
     void rejeitarPendenteGravaMotivo() {
         when(noticiaRepository.findByIdAndIsAtivoTrue(1L)).thenReturn(Optional.of(noticia(NoticiaStatus.PENDENTE, autor, null)));
         when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
-        when(grupoAcessoService.isCoordenadorOuAcima(1L, 20L)).thenReturn(true);
+        when(grupoAcessoService.isLider(1L, 20L)).thenReturn(true);
         when(noticiaRepository.save(any(Noticia.class))).thenAnswer(inv -> inv.getArgument(0));
 
         NoticiaResponse response = noticiaService.rejeitar(1L, new RejeitarNoticiaRequest("Falta referência"), EMAIL);
@@ -176,7 +176,7 @@ class NoticiaServiceTest {
         when(noticiaRepository.findByIdAndIsAtivoTrue(1L))
                 .thenReturn(Optional.of(noticia(NoticiaStatus.APROVADA, autor, LocalDateTime.now().plusDays(5))));
         when(usuarioService.findByEmail("autor@test.com")).thenReturn(Optional.of(autor));
-        when(grupoAcessoService.isCoordenadorOuAcima(1L, 10L)).thenReturn(false);
+        when(grupoAcessoService.isLider(1L, 10L)).thenReturn(false);
 
         EditNoticiaRequest request =
                 new EditNoticiaRequest("Título editado", "Conteúdo editado", null, "Assunto", null, null, null);
@@ -190,7 +190,7 @@ class NoticiaServiceTest {
         rejeitada.setMotivoRejeicao("Motivo antigo");
         when(noticiaRepository.findByIdAndIsAtivoTrue(1L)).thenReturn(Optional.of(rejeitada));
         when(usuarioService.findByEmail("autor@test.com")).thenReturn(Optional.of(autor));
-        when(grupoAcessoService.isCoordenadorOuAcima(1L, 10L)).thenReturn(false);
+        when(grupoAcessoService.isLider(1L, 10L)).thenReturn(false);
         when(noticiaRepository.save(any(Noticia.class))).thenAnswer(inv -> inv.getArgument(0));
 
         EditNoticiaRequest request =
@@ -207,14 +207,14 @@ class NoticiaServiceTest {
         Noticia aprovada = noticia(NoticiaStatus.APROVADA, autor, LocalDateTime.now().plusDays(10));
         when(grupoService.findById(1L)).thenReturn(Optional.of(grupo));
         when(usuarioService.findByEmail(EMAIL)).thenReturn(Optional.of(coordenador));
-        when(noticiaRepository.filtrarVigentes(eq(1L), eq(NoticiaStatus.APROVADA), any(), any(), any(), any(), isNull(), any()))
+        when(noticiaRepository.filtrarVigentes(eq(1L), eq(NoticiaStatus.APROVADA), any(), any(), any(), any(), isNull(), anyBoolean(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(aprovada)));
 
         NoticiaPaginadaResponse response = noticiaService.listar(1L, null, "  Tecnologia  ", null, null, 1, 10, EMAIL);
 
         assertEquals(1, response.items().size());
         assertEquals(NoticiaStatus.APROVADA, response.items().get(0).status());
-        verify(noticiaRepository).filtrarVigentes(eq(1L), eq(NoticiaStatus.APROVADA), any(), eq("Tecnologia"), any(), any(), isNull(), any());
+        verify(noticiaRepository).filtrarVigentes(eq(1L), eq(NoticiaStatus.APROVADA), any(), eq("Tecnologia"), any(), any(), isNull(), anyBoolean(), any(), any());
     }
 
     @Test
