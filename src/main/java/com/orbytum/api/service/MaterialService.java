@@ -100,13 +100,13 @@ public class MaterialService {
             return;
         }
 
-        boolean isLiderOuCoordenador = grupoXUsuarioRepository
+        boolean isLider = grupoXUsuarioRepository
                 .findAllByUsuarioEmailAndIsAtivoTrueAndGrupoIsAtivoTrue(emailLogado)
                 .stream()
-                .anyMatch(v -> v.getNivel() != null && v.getNivel().isPeloMenos(NivelMembro.COORDENADOR));
+                .anyMatch(v -> v.getNivel() != null && v.getNivel() == NivelMembro.LIDER);
 
-        if (!isLiderOuCoordenador) {
-            throw new AccessDeniedException("Apenas Líderes ou Coordenadores podem gerenciar materiais");
+        if (!isLider) {
+            throw new AccessDeniedException("Apenas o Líder do grupo pode gerenciar materiais");
         }
     }
 

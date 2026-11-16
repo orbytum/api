@@ -16,6 +16,8 @@ public interface SolicitacaoRepository extends JpaRepository<MaterialEmprestimoS
 
     List<MaterialEmprestimoSolicitacao> findAllByProjetoGrupoId(Long grupoId);
 
+    List<MaterialEmprestimoSolicitacao> findAllByOrderByDthSolicitacaoDesc();
+
     @Query("SELECT s FROM MaterialEmprestimoSolicitacao s JOIN s.items i " +
             "WHERE i.material.id = :materialId AND s.status = :status")
     List<MaterialEmprestimoSolicitacao> findByMaterialIdAndStatus(

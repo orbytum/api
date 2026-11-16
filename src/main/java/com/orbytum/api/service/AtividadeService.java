@@ -132,6 +132,8 @@ public class AtividadeService {
 
         validarAcessoAoGrupo(grupoId, solicitante);
         validarNaoColaborador(atividade.getProjeto(), solicitante);
+        // só quem participa do projeto (ou o gere) movimenta as atividades dele
+        validarPodeEscreverNoProjeto(atividade.getProjeto(), solicitante);
 
         if (atividade.getStatus() == AtividadeStatus.AGUARDANDO_APROVACAO
                 || novoStatus == AtividadeStatus.AGUARDANDO_APROVACAO
@@ -145,7 +147,8 @@ public class AtividadeService {
                     "Transição de status inválida: " + atividade.getStatus() + " -> " + novoStatus);
         }
 
-        if (novoStatus == AtividadeStatus.CONCLUIDA || novoStatus == AtividadeStatus.ENCERRADA) {
+        // o pesquisador conclui sozinho; encerrar continua restrito ao líder do grupo ou do projeto
+        if (novoStatus == AtividadeStatus.ENCERRADA) {
             validarGestorDoProjeto(atividade.getProjeto(), solicitante);
         }
 
@@ -213,6 +216,7 @@ public class AtividadeService {
         Atividade atividade = buscarEntidade(id);
         Usuario solicitante = usuarioAutenticado(emailLogado);
         validarAcessoAoGrupo(atividade.getProjeto().getGrupo().getId(), solicitante);
+        validarLeituraDoProjeto(atividade.getProjeto(), solicitante);
         return toResponse(atividade, solicitante);
     }
 
@@ -222,6 +226,7 @@ public class AtividadeService {
                 .orElseThrow(() -> new ProjetoNaoEncontradoErro("Projeto não encontrado com ID: " + projetoId));
         Usuario solicitante = usuarioAutenticado(emailLogado);
         validarAcessoAoGrupo(projeto.getGrupo().getId(), solicitante);
+        validarLeituraDoProjeto(projeto, solicitante);
 
         int pageIndex = Math.max(0, page - 1);
         int pageSize = size > 0 ? size : 10;
@@ -249,7 +254,10 @@ public class AtividadeService {
         validarAcessoAoGrupo(grupoId, solicitante);
 
         Map<Long, Boolean> projetosFinalizaveis = new HashMap<>();
+        Map<Long, Boolean> projetosAcessiveis = new HashMap<>();
         return atividadeRepository.findAllAtivasPorGrupo(grupoId).stream()
+                .filter(atividade -> projetosAcessiveis.computeIfAbsent(atividade.getProjeto().getId(),
+                        id -> isAdmin(solicitante) || grupoAcessoService.podeAcessarProjeto(id, solicitante.getId())))
                 .map(atividade -> {
                     Long projetoId = atividade.getProjeto().getId();
                     boolean finalizavel = projetosFinalizaveis.computeIfAbsent(
@@ -265,6 +273,7 @@ public class AtividadeService {
                 .orElseThrow(() -> new ProjetoNaoEncontradoErro("Projeto não encontrado com ID: " + projetoId));
         Usuario solicitante = usuarioAutenticado(emailLogado);
         validarAcessoAoGrupo(projeto.getGrupo().getId(), solicitante);
+        validarLeituraDoProjeto(projeto, solicitante);
 
         List<Atividade> atrasadas = atividadeRepository.findAllAtrasadasPorProjeto(
                 projetoId,
@@ -310,7 +319,7 @@ public class AtividadeService {
             return true;
         }
         Long grupoId = projeto.getGrupo().getId();
-        return grupoAcessoService.isCoordenadorOuAcima(grupoId, solicitante.getId())
+        return grupoAcessoService.isLider(grupoId, solicitante.getId())
                 || grupoAcessoService.isLiderDoProjeto(projeto.getId(), solicitante.getId());
     }
 
@@ -318,6 +327,12 @@ public class AtividadeService {
         if (!isGestorDoProjeto(projeto, solicitante)) {
             throw new SemPermissaoNoGrupoErro(
                     "Esta operação exige permissão de Líder do grupo ou do projeto");
+        }
+    }
+
+    private void validarLeituraDoProjeto(Projeto projeto, Usuario solicitante) {
+        if (!isAdmin(solicitante)) {
+            grupoAcessoService.validarAcessoAoProjeto(projeto.getId(), solicitante.getId());
         }
     }
 
@@ -334,7 +349,7 @@ public class AtividadeService {
             throw new SemPermissaoNoGrupoErro("Colaboradores possuem acesso somente leitura");
         }
 
-        boolean permitido = grupoAcessoService.isCoordenadorOuAcima(grupoId, usuarioId)
+        boolean permitido = grupoAcessoService.isLider(grupoId, usuarioId)
                 || grupoAcessoService.isLiderDoProjeto(projeto.getId(), usuarioId)
                 || grupoAcessoService.isMembroDoProjeto(projeto.getId(), usuarioId);
 

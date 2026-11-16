@@ -1,0 +1,111 @@
+---
+config:
+  layout: elk
+---
+erDiagram
+  ATIVIDADE o|--o{ ATIVIDADE : "atividade_pai_id"
+  PROJETO o|--o{ ATIVIDADE : "projeto_id"
+  USUARIO o|--o{ ATIVIDADE : "responsavel_id"
+  GRUPO o|--o{ CONVITE_GRUPO : "grupo_id"
+  USUARIO o|--o{ CONVITE_GRUPO : "usuario_convidado_id"
+  USUARIO o|--o{ CONVITE_GRUPO : "usuario_remetente_id"
+  EDITAL ||--o{ EDITAL_X_GRUPO : "edital_id"
+  GRUPO ||--o{ EDITAL_X_GRUPO : "grupo_id"
+  DOCUMENTO o|--o{ EVENTO : "ata_documento_id"
+  USUARIO ||--o{ EVENTO : "criador_id"
+  GRUPO ||--o{ EVENTO : "grupo_id"
+  PROJETO o|--o{ EVENTO : "projeto_id"
+  USUARIO o|--o{ GRUPO : "criador_id"
+  GRUPO o|--o{ GRUPOXUSUARIO : "grupo_id"
+  USUARIO o|--o{ GRUPOXUSUARIO : "usuario_id"
+  GRUPO o|--o{ MATERIAL_EMPRESTIMO : "grupo_id"
+  MATERIAL o|--o{ MATERIAL_EMPRESTIMO : "material_id"
+  USUARIO o|--o{ MATERIAL_EMPRESTIMO_SOLICITACAO : "aprovador_lider_id"
+  PROJETO o|--o{ MATERIAL_EMPRESTIMO_SOLICITACAO : "projeto_id"
+  GRUPOXUSUARIO o|--o{ MATERIAL_EMPRESTIMO_SOLICITACAO : "usuario_id"
+  USUARIO o|--o{ NOTICIA : "aprovador_id"
+  USUARIO o|--o{ NOTICIA : "autor_id"
+  GRUPO o|--o{ NOTICIA : "grupo_id"
+  GRUPO o|--o{ PROJETO : "grupo_id"
+  PROJETO o|--o{ PROJETOXUSUARIO : "projeto_id"
+  USUARIO o|--o{ PROJETOXUSUARIO : "usuario_id"
+  DOCUMENTO o|--o{ PUBLICACAO : "documento_id"
+  PROJETO o|--o{ PUBLICACAO : "projeto_id"
+  USUARIO {
+    bigint id PK
+  }
+  GRUPO {
+    bigint id PK
+    bigint criador_id FK
+  }
+  GRUPOXUSUARIO {
+    uuid id PK
+    bigint grupo_id FK
+    bigint role_id FK
+    bigint usuario_id FK
+  }
+  PROJETO {
+    bigint id PK
+    bigint grupo_id FK
+  }
+  PROJETOXUSUARIO {
+    uuid id PK
+    bigint projeto_id FK
+    bigint usuario_id FK
+  }
+  ATIVIDADE {
+    bigint id PK
+    bigint atividade_pai_id FK
+    bigint projeto_id FK
+    bigint responsavel_id FK
+  }
+  EVENTO {
+    bigint id PK
+    bigint ata_documento_id FK
+    bigint criador_id FK
+    bigint grupo_id FK
+    bigint projeto_id FK
+  }
+  NOTICIA {
+    bigint id PK
+    bigint aprovador_id FK
+    bigint autor_id FK
+    bigint grupo_id FK
+  }
+  EDITAL {
+    bigint id PK
+  }
+  MATERIAL {
+    bigint id PK
+  }
+  MATERIAL_EMPRESTIMO_SOLICITACAO {
+    bigint id PK
+    bigint projeto_id FK
+    uuid usuario_id FK
+    bigint aprovador_lider_id FK
+  }
+  PUBLICACAO {
+    bigint id PK
+    bigint documento_id FK
+    bigint projeto_id FK
+  }
+  DOCUMENTO {
+    bigint id PK
+  }
+  CONVITE_GRUPO {
+    bigint id PK
+    bigint grupo_id FK
+    bigint role_id FK
+    bigint usuario_convidado_id FK
+    bigint usuario_remetente_id FK
+  }
+  EDITAL_X_GRUPO {
+    bigint id PK
+    bigint edital_id FK
+    bigint grupo_id FK
+  }
+  MATERIAL_EMPRESTIMO {
+    bigint id PK
+    bigint grupo_id FK
+    bigint material_id FK
+  }

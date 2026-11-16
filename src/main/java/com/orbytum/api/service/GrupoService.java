@@ -18,6 +18,7 @@ import com.orbytum.api.models.dto.response.MeuGrupoResponse;
 import com.orbytum.api.models.dto.response.PesquisadorResponse;
 import com.orbytum.api.models.entity.ConviteGrupo;
 import com.orbytum.api.models.entity.CredenciaisLogin;
+import com.orbytum.api.models.exceptions.SemPermissaoNoGrupoErro;
 import com.orbytum.api.models.entity.Grupo;
 import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Role;
@@ -332,9 +333,11 @@ public class GrupoService {
         save(grupo);
     }
 
+    @Transactional
     public PesquisadorPaginadoResponse listarPesquisadores(Long grupoId, int page, int size, String nome) {
         Grupo grupo = findById(grupoId)
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + grupoId));
+        validarAdminOuLiderDoGrupo(grupoId);
 
         int pageIndex = Math.max(0, page - 1);
         int pageSize = size > 0 ? size : 10;
@@ -352,7 +355,7 @@ public class GrupoService {
                         v.getUsuario().getTelefone(),
                         v.getUsuario().getTitulo(),
                         grupo.getId(),
-                        v.getRole() != null ? v.getRole().getNome() : "Membro",
+                        rotuloDoPerfil(v.getNivel()),
                         v.getNivel(),
                         v.getFuncao(),
                         v.getNivel() == NivelMembro.LIDER
@@ -398,7 +401,7 @@ public class GrupoService {
                 usuarioAtualizado.getTelefone(),
                 usuarioAtualizado.getTitulo(),
                 grupo.getId(),
-                vinculo.getRole() != null ? vinculo.getRole().getNome() : "Membro",
+                rotuloDoPerfil(vinculo.getNivel()),
                 vinculo.getNivel(),
                 vinculo.getFuncao(),
                 vinculo.getNivel() == NivelMembro.LIDER
@@ -426,7 +429,8 @@ public class GrupoService {
         if (credenciais.getAccessLevel() == AccessLevel.ADMIN || credenciais.getAccessLevel() == AccessLevel.INITIAL_ADMIN) {
             List<Grupo> grupos = findAllAtivos();
             return grupos.stream()
-                    .map(g -> new MeuGrupoResponse(g.getId(), g.getNome(), "Administrador", null, true))
+                    .map(g -> new MeuGrupoResponse(g.getId(), g.getNome(), "Administrador", null, true,
+                            usuarioService.findByEmail(emailUsuarioLogado).map(Usuario::getId).orElse(null)))
                     .toList();
         }
 
@@ -435,11 +439,41 @@ public class GrupoService {
                 .map(v -> new MeuGrupoResponse(
                         v.getGrupo().getId(),
                         v.getGrupo().getNome(),
-                        v.getRole() != null ? v.getRole().getNome() : "Membro",
+                        rotuloDoPerfil(v.getNivel()),
                         v.getNivel(),
-                        v.getNivel() == NivelMembro.LIDER
+                        v.getNivel() == NivelMembro.LIDER,
+                        v.getUsuario().getId()
                 ))
                 .toList();
+    }
+
+    /** Rótulo do perfil no grupo, derivado do nível (o antigo papel Coordenador não existe mais). */
+    private static String rotuloDoPerfil(NivelMembro nivel) {
+        if (nivel == null) {
+            return "Pesquisador";
+        }
+        return switch (nivel) {
+            case LIDER -> "Líder";
+            case PESQUISADOR -> "Pesquisador";
+            case COLABORADOR -> "Colaborador";
+        };
+    }
+
+    /** Membros de um grupo só são visíveis ao administrador e ao líder do grupo. */
+    private void validarAdminOuLiderDoGrupo(Long grupoId) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        CredenciaisLogin credenciais = credenciaisLoginService.findByEmail(email)
+                .orElseThrow(() -> new AccessDeniedException("Usuário não autenticado"));
+        if (credenciais.getAccessLevel() == AccessLevel.ADMIN || credenciais.getAccessLevel() == AccessLevel.INITIAL_ADMIN) {
+            return;
+        }
+        boolean lider = usuarioService.findByEmail(email)
+                .flatMap(u -> grupoXUsuarioRepository.findByGrupoIdAndUsuarioIdAndIsAtivoTrue(grupoId, u.getId()))
+                .map(v -> v.getNivel() == NivelMembro.LIDER)
+                .orElse(false);
+        if (!lider) {
+            throw new SemPermissaoNoGrupoErro("Apenas o líder do grupo pode ver os membros do grupo");
+        }
     }
 
     private GrupoResponse mapearParaGrupoResponse(Grupo grupo) {

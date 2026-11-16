@@ -14,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/grupos/{grupoId}/editais")
@@ -39,12 +40,30 @@ public class EditalController {
             @RequestParam(required = false) String organizacao,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim,
+            @RequestParam(defaultValue = "false") boolean somenteRelevantes,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication authentication) {
         EditalPaginadoResponse response = editalService.listar(
-                grupoId, projetoId, palavraChave, organizacao, dataInicio, dataFim, page, size, authentication.getName());
+                grupoId, projetoId, palavraChave, organizacao, dataInicio, dataFim, somenteRelevantes,
+                page, size, authentication.getName());
         return ResponseEntity.ok(response);
+    }
+
+    /** REQ-060: palavras-chave dos temas do grupo. */
+    @GetMapping("/palavras-chave")
+    public ResponseEntity<List<String>> listarPalavrasChave(
+            @PathVariable Long grupoId,
+            Authentication authentication) {
+        return ResponseEntity.ok(editalService.listarPalavrasChave(grupoId, authentication.getName()));
+    }
+
+    @PutMapping("/palavras-chave")
+    public ResponseEntity<List<String>> atualizarPalavrasChave(
+            @PathVariable Long grupoId,
+            @RequestBody List<String> palavras,
+            Authentication authentication) {
+        return ResponseEntity.ok(editalService.atualizarPalavrasChave(grupoId, palavras, authentication.getName()));
     }
 
     @GetMapping("/{id}")

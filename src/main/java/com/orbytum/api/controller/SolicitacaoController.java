@@ -29,6 +29,19 @@ public class SolicitacaoController {
                 .body(solicitacaoService.criar(request, authentication.getName()));
     }
 
+    @GetMapping
+    public ResponseEntity<List<SolicitacaoResponse>> listarTodas(Authentication authentication) {
+        return ResponseEntity.ok(solicitacaoService.listarTodas(authentication.getName()));
+    }
+
+    @GetMapping("/grupo/{grupoId}")
+    public ResponseEntity<List<SolicitacaoResponse>> listarPorGrupo(
+            @PathVariable Long grupoId,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(solicitacaoService.listarPorGrupo(grupoId, authentication.getName()));
+    }
+
     @GetMapping("/projeto/{projetoId}")
     public ResponseEntity<List<SolicitacaoResponse>> listarPorProjeto(
             @PathVariable Long projetoId,

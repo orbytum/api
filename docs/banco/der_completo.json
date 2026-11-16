@@ -1,0 +1,1370 @@
+{
+ "tabelas": [
+  {
+   "nome": "atividade",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "varchar",
+     "nome": "descricao",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_conclusao",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_prazo",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_registro",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_ativo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "motivo_rejeicao",
+     "chave": ""
+    },
+    {
+     "tipo": "integer",
+     "nome": "status",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "titulo",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "atividade_pai_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "projeto_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "responsavel_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "convite_cadastro",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_expiracao",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_registro",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "email",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_ativo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "token",
+     "chave": ""
+    }
+   ]
+  },
+  {
+   "nome": "convite_grupo",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_expiracao",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_registro",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "email_convidado",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_ativo",
+     "chave": ""
+    },
+    {
+     "tipo": "integer",
+     "nome": "limite_uso",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "nivel",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "token",
+     "chave": ""
+    },
+    {
+     "tipo": "integer",
+     "nome": "usos",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "grupo_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "role_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "usuario_convidado_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "usuario_remetente_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "convitexprojeto",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "convite_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "projeto_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "credenciais_login",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "varchar",
+     "nome": "access_level",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "email",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_ativo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "senha",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "criador_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "documento",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "varchar",
+     "nome": "chave",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "content_type",
+     "chave": ""
+    },
+    {
+     "tipo": "bytea",
+     "nome": "documento",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_criacao",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "extensao",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "nome",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "tamanho",
+     "chave": ""
+    }
+   ]
+  },
+  {
+   "nome": "edital",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "text",
+     "nome": "descricao",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_abertura",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_encerramento",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "organizador",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "uri",
+     "chave": ""
+    },
+    {
+     "tipo": "numeric",
+     "nome": "valor",
+     "chave": ""
+    }
+   ]
+  },
+  {
+   "nome": "edital_x_grupo",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "edital_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "grupo_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "edital_x_projeto",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "edital_id",
+     "chave": "PK, FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "projeto_id",
+     "chave": "PK, FK"
+    }
+   ]
+  },
+  {
+   "nome": "evento",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "varchar",
+     "nome": "ata_nome_arquivo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "ata_s3_key",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "ata_storage_provider",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "ata_url",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "descricao",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_fim",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_inicio",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_registro",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_ativo",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_online",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "localizacao",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "organizador",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "recorrencia",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "tipo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "titulo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "url",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "ata_documento_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "criador_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "grupo_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "projeto_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "evento_participante",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "varchar",
+     "nome": "nome",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "presenca_confirmada",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "evento_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "usuario_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "grupo",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_ativo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "nome",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "criador_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "grupo_palavra_chave",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "grupo_id",
+     "chave": "PK, FK"
+    },
+    {
+     "tipo": "varchar",
+     "nome": "palavra",
+     "chave": "PK"
+    }
+   ]
+  },
+  {
+   "nome": "grupoxusuario",
+   "colunas": [
+    {
+     "tipo": "uuid",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "varchar",
+     "nome": "funcao",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_ativo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "nivel",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "grupo_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "role_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "usuario_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "material",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "varchar",
+     "nome": "categoria",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "descricao",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_compra",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_registro",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "identificador",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_ativo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "localizacao",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "nome",
+     "chave": ""
+    },
+    {
+     "tipo": "integer",
+     "nome": "quantidade",
+     "chave": ""
+    },
+    {
+     "tipo": "integer",
+     "nome": "status",
+     "chave": ""
+    }
+   ]
+  },
+  {
+   "nome": "material_emprestimo",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_fim",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_inicio",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_devolvido",
+     "chave": ""
+    },
+    {
+     "tipo": "integer",
+     "nome": "quantidade",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "grupo_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "material_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "material_emprestimo_solicitacao",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_resposta",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_solicitacao",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_aprovada",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_interna",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "justificativa",
+     "chave": ""
+    },
+    {
+     "tipo": "integer",
+     "nome": "status",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "projeto_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "uuid",
+     "nome": "usuario_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "text",
+     "nome": "descricao",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_aprovacao_lider",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "titulo",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "aprovador_lider_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "material_emprestimo_solicitacao_item",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "integer",
+     "nome": "quantidade",
+     "chave": ""
+    },
+    {
+     "tipo": "numeric",
+     "nome": "valor",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "material_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "material_emprestimo_solicitacao_items",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "material_emprestimo_solicitacao_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "items_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "noticia",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "varchar",
+     "nome": "assunto",
+     "chave": ""
+    },
+    {
+     "tipo": "text",
+     "nome": "conteudo",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "data_fim_exibicao",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "data_inicio_exibicao",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_aprovacao",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_registro",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_ativo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "motivo_rejeicao",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "referencia",
+     "chave": ""
+    },
+    {
+     "tipo": "integer",
+     "nome": "status",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "titulo",
+     "chave": ""
+    },
+    {
+     "tipo": "uuid",
+     "nome": "uuid",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "aprovador_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "autor_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "grupo_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "noticia_x_projeto",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "noticia_id",
+     "chave": "PK, FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "projeto_id",
+     "chave": "PK, FK"
+    }
+   ]
+  },
+  {
+   "nome": "projeto",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "varchar",
+     "nome": "assunto",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_registro",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_ativo",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_favorito",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_inicial",
+     "chave": ""
+    },
+    {
+     "tipo": "integer",
+     "nome": "status",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "titulo",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "grupo_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "projetoxusuario",
+   "colunas": [
+    {
+     "tipo": "uuid",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_ativo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "nivel",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "projeto_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "usuario_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "publicacao",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "date",
+     "nome": "data_publicacao",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "descricao",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_registro",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_ativo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "link",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "storage_key",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "storage_provider",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "tipo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "titulo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "url",
+     "chave": ""
+    },
+    {
+     "tipo": "uuid",
+     "nome": "uuid",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "documento_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "projeto_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
+   "nome": "role",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_lider",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "nome",
+     "chave": ""
+    }
+   ]
+  },
+  {
+   "nome": "rolexpermissao",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "role_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "varchar",
+     "nome": "permissoes",
+     "chave": ""
+    }
+   ]
+  },
+  {
+   "nome": "usuario",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_registro",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "email",
+     "chave": ""
+    },
+    {
+     "tipo": "boolean",
+     "nome": "is_ativo",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "nome",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "telefone",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "titulo",
+     "chave": ""
+    }
+   ]
+  }
+ ],
+ "relacoes": [
+  {
+   "tabela": "atividade",
+   "coluna": "atividade_pai_id",
+   "referencia": "atividade",
+   "nulavel": true
+  },
+  {
+   "tabela": "atividade",
+   "coluna": "projeto_id",
+   "referencia": "projeto",
+   "nulavel": true
+  },
+  {
+   "tabela": "atividade",
+   "coluna": "responsavel_id",
+   "referencia": "usuario",
+   "nulavel": true
+  },
+  {
+   "tabela": "convite_grupo",
+   "coluna": "grupo_id",
+   "referencia": "grupo",
+   "nulavel": true
+  },
+  {
+   "tabela": "convite_grupo",
+   "coluna": "role_id",
+   "referencia": "role",
+   "nulavel": true
+  },
+  {
+   "tabela": "convite_grupo",
+   "coluna": "usuario_convidado_id",
+   "referencia": "usuario",
+   "nulavel": true
+  },
+  {
+   "tabela": "convite_grupo",
+   "coluna": "usuario_remetente_id",
+   "referencia": "usuario",
+   "nulavel": true
+  },
+  {
+   "tabela": "convitexprojeto",
+   "coluna": "convite_id",
+   "referencia": "convite_grupo",
+   "nulavel": false
+  },
+  {
+   "tabela": "convitexprojeto",
+   "coluna": "projeto_id",
+   "referencia": "projeto",
+   "nulavel": false
+  },
+  {
+   "tabela": "credenciais_login",
+   "coluna": "criador_id",
+   "referencia": "usuario",
+   "nulavel": true
+  },
+  {
+   "tabela": "edital_x_grupo",
+   "coluna": "edital_id",
+   "referencia": "edital",
+   "nulavel": false
+  },
+  {
+   "tabela": "edital_x_grupo",
+   "coluna": "grupo_id",
+   "referencia": "grupo",
+   "nulavel": false
+  },
+  {
+   "tabela": "edital_x_projeto",
+   "coluna": "edital_id",
+   "referencia": "edital",
+   "nulavel": false
+  },
+  {
+   "tabela": "edital_x_projeto",
+   "coluna": "projeto_id",
+   "referencia": "projeto",
+   "nulavel": false
+  },
+  {
+   "tabela": "evento",
+   "coluna": "ata_documento_id",
+   "referencia": "documento",
+   "nulavel": true
+  },
+  {
+   "tabela": "evento",
+   "coluna": "criador_id",
+   "referencia": "usuario",
+   "nulavel": false
+  },
+  {
+   "tabela": "evento",
+   "coluna": "grupo_id",
+   "referencia": "grupo",
+   "nulavel": false
+  },
+  {
+   "tabela": "evento",
+   "coluna": "projeto_id",
+   "referencia": "projeto",
+   "nulavel": true
+  },
+  {
+   "tabela": "evento_participante",
+   "coluna": "evento_id",
+   "referencia": "evento",
+   "nulavel": false
+  },
+  {
+   "tabela": "evento_participante",
+   "coluna": "usuario_id",
+   "referencia": "usuario",
+   "nulavel": true
+  },
+  {
+   "tabela": "grupo",
+   "coluna": "criador_id",
+   "referencia": "usuario",
+   "nulavel": true
+  },
+  {
+   "tabela": "grupo_palavra_chave",
+   "coluna": "grupo_id",
+   "referencia": "grupo",
+   "nulavel": false
+  },
+  {
+   "tabela": "grupoxusuario",
+   "coluna": "grupo_id",
+   "referencia": "grupo",
+   "nulavel": true
+  },
+  {
+   "tabela": "grupoxusuario",
+   "coluna": "role_id",
+   "referencia": "role",
+   "nulavel": true
+  },
+  {
+   "tabela": "grupoxusuario",
+   "coluna": "usuario_id",
+   "referencia": "usuario",
+   "nulavel": true
+  },
+  {
+   "tabela": "material_emprestimo",
+   "coluna": "grupo_id",
+   "referencia": "grupo",
+   "nulavel": true
+  },
+  {
+   "tabela": "material_emprestimo",
+   "coluna": "material_id",
+   "referencia": "material",
+   "nulavel": true
+  },
+  {
+   "tabela": "material_emprestimo_solicitacao",
+   "coluna": "aprovador_lider_id",
+   "referencia": "usuario",
+   "nulavel": true
+  },
+  {
+   "tabela": "material_emprestimo_solicitacao",
+   "coluna": "projeto_id",
+   "referencia": "projeto",
+   "nulavel": true
+  },
+  {
+   "tabela": "material_emprestimo_solicitacao",
+   "coluna": "usuario_id",
+   "referencia": "grupoxusuario",
+   "nulavel": true
+  },
+  {
+   "tabela": "material_emprestimo_solicitacao_item",
+   "coluna": "material_id",
+   "referencia": "material",
+   "nulavel": true
+  },
+  {
+   "tabela": "material_emprestimo_solicitacao_items",
+   "coluna": "items_id",
+   "referencia": "material_emprestimo_solicitacao_item",
+   "nulavel": false
+  },
+  {
+   "tabela": "material_emprestimo_solicitacao_items",
+   "coluna": "material_emprestimo_solicitacao_id",
+   "referencia": "material_emprestimo_solicitacao",
+   "nulavel": false
+  },
+  {
+   "tabela": "noticia",
+   "coluna": "aprovador_id",
+   "referencia": "usuario",
+   "nulavel": true
+  },
+  {
+   "tabela": "noticia",
+   "coluna": "autor_id",
+   "referencia": "usuario",
+   "nulavel": true
+  },
+  {
+   "tabela": "noticia",
+   "coluna": "grupo_id",
+   "referencia": "grupo",
+   "nulavel": true
+  },
+  {
+   "tabela": "noticia_x_projeto",
+   "coluna": "noticia_id",
+   "referencia": "noticia",
+   "nulavel": false
+  },
+  {
+   "tabela": "noticia_x_projeto",
+   "coluna": "projeto_id",
+   "referencia": "projeto",
+   "nulavel": false
+  },
+  {
+   "tabela": "projeto",
+   "coluna": "grupo_id",
+   "referencia": "grupo",
+   "nulavel": true
+  },
+  {
+   "tabela": "projetoxusuario",
+   "coluna": "projeto_id",
+   "referencia": "projeto",
+   "nulavel": true
+  },
+  {
+   "tabela": "projetoxusuario",
+   "coluna": "usuario_id",
+   "referencia": "usuario",
+   "nulavel": true
+  },
+  {
+   "tabela": "publicacao",
+   "coluna": "documento_id",
+   "referencia": "documento",
+   "nulavel": true
+  },
+  {
+   "tabela": "publicacao",
+   "coluna": "projeto_id",
+   "referencia": "projeto",
+   "nulavel": true
+  },
+  {
+   "tabela": "rolexpermissao",
+   "coluna": "role_id",
+   "referencia": "role",
+   "nulavel": false
+  }
+ ]
+}

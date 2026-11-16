@@ -12,6 +12,8 @@ import com.orbytum.api.models.entity.joinColumns.GrupoXUsuario;
 import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.enums.NivelMembro;
 import com.orbytum.api.models.enums.ProjetoStatus;
+import com.orbytum.api.models.entity.joinColumns.ProjetoXUsuario;
+import com.orbytum.api.models.exceptions.EditalNaoEncontradoErro;
 import com.orbytum.api.models.exceptions.SemPermissaoNoGrupoErro;
 import com.orbytum.api.repository.CredenciaisLoginRepository;
 import com.orbytum.api.repository.EditalRepository;
@@ -19,6 +21,7 @@ import com.orbytum.api.repository.EditalXGrupoRepository;
 import com.orbytum.api.repository.GrupoRepository;
 import com.orbytum.api.repository.GrupoXUsuarioRepository;
 import com.orbytum.api.repository.ProjetoRepository;
+import com.orbytum.api.repository.ProjetoXUsuarioRepository;
 import com.orbytum.api.repository.RoleRepository;
 import com.orbytum.api.repository.UsuarioRepository;
 import com.orbytum.api.service.EditalService;
@@ -66,6 +69,9 @@ public class EditalIntegrationTest {
     private ProjetoRepository projetoRepository;
 
     @Autowired
+    private ProjetoXUsuarioRepository projetoXUsuarioRepository;
+
+    @Autowired
     private TransactionTemplate transactionTemplate;
 
     private static final String LIDER_EMAIL = "edital.lider@teste.com";
@@ -107,6 +113,7 @@ public class EditalIntegrationTest {
         transactionTemplate.executeWithoutResult(status -> {
             editalXGrupoRepository.deleteAll();
             editalRepository.deleteAll();
+            projetoXUsuarioRepository.deleteAll();
             projetoRepository.deleteAll();
             grupoXUsuarioRepository.deleteAll();
             grupoRepository.deleteAll();
@@ -130,7 +137,7 @@ public class EditalIntegrationTest {
         criar("CNPq", "Edital de tecnologia", "https://a.com/1", agora, agora.plusDays(10), LIDER_EMAIL);
 
         EditalPaginadoResponse listagem = editalService.listar(
-                grupo.getId(), null, null, null, null, null, 1, 10, PESQUISADOR_EMAIL);
+                grupo.getId(), null, null, null, null, null, false, 1, 10, PESQUISADOR_EMAIL);
 
         assertEquals(1, listagem.totalElements());
         assertEquals("CNPq", listagem.items().get(0).organizador());
@@ -150,7 +157,7 @@ public class EditalIntegrationTest {
         criar("FAPESP", "Edital de biologia marinha", "https://b.com/2", agora, agora.plusDays(20), LIDER_EMAIL);
 
         EditalPaginadoResponse listagem = editalService.listar(
-                grupo.getId(), null, "tecnologia", null, null, null, 1, 10, LIDER_EMAIL);
+                grupo.getId(), null, "tecnologia", null, null, null, false, 1, 10, LIDER_EMAIL);
 
         assertEquals(1, listagem.totalElements());
         assertEquals("CNPq", listagem.items().get(0).organizador());
@@ -169,7 +176,7 @@ public class EditalIntegrationTest {
                 LIDER_EMAIL);
 
         EditalPaginadoResponse listagem = editalService.listar(
-                grupo.getId(), projeto.getId(), null, null, null, null, 1, 10, LIDER_EMAIL);
+                grupo.getId(), projeto.getId(), null, null, null, null, false, 1, 10, LIDER_EMAIL);
 
         assertEquals(1, listagem.totalElements());
         assertEquals("CNPq", listagem.items().get(0).organizador());
@@ -184,7 +191,7 @@ public class EditalIntegrationTest {
         criar("FAPESP", "Edital B", "https://b.com/2", agora, agora.plusDays(20), LIDER_EMAIL);
 
         EditalPaginadoResponse listagem = editalService.listar(
-                grupo.getId(), null, null, "fapesp", null, null, 1, 10, LIDER_EMAIL);
+                grupo.getId(), null, null, "fapesp", null, null, false, 1, 10, LIDER_EMAIL);
 
         assertEquals(1, listagem.totalElements());
         assertEquals("FAPESP", listagem.items().get(0).organizador());
@@ -199,7 +206,7 @@ public class EditalIntegrationTest {
         LocalDate inicio = agora.toLocalDate();
         LocalDate fim = agora.toLocalDate().plusDays(30);
         EditalPaginadoResponse listagem = editalService.listar(
-                grupo.getId(), null, null, null, inicio, fim, 1, 10, LIDER_EMAIL);
+                grupo.getId(), null, null, null, inicio, fim, false, 1, 10, LIDER_EMAIL);
 
         assertEquals(1, listagem.totalElements());
         assertEquals("CNPq", listagem.items().get(0).organizador());
@@ -211,6 +218,98 @@ public class EditalIntegrationTest {
         criar("CNPq", "Edital A", "https://a.com/1", agora, agora.plusDays(10), LIDER_EMAIL);
 
         assertThrows(RuntimeException.class, () -> editalService.listar(
-                grupo.getId(), null, null, null, null, null, 1, 10, ESTRANGEIRO_EMAIL));
+                grupo.getId(), null, null, null, null, null, false, 1, 10, ESTRANGEIRO_EMAIL));
+    }
+
+    // ---------------------------------------------------------------- REQ-060: palavras-chave do grupo
+
+    @Test
+    void liderCadastraPalavrasChaveNormalizadasESemDuplicatas() {
+        List<String> salvas = editalService.atualizarPalavrasChave(
+                grupo.getId(), List.of("  IA aplicada ", "ia aplicada", "", "agricultura"), LIDER_EMAIL);
+
+        assertEquals(List.of("IA aplicada", "agricultura"), salvas);
+        assertEquals(salvas, editalService.listarPalavrasChave(grupo.getId(), PESQUISADOR_EMAIL));
+    }
+
+    @Test
+    void pesquisadorNaoGerenciaPalavrasChave() {
+        assertThrows(SemPermissaoNoGrupoErro.class, () ->
+                editalService.atualizarPalavrasChave(grupo.getId(), List.of("tema"), PESQUISADOR_EMAIL));
+    }
+
+    @Test
+    void palavraChaveComMaisDe60CaracteresEhRejeitada() {
+        assertThrows(IllegalArgumentException.class, () ->
+                editalService.atualizarPalavrasChave(grupo.getId(), List.of("x".repeat(61)), LIDER_EMAIL));
+    }
+
+    @Test
+    void filtroDeRelevanciaUsaDescricaoEOrganizacao() {
+        LocalDateTime agora = LocalDateTime.now();
+        criar("CNPq", "Chamada de IA aplicada à saúde", "https://a.com/1", agora, agora.plusDays(10), LIDER_EMAIL);
+        criar("Embrapa Agricultura", "Programa de inovação", "https://a.com/2", agora, agora.plusDays(10), LIDER_EMAIL);
+        criar("CAPES", "Bolsas de física teórica", "https://a.com/3", agora, agora.plusDays(10), LIDER_EMAIL);
+        editalService.atualizarPalavrasChave(grupo.getId(), List.of("ia aplicada", "agricultura"), LIDER_EMAIL);
+
+        EditalPaginadoResponse todos = editalService.listar(
+                grupo.getId(), null, null, null, null, null, false, 1, 10, PESQUISADOR_EMAIL);
+        EditalPaginadoResponse relevantes = editalService.listar(
+                grupo.getId(), null, null, null, null, null, true, 1, 10, PESQUISADOR_EMAIL);
+
+        assertEquals(3, todos.totalElements());
+        assertEquals(2, relevantes.totalElements());
+        assertTrue(relevantes.items().stream().noneMatch(e -> e.organizador().equals("CAPES")));
+    }
+
+    @Test
+    void filtroDeRelevanciaSemPalavrasChaveNaoRetornaEditais() {
+        LocalDateTime agora = LocalDateTime.now();
+        criar("CNPq", "Edital qualquer", "https://a.com/1", agora, agora.plusDays(10), LIDER_EMAIL);
+
+        EditalPaginadoResponse relevantes = editalService.listar(
+                grupo.getId(), null, null, null, null, null, true, 1, 10, LIDER_EMAIL);
+
+        assertEquals(0, relevantes.totalElements());
+    }
+
+    // ---------------------------------------------------------------- REQ-093: visibilidade por projeto
+
+    private EditalResponse criarDoProjeto(String organizador, String uri) {
+        LocalDateTime agora = LocalDateTime.now();
+        return editalService.criar(grupo.getId(), new CriarEditalRequest(
+                organizador, "Edital restrito", null, uri, agora, agora.plusDays(10), List.of(projeto.getId())),
+                LIDER_EMAIL);
+    }
+
+    @Test
+    void editalDeProjetoNaoApareceParaQuemNaoParticipa() {
+        LocalDateTime agora = LocalDateTime.now();
+        criar("Público", "Edital aberto", "https://a.com/1", agora, agora.plusDays(10), LIDER_EMAIL);
+        EditalResponse restrito = criarDoProjeto("Restrito", "https://a.com/2");
+
+        EditalPaginadoResponse doPesquisador = editalService.listar(
+                grupo.getId(), null, null, null, null, null, false, 1, 10, PESQUISADOR_EMAIL);
+        EditalPaginadoResponse doLider = editalService.listar(
+                grupo.getId(), null, null, null, null, null, false, 1, 10, LIDER_EMAIL);
+
+        assertEquals(1, doPesquisador.totalElements());
+        assertEquals("Público", doPesquisador.items().get(0).organizador());
+        assertEquals(2, doLider.totalElements());
+        assertThrows(EditalNaoEncontradoErro.class, () ->
+                editalService.buscar(restrito.id(), grupo.getId(), PESQUISADOR_EMAIL));
+    }
+
+    @Test
+    void participanteDoProjetoVeEditalDoProjeto() {
+        EditalResponse restrito = criarDoProjeto("Restrito", "https://a.com/2");
+        transactionTemplate.executeWithoutResult(status -> projetoXUsuarioRepository.save(new ProjetoXUsuario(
+                projeto, usuarioRepository.findByEmail(PESQUISADOR_EMAIL).orElseThrow(), NivelMembro.PESQUISADOR)));
+
+        EditalPaginadoResponse doPesquisador = editalService.listar(
+                grupo.getId(), null, null, null, null, null, false, 1, 10, PESQUISADOR_EMAIL);
+
+        assertEquals(1, doPesquisador.totalElements());
+        assertEquals(restrito.id(), editalService.buscar(restrito.id(), grupo.getId(), PESQUISADOR_EMAIL).id());
     }
 }

@@ -14,6 +14,7 @@ import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.enums.NivelMembro;
 import com.orbytum.api.models.enums.NoticiaStatus;
 import com.orbytum.api.models.enums.ProjetoStatus;
+import com.orbytum.api.models.exceptions.NoticiaNaoEncontradaErro;
 import com.orbytum.api.models.exceptions.SemPermissaoNoGrupoErro;
 import com.orbytum.api.repository.CredenciaisLoginRepository;
 import com.orbytum.api.repository.GrupoRepository;
@@ -97,7 +98,7 @@ public class NoticiaIntegrationTest {
                     estrangeiro.getEmail(), "senha123", AccessLevel.USER, estrangeiro, null));
 
             grupo = grupoRepository.save(new Grupo("Grupo Notícias IT", lider));
-            grupoXUsuarioRepository.save(new GrupoXUsuario(grupo, lider, role, NivelMembro.COORDENADOR, null, true));
+            grupoXUsuarioRepository.save(new GrupoXUsuario(grupo, lider, role, NivelMembro.LIDER, null, true));
             grupoXUsuarioRepository.save(new GrupoXUsuario(grupo, pesquisador, role, NivelMembro.PESQUISADOR, null, true));
 
             projeto = projetoRepository.save(new Projeto(
@@ -140,7 +141,7 @@ public class NoticiaIntegrationTest {
     }
 
     @Test
-    void noticiaAprovadaPorCoordenadorApareceNaListagem() {
+    void noticiaAprovadaPeloLiderApareceNaListagem() {
         NoticiaResponse criada = criarComoPesquisador("Descoberta", null);
 
         NoticiaResponse aprovada = noticiaService.aprovar(criada.id(), LIDER_EMAIL);
@@ -224,5 +225,38 @@ public class NoticiaIntegrationTest {
 
         assertThrows(RuntimeException.class,
                 () -> noticiaService.listar(grupo.getId(), null, null, null, null, 1, 10, ESTRANGEIRO_EMAIL));
+    }
+
+    // ---------------------------------------------------------------- REQ-093: visibilidade por projeto
+
+    @Test
+    void noticiaDeProjetoSoApareceParaParticipantesEGestores() {
+        String outroEmail = "noticia.outro@teste.com";
+        transactionTemplate.executeWithoutResult(status -> {
+            Usuario outro = usuarioRepository.save(new Usuario("Outro Pesquisador", outroEmail, "11966660004", "Ms"));
+            credenciaisLoginRepository.save(new CredenciaisLogin(outro.getEmail(), "senha123", AccessLevel.USER, outro, null));
+            grupoXUsuarioRepository.save(new GrupoXUsuario(grupo, outro, role, NivelMembro.PESQUISADOR, null, true));
+        });
+
+        NoticiaResponse publica = noticiaService.criar(new CreateNoticiaRequest(grupo.getId(), "Notícia aberta",
+                "Conteúdo", "https://ref.com", "Tecnologia", null, null, null), LIDER_EMAIL);
+        NoticiaResponse restrita = noticiaService.criar(new CreateNoticiaRequest(grupo.getId(), "Notícia do projeto",
+                "Conteúdo", "https://ref.com", "Tecnologia", null, null, List.of(projeto.getId())), LIDER_EMAIL);
+        for (NoticiaResponse n : List.of(publica, restrita)) {
+            if (n.status() != NoticiaStatus.APROVADA) {
+                noticiaService.aprovar(n.id(), LIDER_EMAIL);
+            }
+        }
+
+        NoticiaPaginadaResponse doOutro = noticiaService.listar(grupo.getId(), null, null, null, null, 1, 10, outroEmail);
+        NoticiaPaginadaResponse doParticipante = noticiaService.listar(grupo.getId(), null, null, null, null, 1, 10, PESQUISADOR_EMAIL);
+        NoticiaPaginadaResponse doLiderDoGrupo = noticiaService.listar(grupo.getId(), null, null, null, null, 1, 10, LIDER_EMAIL);
+
+        assertEquals(1, doOutro.totalElements());
+        assertEquals("Notícia aberta", doOutro.items().get(0).titulo());
+        assertEquals(2, doParticipante.totalElements());
+        assertEquals(2, doLiderDoGrupo.totalElements());
+        assertThrows(NoticiaNaoEncontradaErro.class, () -> noticiaService.buscar(restrita.id(), outroEmail));
+        assertEquals(restrita.id(), noticiaService.buscar(restrita.id(), PESQUISADOR_EMAIL).id());
     }
 }

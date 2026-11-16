@@ -31,7 +31,13 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.orbytum.api.models.exceptions.GrupoNaoEncontradoErro;
+import com.orbytum.api.models.exceptions.LembreteNaoEncontradoErro;
+import com.orbytum.api.models.exceptions.SemPermissaoNoGrupoErro;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 @SpringBootTest
@@ -154,5 +160,58 @@ class LembreteEscopoIntegrationTest {
                 projetoId,
                 paraGrupoInteiro
         );
+    }
+
+    // ---------------------------------------------------------------- REQ-093: detalhe do lembrete
+
+    @Test
+    void membroQueNaoParticipaNaoAbreLembreteDoProjeto() {
+        LembreteResponse doProjeto = lembreteService.criar(
+                request("Encontro do projeto", projeto.getId(), false), LIDER_EMAIL);
+
+        assertThrows(LembreteNaoEncontradoErro.class, () -> lembreteService.buscar(doProjeto.id(), MEMBRO_EMAIL));
+        assertEquals(doProjeto.id(), lembreteService.buscar(doProjeto.id(), LIDER_PROJETO_EMAIL).id());
+        assertEquals(doProjeto.id(), lembreteService.buscar(doProjeto.id(), LIDER_EMAIL).id());
+    }
+
+    // ---------------------------------------------------------------- REQ-069: assinatura da agenda
+
+    private String tokenDaAssinatura(String email) {
+        String url = lembreteService.gerarAssinatura(grupo.getId(), email).url();
+        assertTrue(url.contains("/calendario/feed/"), url);
+        return url.substring(url.lastIndexOf('/') + 1);
+    }
+
+    @Test
+    void feedDaAssinaturaRespeitaOEscopoDoUsuario() {
+        lembreteService.criar(request("Encontro aberto", null, true), LIDER_EMAIL);
+        lembreteService.criar(request("Encontro do projeto", projeto.getId(), false), LIDER_EMAIL);
+
+        String icsMembro = new String(lembreteService.exportarIcsAssinatura(tokenDaAssinatura(MEMBRO_EMAIL)));
+        String icsLiderProjeto = new String(lembreteService.exportarIcsAssinatura(tokenDaAssinatura(LIDER_PROJETO_EMAIL)));
+
+        assertTrue(icsMembro.contains("Encontro aberto"));
+        assertFalse(icsMembro.contains("Encontro do projeto"));
+        assertTrue(icsLiderProjeto.contains("Encontro aberto"));
+        assertTrue(icsLiderProjeto.contains("Encontro do projeto"));
+    }
+
+    @Test
+    void feedComTokenInvalidoEhRejeitado() {
+        assertThrows(GrupoNaoEncontradoErro.class, () -> lembreteService.exportarIcsAssinatura("abc.def.ghi"));
+    }
+
+    @Test
+    void feedDeixaDeFuncionarQuandoUsuarioSaiDoGrupo() {
+        String token = tokenDaAssinatura(MEMBRO_EMAIL);
+        transactionTemplate.executeWithoutResult(status -> {
+            Usuario membro = usuarioRepository.findByEmail(MEMBRO_EMAIL).orElseThrow();
+            GrupoXUsuario vinculo = grupoXUsuarioRepository
+                    .findByGrupoIdAndUsuarioIdAndIsAtivoTrue(grupo.getId(), membro.getId()).orElseThrow();
+            vinculo.setAtivo(false);
+            grupoXUsuarioRepository.save(vinculo);
+        });
+
+        assertThrows(SemPermissaoNoGrupoErro.class, () -> lembreteService.exportarIcsAssinatura(token));
     }
 }

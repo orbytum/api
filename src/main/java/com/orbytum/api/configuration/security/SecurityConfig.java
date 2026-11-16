@@ -53,6 +53,8 @@ public class SecurityConfig {
                         "/auth/**",
                         "/convites/aceitar/cadastro/**",
                         "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/calendario/feed/**",
                         "/v3/api-docs/**",
                         "/swagger/**").permitAll()
                 .anyRequest().authenticated()

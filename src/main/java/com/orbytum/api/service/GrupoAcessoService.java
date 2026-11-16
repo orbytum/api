@@ -42,11 +42,6 @@ public class GrupoAcessoService {
         return isMembro(grupoId, usuarioId) && nivelDoUsuario(grupoId, usuarioId) == NivelMembro.LIDER;
     }
 
-    public boolean isCoordenadorOuAcima(Long grupoId, Long usuarioId) {
-        NivelMembro nivel = nivelDoUsuario(grupoId, usuarioId);
-        return nivel != null && nivel.isPeloMenos(NivelMembro.COORDENADOR);
-    }
-
     public boolean isColaborador(Long grupoId, Long usuarioId) {
         return nivelDoUsuario(grupoId, usuarioId) == NivelMembro.COLABORADOR;
     }
@@ -86,7 +81,7 @@ public class GrupoAcessoService {
 
     /**
      * Regra central de gestão de projeto:
-     * admin (tratado pelo chamador) / líder ou coordenador do grupo / líder do projeto.
+     * admin (tratado pelo chamador) / líder do grupo / líder do projeto.
      * Colaborador no grupo nunca gerencia.
      */
     public boolean podeGerenciarProjeto(Long projetoId, Long usuarioId) {
@@ -107,7 +102,7 @@ public class GrupoAcessoService {
         if (nivelGrupo == NivelMembro.COLABORADOR) {
             return false;
         }
-        if (nivelGrupo != null && nivelGrupo.isPeloMenos(NivelMembro.COORDENADOR)) {
+        if (nivelGrupo == NivelMembro.LIDER) {
             return true;
         }
         return isLiderDoProjeto(projetoId, usuarioId);
@@ -122,12 +117,6 @@ public class GrupoAcessoService {
     public void validarLider(Long grupoId, Long usuarioId) {
         if (!isLider(grupoId, usuarioId)) {
             throw new SemPermissaoNoGrupoErro("Esta operação exige permissão de Líder do grupo");
-        }
-    }
-
-    public void validarCoordenadorOuAcima(Long grupoId, Long usuarioId) {
-        if (!isCoordenadorOuAcima(grupoId, usuarioId)) {
-            throw new SemPermissaoNoGrupoErro("Esta operação exige permissão de Líder ou Coordenador do grupo");
         }
     }
 
@@ -146,6 +135,35 @@ public class GrupoAcessoService {
     public void validarPodeGerenciarProjeto(Long projetoId, Long usuarioId) {
         if (!podeGerenciarProjeto(projetoId, usuarioId)) {
             throw new SemPermissaoNoGrupoErro("Esta operação exige permissão de Líder do grupo ou do projeto");
+        }
+    }
+
+    /**
+     * Leitura de um projeto (dados, participantes, atividades, publicações e solicitações):
+     * administrador, líder do grupo ou participante do projeto (líder, pesquisador ou colaborador).
+     */
+    public boolean podeAcessarProjeto(Long projetoId, Long usuarioId) {
+        if (projetoId == null || usuarioId == null) {
+            return false;
+        }
+        if (isAdmin(usuarioId) || isMembroDoProjeto(projetoId, usuarioId)) {
+            return true;
+        }
+        Long grupoId = projetoXUsuarioRepository.findGrupoIdByProjetoId(projetoId).orElse(null);
+        return grupoId != null && isLider(grupoId, usuarioId);
+    }
+
+    public void validarAcessoAoProjeto(Long projetoId, Long usuarioId) {
+        if (!podeAcessarProjeto(projetoId, usuarioId)) {
+            throw new SemPermissaoNoGrupoErro("Você não tem acesso a este projeto");
+        }
+    }
+
+    /** Colaborador (no grupo ou no projeto) tem acesso somente de leitura. */
+    public void validarPodeEscreverNoProjeto(Long projetoId, Long usuarioId) {
+        Long grupoId = projetoXUsuarioRepository.findGrupoIdByProjetoId(projetoId).orElse(null);
+        if ((grupoId != null && isColaborador(grupoId, usuarioId)) || isColaboradorDoProjeto(projetoId, usuarioId)) {
+            throw new SemPermissaoNoGrupoErro("Colaboradores possuem acesso somente leitura");
         }
     }
 

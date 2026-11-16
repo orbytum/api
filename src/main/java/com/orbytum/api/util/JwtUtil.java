@@ -30,7 +30,11 @@ public class JwtUtil {
 
     public String generateToken(UserDetails userDetails, AccessLevel accessLevel, List<Permissao> permissoes) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("accessLevel", accessLevel != null ? accessLevel.getKey() : AccessLevel.USER.getKey());
+        String nivel = accessLevel != null ? accessLevel.getKey() : AccessLevel.USER.getKey();
+        // REQ-009: payloads username, role e iat (o iat é definido em createToken)
+        claims.put("username", userDetails.getUsername());
+        claims.put("role", nivel);
+        claims.put("accessLevel", nivel);
         claims.put("permissoes", permissoes != null ? permissoes.stream().map(Permissao::getKey).collect(Collectors.toList()) : Collections.emptyList());
         return createToken(claims, userDetails.getUsername());
     }
@@ -79,5 +83,38 @@ public class JwtUtil {
 
     private boolean isTokenExpired(String token) {
         return extractAllClaims(token).getExpiration().before(new Date());
+    }
+
+    /** Dados do link de assinatura da agenda de um grupo (REQ-069). */
+    public record TokenCalendario(Long usuarioId, Long grupoId) {}
+
+    /**
+     * Gera o token do link de assinatura da agenda. É assinado com uma chave derivada,
+     * diferente da usada no login, para que não possa ser usado como token de acesso à API.
+     */
+    public String gerarTokenCalendario(Long usuarioId, Long grupoId) {
+        return Jwts.builder()
+                .claim("uid", usuarioId)
+                .claim("gid", grupoId)
+                .issuedAt(new Date())
+                .signWith(chaveCalendario())
+                .compact();
+    }
+
+    /** Lança {@link io.jsonwebtoken.JwtException} se o token for inválido. */
+    public TokenCalendario lerTokenCalendario(String token) {
+        Claims claims = Jwts.parser().verifyWith(chaveCalendario()).build()
+                .parseSignedClaims(token).getPayload();
+        return new TokenCalendario(claims.get("uid", Long.class), claims.get("gid", Long.class));
+    }
+
+    private SecretKey chaveCalendario() {
+        try {
+            byte[] derivada = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(("calendario:" + secret).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return Keys.hmacShaKeyFor(derivada);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

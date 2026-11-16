@@ -110,10 +110,10 @@ public class AtividadeIntegrationTest {
             grupo = grupoRepository.save(new Grupo("Grupo Atividades", lider));
             projeto = projetoRepository.save(new Projeto(grupo, ProjetoStatus.EM_ANDAMENTO, "Projeto", "Assunto"));
 
-            grupoXUsuarioRepository.save(new GrupoXUsuario(grupo, lider, role, NivelMembro.COORDENADOR, null, true));
+            grupoXUsuarioRepository.save(new GrupoXUsuario(grupo, lider, role, NivelMembro.LIDER, null, true));
             grupoXUsuarioRepository.save(new GrupoXUsuario(grupo, pesquisador, role, NivelMembro.PESQUISADOR, null, true));
 
-            projetoXUsuarioRepository.save(new ProjetoXUsuario(projeto, lider, NivelMembro.COORDENADOR));
+            projetoXUsuarioRepository.save(new ProjetoXUsuario(projeto, lider, NivelMembro.LIDER));
             projetoXUsuarioRepository.save(new ProjetoXUsuario(projeto, pesquisador, NivelMembro.PESQUISADOR));
         });
     }
