@@ -1,0 +1,78 @@
+---
+title: Orbytum API — Casos de Uso (3/3) · Conteúdo e Agenda
+config:
+  layout: elk
+---
+flowchart LR
+  %% Notação: elipse = caso de uso · linha simples = associação ator–caso de uso
+  %% seta "generalização" = o ator especializado herda os casos de uso do ator geral
+  %% «include» aponta do caso base para o incluído · «extend» aponta da extensão para o caso base
+
+  COL@{ img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMTAiIHI9IjcuNSIgZmlsbD0iI2ZmZiIvPjxsaW5lIHgxPSIyMCIgeTE9IjE3LjUiIHgyPSIyMCIgeTI9IjM4Ii8+PGxpbmUgeDE9IjUiIHkxPSIyNSIgeDI9IjM1IiB5Mj0iMjUiLz48bGluZSB4MT0iMjAiIHkxPSIzOCIgeDI9IjciIHkyPSI1NiIvPjxsaW5lIHgxPSIyMCIgeTE9IjM4IiB4Mj0iMzMiIHkyPSI1NiIvPjwvZz48L3N2Zz4=", label: "Colaborador", pos: "b", w: 40, h: 60, constraint: "on" }
+  PES@{ img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMTAiIHI9IjcuNSIgZmlsbD0iI2ZmZiIvPjxsaW5lIHgxPSIyMCIgeTE9IjE3LjUiIHgyPSIyMCIgeTI9IjM4Ii8+PGxpbmUgeDE9IjUiIHkxPSIyNSIgeDI9IjM1IiB5Mj0iMjUiLz48bGluZSB4MT0iMjAiIHkxPSIzOCIgeDI9IjciIHkyPSI1NiIvPjxsaW5lIHgxPSIyMCIgeTE9IjM4IiB4Mj0iMzMiIHkyPSI1NiIvPjwvZz48L3N2Zz4=", label: "Pesquisador", pos: "b", w: 40, h: 60, constraint: "on" }
+  LPJ@{ img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMTAiIHI9IjcuNSIgZmlsbD0iI2ZmZiIvPjxsaW5lIHgxPSIyMCIgeTE9IjE3LjUiIHgyPSIyMCIgeTI9IjM4Ii8+PGxpbmUgeDE9IjUiIHkxPSIyNSIgeDI9IjM1IiB5Mj0iMjUiLz48bGluZSB4MT0iMjAiIHkxPSIzOCIgeDI9IjciIHkyPSI1NiIvPjxsaW5lIHgxPSIyMCIgeTE9IjM4IiB4Mj0iMzMiIHkyPSI1NiIvPjwvZz48L3N2Zz4=", label: "Líder de projeto", pos: "b", w: 40, h: 60, constraint: "on" }
+  LGR@{ img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMTAiIHI9IjcuNSIgZmlsbD0iI2ZmZiIvPjxsaW5lIHgxPSIyMCIgeTE9IjE3LjUiIHgyPSIyMCIgeTI9IjM4Ii8+PGxpbmUgeDE9IjUiIHkxPSIyNSIgeDI9IjM1IiB5Mj0iMjUiLz48bGluZSB4MT0iMjAiIHkxPSIzOCIgeDI9IjciIHkyPSI1NiIvPjxsaW5lIHgxPSIyMCIgeTE9IjM4IiB4Mj0iMzMiIHkyPSI1NiIvPjwvZz48L3N2Zz4=", label: "Líder do grupo", pos: "b", w: 40, h: 60, constraint: "on" }
+  EXT@{ img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMTAiIHI9IjcuNSIgZmlsbD0iI2ZmZiIvPjxsaW5lIHgxPSIyMCIgeTE9IjE3LjUiIHgyPSIyMCIgeTI9IjM4Ii8+PGxpbmUgeDE9IjUiIHkxPSIyNSIgeDI9IjM1IiB5Mj0iMjUiLz48bGluZSB4MT0iMjAiIHkxPSIzOCIgeDI9IjciIHkyPSI1NiIvPjxsaW5lIHgxPSIyMCIgeTE9IjM4IiB4Mj0iMzMiIHkyPSI1NiIvPjwvZz48L3N2Zz4=", label: "«sistema»<br/>Agenda externa<br/>(Google / Outlook)", pos: "b", w: 40, h: 60, constraint: "on" }
+
+  PES -->|generalização| COL
+  LPJ -->|generalização| PES
+  LGR -->|generalização| LPJ
+
+  subgraph SIS["Sistema Orbytum"]
+    direction TB
+    subgraph NOT["Notícias"]
+      UC30(["UC30 · Consultar / filtrar notícias"])
+      UC31(["UC31 · Cadastrar notícia"])
+      UC32(["UC32 · Preencher notícia a partir de link"])
+      UC33(["UC33 · Aprovar / rejeitar notícia"])
+    end
+    subgraph PUB["Publicações"]
+      UC34(["UC34 · Consultar / baixar publicações"])
+      UC35(["UC35 · Manter publicações"])
+      UC36(["UC36 · Anexar documento PDF"])
+    end
+    subgraph EDT["Editais"]
+      UC37(["UC37 · Consultar / filtrar editais"])
+      UC38(["UC38 · Manter editais"])
+      UC39(["UC39 · Manter palavras-chave do grupo"])
+    end
+    subgraph AGD["Lembretes e Calendário"]
+      UC40(["UC40 · Consultar lembretes e calendário"])
+      UC41(["UC41 · Baixar ata de reunião"])
+      UC42(["UC42 · Confirmar presença"])
+      UC43(["UC43 · Manter lembretes do projeto"])
+      UC44(["UC44 · Manter lembretes do grupo inteiro"])
+      UC45(["UC45 · Inserir ata de reunião"])
+      UC46(["UC46 · Exportar / assinar calendário (ICS)"])
+    end
+  end
+
+  COL --- UC30
+  COL --- UC34
+  COL --- UC37
+  COL --- UC40
+  COL --- UC41
+  COL --- UC46
+
+  PES --- UC31
+  PES --- UC42
+
+  LPJ --- UC33
+  LPJ --- UC35
+  LPJ --- UC43
+
+  LGR --- UC38
+  LGR --- UC39
+  LGR --- UC44
+
+  UC46 --- EXT
+
+  UC32 -. "«extend»" .-> UC31
+  UC36 -. "«extend»" .-> UC35
+  UC45 -. "«extend»<br/>tipo Reunião, só o criador" .-> UC43
+  UC45 -. "«extend»<br/>tipo Reunião, só o criador" .-> UC44
+
+
+  classDef actor fill:none,stroke:none
+  class COL,PES,LPJ,LGR,EXT actor
+  style SIS fill:#fafbff,stroke:#4a5a85,stroke-width:2px
