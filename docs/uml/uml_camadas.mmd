@@ -1,0 +1,304 @@
+---
+title: Orbytum API — Diagrama de Classes (Controllers, Serviços e Armazenamento)
+config:
+  layout: elk
+  class:
+    hideEmptyMembersBox: true
+---
+classDiagram
+  direction LR
+
+  %% ======================= Controllers =======================
+  class AuthController { <<RestController /auth>> }
+  class ConviteController { <<RestController /convites>> }
+  class GrupoController { <<RestController /grupos>> }
+  class RoleController { <<RestController /roles>> }
+  class ProjetoController { <<RestController /projetos>> }
+  class AtividadeController { <<RestController /atividades>> }
+  class NoticiaController { <<RestController /noticias>> }
+  class PublicacaoController { <<RestController /publicacoes>> }
+  class EditalController { <<RestController /grupos/:grupoId/editais>> }
+  class LembreteController { <<RestController /lembretes, /eventos>> }
+  class CalendarioController { <<RestController /calendario>> }
+  class MaterialController { <<RestController /materiais>> }
+  class SolicitacaoController { <<RestController /solicitacoes>> }
+
+  %% ======================= Fachada / Serviços =======================
+  class AuthService {
+    +login(LoginRequest) AuthResponse
+    +registerAdmin(RegisterAdminRequest, String) AuthResponse
+  }
+  class ConviteService {
+    +enviarConvite(EnviarConviteRequest, String) ConviteGrupoEnviadoResponse
+    +gerarConviteGrupo(GerarConviteGrupoRequest, String) ConviteGrupoResponse
+    +gerarConviteCadastro(GerarConviteCadastroRequest, String) ConviteCadastroResponse
+    +aceitarConviteGrupo(String, String) ConviteGrupoEnviadoResponse
+    +aceitarConviteGrupoCadastro(String, RegisterRequest) AuthResponse
+    +aceitarConviteCadastro(String, RegisterRequest) AuthResponse
+    +listarConvitesCadastro(...) ConviteCadastroPaginadoResponse
+    +revogarConviteCadastro(Long, String) void
+    +buscarConviteGrupoPorToken(String) ConviteGrupoDetalheResponse
+  }
+  class GrupoService {
+    +criarGrupo(CreateGroupRequest) GrupoResponse
+    +atualizarGrupo(Long, EditGroupRequest) GrupoResponse
+    +buscarPorId(Long) GrupoResponse
+    +listarGrupos(int, int, String, String) GrupoPaginadoResponse
+    +removerGrupo(Long) void
+    +cadastrarLider(Long, CreateLeaderRequest) LiderResponse
+    +atualizarLider(Long, Long, EditLeaderRequest) LiderResponse
+    +listarPesquisadores(Long, int, int, String) PesquisadorPaginadoResponse
+    +atualizarPesquisador(Long, Long, EditLeaderRequest) PesquisadorResponse
+    +removerPesquisador(Long, Long) void
+    +listarMeusGrupos(String) List~MeuGrupoResponse~
+  }
+  class RoleService {
+    +listarRoles() List~RoleResponse~
+    +findById(Long) Optional~Role~
+    +obterOuCriarRolePadrao() Role
+    +obterOuCriarRoleLider() Role
+  }
+  class ProjetoFachada {
+    <<Facade>>
+    +criarProjeto(CreateProjetoRequest) ProjetoResponse
+    +atualizarProjeto(Long, EditProjetoRequest) ProjetoResponse
+    +deletarProjeto(Long) void
+    +alternarFavorito(Long) ProjetoResponse
+    +finalizarProjeto(Long) ProjetoResponse
+    +listarProjetosPorGrupo(Long) List~ProjetoResponse~
+    +buscarProjeto(Long) ProjetoResponse
+    +listarParticipantes(Long) List~ParticipanteResponse~
+    +adicionarParticipante(Long, AdicionarParticipanteRequest) ParticipanteResponse
+    +removerParticipante(Long, Long) void
+  }
+  class ProjetoService {
+    +findById(Long) Optional~Projeto~
+    +findAllByIds(List~Long~) List~Projeto~
+    +findAllAtivosByGrupoId(Long) List~Projeto~
+    +save(Projeto) Projeto
+    +delete(Projeto) void
+    +finalizarProjeto(Projeto) Projeto
+  }
+  class AtividadeService {
+    +criar(CreateAtividadeRequest, String) AtividadeResponse
+    +atualizar(Long, EditAtividadeRequest, String) AtividadeResponse
+    +atualizarStatus(Long, AtividadeStatus, String) AtividadeResponse
+    +aprovar(Long, String) AtividadeResponse
+    +rejeitar(Long, RejeitarAtividadeRequest, String) AtividadeResponse
+    +deletar(Long, String) void
+    +buscar(Long, String) AtividadeResponse
+    +listarPorProjeto(Long, int, int, String) AtividadePaginadoResponse
+    +listarPorGrupo(Long, String) List~AtividadeResponse~
+    +listarAtrasadasPorProjeto(Long, String) List~AtividadeResponse~
+  }
+  class NoticiaService {
+    +criar(CreateNoticiaRequest, String) NoticiaResponse
+    +atualizar(Long, EditNoticiaRequest, String) NoticiaResponse
+    +aprovar(Long, String) NoticiaResponse
+    +rejeitar(Long, RejeitarNoticiaRequest, String) NoticiaResponse
+    +deletar(Long, String) void
+    +buscar(Long, String) NoticiaResponse
+    +listar(...) NoticiaPaginadaResponse
+    +listarPendentes(...) NoticiaPaginadaResponse
+  }
+  class LinkPreviewService {
+    +extrair(String) LinkPreviewResponse
+  }
+  class PublicacaoService {
+    +criarPublicacao(CreatePublicacaoRequest, String) PublicacaoResponse
+    +atualizarPublicacao(Long, EditarPublicacaoRequest, String) PublicacaoResponse
+    +listarPublicacoes(...) PublicacaoPaginadaResponse
+    +buscarPorId(Long, String) PublicacaoResponse
+    +buscarPorUuid(UUID, String) PublicacaoResponse
+    +baixarArquivo(UUID, String) ArquivoDownload
+    +inativarPublicacao(Long, String) void
+  }
+  class EditalService {
+    +criar(Long, CriarEditalRequest, String) EditalResponse
+    +atualizar(Long, Long, EditarEditalRequest, String) EditalResponse
+    +buscar(Long, Long, String) EditalResponse
+    +listar(...) EditalPaginadoResponse
+    +removerDoGrupo(Long, Long, String) void
+    +listarPalavrasChave(Long, String) List~String~
+    +atualizarPalavrasChave(Long, List~String~, String) List~String~
+  }
+  class LembreteService {
+    +criar(CreateLembreteRequest, String) LembreteResponse
+    +atualizar(Long, EditLembreteRequest, String) LembreteResponse
+    +deletar(Long, String) void
+    +buscar(Long, String) LembreteResponse
+    +listarPorGrupo(...) LembretePaginadoResponse
+    +listarTodosPorGrupo(Long, Long, TipoLembrete, String, String) List~LembreteResponse~
+    +exportarIcs(Long, String) byte[]
+    +gerarAssinatura(Long, String) AssinaturaCalendarioResponse
+    +exportarIcsAssinatura(String) byte[]
+    +inserirAta(Long, MultipartFile, String) LembreteResponse
+    +downloadAta(Long, String) byte[]
+    +confirmarPresenca(Long, String) LembreteResponse
+  }
+  class MaterialService {
+    +listar(String) List~MaterialResponse~
+    +buscarPorId(Long, String) MaterialResponse
+    +criar(CriarMaterialRequest, String) MaterialResponse
+    +atualizar(Long, EditarMaterialRequest, String) MaterialResponse
+    +remover(Long, String) void
+  }
+  class SolicitacaoService {
+    +criar(CriarSolicitacaoRequest, String) SolicitacaoResponse
+    +atualizar(Long, EditarSolicitacaoRequest, String) SolicitacaoResponse
+    +remover(Long, String) void
+    +buscarPorId(Long, String) SolicitacaoResponse
+    +listarTodas(String) List~SolicitacaoResponse~
+    +listarPorGrupo(Long, String) List~SolicitacaoResponse~
+    +listarPorProjeto(Long, String) List~SolicitacaoResponse~
+    +aprovar(Long, String) SolicitacaoResponse
+    +rejeitar(Long, String) SolicitacaoResponse
+    +concluir(Long, String) SolicitacaoResponse
+    +encerrar(Long, String) SolicitacaoResponse
+  }
+
+  %% ======================= Serviços de apoio =======================
+  class GrupoAcessoService {
+    +isMembro(Long, Long) boolean
+    +isLider(Long, Long) boolean
+    +isAdmin(Long) boolean
+    +nivelDoUsuario(Long, Long) NivelMembro
+    +podeAcessarProjeto(Long, Long) boolean
+    +podeGerenciarProjeto(Long, Long) boolean
+    +validarMembro(Long, Long) void
+    +validarLider(Long, Long) void
+    +validarAcessoAoProjeto(Long, Long) void
+    +validarPodeEscreverNoProjeto(Long, Long) void
+  }
+  class UsuarioService {
+    +findByEmail(String) Optional~Usuario~
+    +findById(Long) Optional~Usuario~
+    +save(Usuario) Usuario
+    +delete(Usuario) void
+  }
+  class CredenciaisLoginService {
+    +findByEmail(String) Optional~CredenciaisLogin~
+    +existsByEmail(String) boolean
+    +findByAccessLevel(AccessLevel) Optional~CredenciaisLogin~
+    +save(CredenciaisLogin) CredenciaisLogin
+  }
+  class GrupoXUsuarioService {
+    +findPermissoesByUsuario(Usuario) List~Permissao~
+    +findByGrupoIdAndUsuarioId(Long, Long) Optional~GrupoXUsuario~
+    +isUsuarioNoGrupo(Long, Long) boolean
+  }
+  class EmailService {
+    +sendHtmlEmail(String, String, String) void
+    +sendTemplateEmail(String, String, String, Map) void
+    +sendEmail(EmailRequest) void
+  }
+  class JwtUtil {
+    <<util>>
+  }
+
+  %% ======================= Armazenamento de arquivos =======================
+  class ArquivoStorage {
+    <<interface>>
+    +salvar(String, MultipartFile) ArquivoArmazenado
+    +baixar(String, StorageProvider) byte[]
+    +excluir(String, StorageProvider) void
+    +disponivel(StorageProvider) boolean
+  }
+  class FallbackStorageService {
+    +salvar(String, MultipartFile) ArquivoArmazenado
+    +baixar(String, StorageProvider) byte[]
+    +excluir(String, StorageProvider) void
+    +disponivel(StorageProvider) boolean
+  }
+  class S3StorageService {
+    +isConfigured() boolean
+    +uploadFile(String, MultipartFile) String
+    +downloadFile(String) byte[]
+    +deleteFile(String) void
+    +generatePresignedGetUrl(String, Duration) String
+  }
+  class DatabaseStorageService {
+    +salvar(String, MultipartFile) ArquivoArmazenado
+    +baixar(String) byte[]
+    +excluir(String) void
+  }
+  class ArquivoArmazenado { <<record>> }
+  class ArquivoDownload { <<record>> }
+
+  %% ======================= Controllers -> Serviços =======================
+  AuthController --> AuthService
+  ConviteController --> ConviteService
+  GrupoController --> GrupoService
+  RoleController --> RoleService
+  ProjetoController --> ProjetoFachada
+  AtividadeController --> AtividadeService
+  NoticiaController --> NoticiaService
+  NoticiaController --> LinkPreviewService
+  PublicacaoController --> PublicacaoService
+  EditalController --> EditalService
+  LembreteController --> LembreteService
+  CalendarioController --> LembreteService
+  MaterialController --> MaterialService
+  SolicitacaoController --> SolicitacaoService
+
+  %% ======================= Serviço -> Serviço =======================
+  AuthService --> CredenciaisLoginService
+  AuthService --> UsuarioService
+  AuthService --> GrupoXUsuarioService
+  AuthService ..> JwtUtil
+
+  ConviteService --> GrupoService
+  ConviteService --> ProjetoService
+  ConviteService --> UsuarioService
+  ConviteService --> CredenciaisLoginService
+  ConviteService --> GrupoXUsuarioService
+  ConviteService --> GrupoAcessoService
+  ConviteService --> EmailService
+  ConviteService ..> JwtUtil
+
+  GrupoService --> ProjetoService
+  GrupoService --> UsuarioService
+  GrupoService --> CredenciaisLoginService
+  GrupoService --> GrupoXUsuarioService
+  GrupoService --> EmailService
+
+  ProjetoFachada --> ProjetoService
+  ProjetoFachada --> GrupoService
+  ProjetoFachada --> UsuarioService
+  ProjetoFachada --> GrupoAcessoService
+
+  AtividadeService --> ProjetoService
+  AtividadeService --> UsuarioService
+  AtividadeService --> GrupoAcessoService
+
+  NoticiaService --> GrupoService
+  NoticiaService --> ProjetoService
+  NoticiaService --> UsuarioService
+  NoticiaService --> GrupoAcessoService
+
+  PublicacaoService --> UsuarioService
+  PublicacaoService --> GrupoAcessoService
+  PublicacaoService --> ArquivoStorage
+  PublicacaoService ..> ArquivoDownload
+
+  EditalService --> GrupoService
+  EditalService --> ProjetoService
+  EditalService --> UsuarioService
+  EditalService --> GrupoAcessoService
+
+  LembreteService --> ProjetoService
+  LembreteService --> UsuarioService
+  LembreteService --> GrupoAcessoService
+  LembreteService --> ArquivoStorage
+  LembreteService ..> JwtUtil
+
+  MaterialService --> CredenciaisLoginService
+  SolicitacaoService --> UsuarioService
+  SolicitacaoService --> CredenciaisLoginService
+  SolicitacaoService --> GrupoAcessoService
+
+  %% ======================= Storage =======================
+  ArquivoStorage <|.. FallbackStorageService
+  FallbackStorageService --> S3StorageService
+  FallbackStorageService --> DatabaseStorageService
+  ArquivoStorage ..> ArquivoArmazenado
