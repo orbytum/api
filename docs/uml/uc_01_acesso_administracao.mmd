@@ -1,0 +1,56 @@
+---
+title: Orbytum API — Casos de Uso (1/3) · Acesso e Administração
+config:
+  layout: elk
+---
+flowchart LR
+  %% Notação: elipse = caso de uso · linha simples = associação ator–caso de uso
+  %% «include» aponta do caso base para o incluído · «extend» aponta da extensão para o caso base
+
+  VIS@{ img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMTAiIHI9IjcuNSIgZmlsbD0iI2ZmZiIvPjxsaW5lIHgxPSIyMCIgeTE9IjE3LjUiIHgyPSIyMCIgeTI9IjM4Ii8+PGxpbmUgeDE9IjUiIHkxPSIyNSIgeDI9IjM1IiB5Mj0iMjUiLz48bGluZSB4MT0iMjAiIHkxPSIzOCIgeDI9IjciIHkyPSI1NiIvPjxsaW5lIHgxPSIyMCIgeTE9IjM4IiB4Mj0iMzMiIHkyPSI1NiIvPjwvZz48L3N2Zz4=", label: "Visitante", pos: "b", w: 40, h: 60, constraint: "on" }
+  COL@{ img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMTAiIHI9IjcuNSIgZmlsbD0iI2ZmZiIvPjxsaW5lIHgxPSIyMCIgeTE9IjE3LjUiIHgyPSIyMCIgeTI9IjM4Ii8+PGxpbmUgeDE9IjUiIHkxPSIyNSIgeDI9IjM1IiB5Mj0iMjUiLz48bGluZSB4MT0iMjAiIHkxPSIzOCIgeDI9IjciIHkyPSI1NiIvPjxsaW5lIHgxPSIyMCIgeTE9IjM4IiB4Mj0iMzMiIHkyPSI1NiIvPjwvZz48L3N2Zz4=", label: "Colaborador<br/>(e perfis derivados)", pos: "b", w: 40, h: 60, constraint: "on" }
+  ADI@{ img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMTAiIHI9IjcuNSIgZmlsbD0iI2ZmZiIvPjxsaW5lIHgxPSIyMCIgeTE9IjE3LjUiIHgyPSIyMCIgeTI9IjM4Ii8+PGxpbmUgeDE9IjUiIHkxPSIyNSIgeDI9IjM1IiB5Mj0iMjUiLz48bGluZSB4MT0iMjAiIHkxPSIzOCIgeDI9IjciIHkyPSI1NiIvPjxsaW5lIHgxPSIyMCIgeTE9IjM4IiB4Mj0iMzMiIHkyPSI1NiIvPjwvZz48L3N2Zz4=", label: "Admin inicial", pos: "b", w: 40, h: 60, constraint: "on" }
+  ADM@{ img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMTAiIHI9IjcuNSIgZmlsbD0iI2ZmZiIvPjxsaW5lIHgxPSIyMCIgeTE9IjE3LjUiIHgyPSIyMCIgeTI9IjM4Ii8+PGxpbmUgeDE9IjUiIHkxPSIyNSIgeDI9IjM1IiB5Mj0iMjUiLz48bGluZSB4MT0iMjAiIHkxPSIzOCIgeDI9IjciIHkyPSI1NiIvPjxsaW5lIHgxPSIyMCIgeTE9IjM4IiB4Mj0iMzMiIHkyPSI1NiIvPjwvZz48L3N2Zz4=", label: "Administrador", pos: "b", w: 40, h: 60, constraint: "on" }
+
+  subgraph SIS["Sistema Orbytum"]
+    direction TB
+    subgraph ACE["Acesso"]
+      UC01(["UC01 · Fazer login"])
+      UC02(["UC02 · Cadastrar-se por convite"])
+      UC03(["UC03 · Aceitar convite de grupo"])
+      UC04(["UC04 · Consultar meus grupos"])
+    end
+    subgraph ADMN["Administração"]
+      UC05(["UC05 · Cadastrar administrador"])
+      UC06(["UC06 · Gerar / revogar convite de cadastro"])
+      UC07(["UC07 · Manter grupos de pesquisa"])
+      UC08(["UC08 · Cadastrar líder do grupo"])
+      UC09(["UC09 · Gerar projeto inicial"])
+      UC10(["UC10 · Convidar membros para o grupo<br/>(e-mail ou link)"])
+      UC11(["UC11 · Editar / remover pesquisadores"])
+      UC12(["UC12 · Manter materiais"])
+    end
+  end
+
+  VIS --- UC01
+  VIS --- UC02
+  VIS --- UC03
+  COL --- UC03
+  COL --- UC04
+
+  ADI --- UC05
+  ADM --- UC05
+  ADM --- UC06
+  ADM --- UC07
+  ADM --- UC10
+  ADM --- UC11
+  ADM --- UC12
+
+  UC07 -. "«include»" .-> UC08
+  UC07 -. "«include»" .-> UC09
+  UC02 -. "«extend»<br/>usuário sem conta" .-> UC03
+
+
+  classDef actor fill:none,stroke:none
+  class VIS,COL,ADI,ADM actor
+  style SIS fill:#fafbff,stroke:#4a5a85,stroke-width:2px

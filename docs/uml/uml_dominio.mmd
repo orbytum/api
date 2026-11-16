@@ -1,0 +1,361 @@
+---
+title: Orbytum API — Diagrama de Classes (Domínio)
+config:
+  layout: elk
+  class:
+    hideEmptyMembersBox: true
+---
+classDiagram
+  direction LR
+
+  %% ======================= Acesso =======================
+  class Usuario {
+    -Long id
+    -String nome
+    -String email
+    -String telefone
+    -String titulo
+    -LocalDateTime dthRegistro
+    -boolean isAtivo
+  }
+  class CredenciaisLogin {
+    -Long id
+    -String email
+    -String senha
+    -boolean isAtivo
+    -AccessLevel accessLevel
+  }
+  class Role {
+    -Long id
+    -String nome
+    -List~Permissao~ permissoes
+    -boolean isLider
+  }
+  class ConviteCadastro {
+    -Long id
+    -String token
+    -String email
+    -LocalDateTime dthExpiracao
+    -LocalDateTime dthRegistro
+    -boolean isAtivo
+  }
+  class ConviteGrupo {
+    -Long id
+    -String token
+    -String emailConvidado
+    -NivelMembro nivel
+    -Integer limiteUso
+    -Integer usos
+    -LocalDateTime dthExpiracao
+    -LocalDateTime dthRegistro
+    -boolean isAtivo
+  }
+
+  %% ======================= Grupos e projetos =======================
+  class Grupo {
+    -Long id
+    -String nome
+    -boolean isAtivo
+    -Set~String~ palavrasChave
+  }
+  class GrupoXUsuario {
+    -UUID id
+    -NivelMembro nivel
+    -String funcao
+    -boolean isAtivo
+  }
+  class Projeto {
+    -Long id
+    -ProjetoStatus status
+    -String titulo
+    -String assunto
+    -LocalDateTime dthRegistro
+    -boolean isAtivo
+    -boolean isInicial
+    -boolean isFavorito
+  }
+  class ProjetoXUsuario {
+    -UUID id
+    -NivelMembro nivel
+    -boolean isAtivo
+  }
+  class Atividade {
+    -Long id
+    -String titulo
+    -String descricao
+    -AtividadeStatus status
+    -LocalDateTime dthPrazo
+    -LocalDateTime dthConclusao
+    -LocalDateTime dthRegistro
+    -String motivoRejeicao
+    -boolean isAtivo
+  }
+
+  %% ======================= Conteúdo =======================
+  class Noticia {
+    -Long id
+    -UUID uuid
+    -String titulo
+    -String conteudo
+    -String referencia
+    -String assunto
+    -LocalDateTime dataInicioExibicao
+    -LocalDateTime dataFimExibicao
+    -String motivoRejeicao
+    -NoticiaStatus status
+    -LocalDateTime dthRegistro
+    -LocalDateTime dthAprovacao
+    -boolean isAtivo
+  }
+  class Publicacao {
+    -Long id
+    -UUID uuid
+    -String titulo
+    -String descricao
+    -String url
+    -String tipo
+    -LocalDate dataPublicacao
+    -String link
+    -StorageProvider storageProvider
+    -String storageKey
+    -LocalDateTime dthRegistro
+    -boolean isAtivo
+  }
+  class Documento {
+    -Long id
+    -String nome
+    -String extensao
+    -String contentType
+    -Long tamanho
+    -String chave
+    -byte[] documento
+    -LocalDateTime dthCriacao
+  }
+  class Edital {
+    -Long id
+    -String organizador
+    -String descricao
+    -BigDecimal valor
+    -String uri
+    -LocalDateTime dthAbertura
+    -LocalDateTime dthEncerramento
+  }
+  class EditalXGrupo {
+    -Long id
+  }
+
+  %% ======================= Agenda =======================
+  class Evento {
+    -Long id
+    -String titulo
+    -String descricao
+    -boolean isOnline
+    -String url
+    -String localizacao
+    -TipoLembrete tipo
+    -LocalDateTime dthInicio
+    -LocalDateTime dthFim
+    -TipoRecorrencia recorrencia
+    -String organizador
+    -String ataUrl
+    -String ataS3Key
+    -String ataNomeArquivo
+    -StorageProvider ataStorageProvider
+    -LocalDateTime dthRegistro
+    -boolean isAtivo
+    +isTemAta() boolean
+  }
+  class EventoParticipante {
+    -Long id
+    -String nome
+    -boolean presencaConfirmada
+  }
+
+  %% ======================= Materiais =======================
+  class Material {
+    -Long id
+    -String nome
+    -String descricao
+    -String categoria
+    -String identificador
+    -Integer quantidade
+    -String localizacao
+    -MaterialStatus status
+    -LocalDateTime dthCompra
+    -LocalDateTime dthRegistro
+    -boolean isAtivo
+  }
+  class MaterialEmprestimo {
+    -Long id
+    -Integer quantidade
+    -boolean isDevolvido
+    -LocalDateTime dthInicio
+    -LocalDateTime dthFim
+  }
+  class MaterialEmprestimoSolicitacao {
+    -Long id
+    -String titulo
+    -String descricao
+    -String justificativa
+    -boolean isInterna
+    -boolean isAprovada
+    -SolicitacaoStatus status
+    -LocalDateTime dthSolicitacao
+    -LocalDateTime dthResposta
+    -LocalDateTime dthAprovacaoLider
+  }
+  class MaterialEmprestimoSolicitacaoItem {
+    -Long id
+    -Integer quantidade
+    -BigDecimal valor
+  }
+
+  %% ======================= Enumerações =======================
+  class AccessLevel {
+    <<enumeration>>
+    ADMIN
+    USER
+    INITIAL_ADMIN
+  }
+  class Permissao {
+    <<enumeration>>
+    PROJETO_CONVITE_CRIAR
+    PROJETO_REUNIAO_AGENDAR
+  }
+  class NivelMembro {
+    <<enumeration>>
+    LIDER
+    PESQUISADOR
+    COLABORADOR
+    +isPeloMenos(NivelMembro) boolean
+    +isLider() boolean
+  }
+  class ProjetoStatus {
+    <<enumeration>>
+    PLANEJADO
+    EM_ANDAMENTO
+    CONCLUIDO
+    ENCERRADO
+    CANCELADO
+  }
+  class AtividadeStatus {
+    <<enumeration>>
+    AGUARDANDO_APROVACAO
+    PENDENTE
+    EM_ANDAMENTO
+    AGUARDANDO_CONFIRMACAO
+    CONCLUIDA
+    ENCERRADA
+    REJEITADA
+    +isAberta() boolean
+    +podeTransicionarPara(AtividadeStatus) boolean
+  }
+  class NoticiaStatus {
+    <<enumeration>>
+    PENDENTE
+    APROVADA
+    REJEITADA
+  }
+  class TipoLembrete {
+    <<enumeration>>
+    EDITAL
+    REUNIAO
+    APRESENTACAO
+    WORKSHOP
+  }
+  class TipoRecorrencia {
+    <<enumeration>>
+    NENHUMA
+    DIARIA
+    SEMANAL
+    MENSAL
+    ANUAL
+    +proximaOcorrencia(LocalDateTime, LocalDateTime) LocalDateTime
+  }
+  class StorageProvider {
+    <<enumeration>>
+    AUTO
+    S3
+    DATABASE
+  }
+  class MaterialStatus {
+    <<enumeration>>
+    DISPONIVEL
+    MANUTENCAO
+    EM_USO
+  }
+  class SolicitacaoStatus {
+    <<enumeration>>
+    PENDENTE
+    AGUARDANDO_ADMINISTRADOR
+    EM_ANDAMENTO
+    CONCLUIDA
+    ENCERRADA
+    REJEITADA
+  }
+
+  %% ======================= Associações =======================
+  Usuario "1" *-- "1" CredenciaisLogin : credenciaisLogin
+  CredenciaisLogin "0..*" --> "0..1" Usuario : criador
+
+  Grupo "0..*" --> "0..1" Usuario : criador
+  Grupo "1" *-- "0..*" Projeto : projetos
+  GrupoXUsuario "0..*" --> "1" Grupo
+  GrupoXUsuario "0..*" --> "1" Usuario
+  GrupoXUsuario "0..*" --> "1" Role
+
+  ProjetoXUsuario "0..*" --> "1" Usuario
+  Projeto "1" o-- "0..*" ProjetoXUsuario : participantes
+
+  Atividade "0..*" --> "1" Projeto
+  Atividade "0..*" --> "0..1" Usuario : responsavel
+  Atividade "0..1" o-- "0..*" Atividade : atividadePai / atividadesFilhas
+
+  ConviteGrupo "0..*" --> "1" Grupo
+  ConviteGrupo "0..*" --> "0..1" Usuario : usuarioConvidado
+  ConviteGrupo "0..*" --> "1" Usuario : usuarioRemetente
+  ConviteGrupo "0..*" --> "0..1" Role
+  ConviteGrupo "0..*" --> "0..*" Projeto : projetos
+
+  Noticia "0..*" --> "1" Grupo
+  Noticia "0..*" --> "1" Usuario : autor
+  Noticia "0..*" --> "0..1" Usuario : aprovador
+  Noticia "0..*" --> "0..*" Projeto : projetos
+
+  Publicacao "0..*" --> "1" Projeto
+  Publicacao "1" *-- "0..1" Documento : documento
+
+  Edital "1" *-- "0..*" EditalXGrupo : grupos
+  EditalXGrupo "0..*" --> "1" Grupo
+  Edital "0..*" --> "0..*" Projeto : projetos
+
+  Evento "0..*" --> "1" Grupo
+  Evento "0..*" --> "1" Usuario : criador
+  Evento "0..*" --> "0..1" Projeto
+  Evento "1" *-- "0..1" Documento : ataDocumento
+  Evento "1" *-- "0..*" EventoParticipante : participantes
+  EventoParticipante "0..*" --> "0..1" Usuario
+
+  Material "1" o-- "0..*" MaterialEmprestimo : emprestimos
+  MaterialEmprestimo "0..*" --> "1" Grupo
+  MaterialEmprestimoSolicitacao "0..*" --> "1" GrupoXUsuario : usuario
+  MaterialEmprestimoSolicitacao "0..*" --> "0..1" Projeto
+  MaterialEmprestimoSolicitacao "0..*" --> "0..1" Usuario : aprovadorLider
+  MaterialEmprestimoSolicitacao "1" *-- "1..*" MaterialEmprestimoSolicitacaoItem : items
+  MaterialEmprestimoSolicitacaoItem "0..*" --> "1" Material
+
+  %% ======================= Uso de enumerações =======================
+  CredenciaisLogin ..> AccessLevel
+  Role ..> Permissao
+  GrupoXUsuario ..> NivelMembro
+  ProjetoXUsuario ..> NivelMembro
+  ConviteGrupo ..> NivelMembro
+  Projeto ..> ProjetoStatus
+  Atividade ..> AtividadeStatus
+  Noticia ..> NoticiaStatus
+  Evento ..> TipoLembrete
+  Evento ..> TipoRecorrencia
+  Evento ..> StorageProvider
+  Publicacao ..> StorageProvider
+  Material ..> MaterialStatus
+  MaterialEmprestimoSolicitacao ..> SolicitacaoStatus

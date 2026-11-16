@@ -1,0 +1,76 @@
+---
+title: Orbytum API — Casos de Uso (2/3) · Projetos, Atividades e Solicitações
+config:
+  layout: elk
+---
+flowchart LR
+  %% Notação: elipse = caso de uso · linha simples = associação ator–caso de uso
+  %% seta "generalização" = o ator especializado herda os casos de uso do ator geral
+  %% «include» aponta do caso base para o incluído · «extend» aponta da extensão para o caso base
+
+  COL@{ img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMTAiIHI9IjcuNSIgZmlsbD0iI2ZmZiIvPjxsaW5lIHgxPSIyMCIgeTE9IjE3LjUiIHgyPSIyMCIgeTI9IjM4Ii8+PGxpbmUgeDE9IjUiIHkxPSIyNSIgeDI9IjM1IiB5Mj0iMjUiLz48bGluZSB4MT0iMjAiIHkxPSIzOCIgeDI9IjciIHkyPSI1NiIvPjxsaW5lIHgxPSIyMCIgeTE9IjM4IiB4Mj0iMzMiIHkyPSI1NiIvPjwvZz48L3N2Zz4=", label: "Colaborador", pos: "b", w: 40, h: 60, constraint: "on" }
+  PES@{ img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMTAiIHI9IjcuNSIgZmlsbD0iI2ZmZiIvPjxsaW5lIHgxPSIyMCIgeTE9IjE3LjUiIHgyPSIyMCIgeTI9IjM4Ii8+PGxpbmUgeDE9IjUiIHkxPSIyNSIgeDI9IjM1IiB5Mj0iMjUiLz48bGluZSB4MT0iMjAiIHkxPSIzOCIgeDI9IjciIHkyPSI1NiIvPjxsaW5lIHgxPSIyMCIgeTE9IjM4IiB4Mj0iMzMiIHkyPSI1NiIvPjwvZz48L3N2Zz4=", label: "Pesquisador", pos: "b", w: 40, h: 60, constraint: "on" }
+  LPJ@{ img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMTAiIHI9IjcuNSIgZmlsbD0iI2ZmZiIvPjxsaW5lIHgxPSIyMCIgeTE9IjE3LjUiIHgyPSIyMCIgeTI9IjM4Ii8+PGxpbmUgeDE9IjUiIHkxPSIyNSIgeDI9IjM1IiB5Mj0iMjUiLz48bGluZSB4MT0iMjAiIHkxPSIzOCIgeDI9IjciIHkyPSI1NiIvPjxsaW5lIHgxPSIyMCIgeTE9IjM4IiB4Mj0iMzMiIHkyPSI1NiIvPjwvZz48L3N2Zz4=", label: "Líder de projeto", pos: "b", w: 40, h: 60, constraint: "on" }
+  LGR@{ img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMTAiIHI9IjcuNSIgZmlsbD0iI2ZmZiIvPjxsaW5lIHgxPSIyMCIgeTE9IjE3LjUiIHgyPSIyMCIgeTI9IjM4Ii8+PGxpbmUgeDE9IjUiIHkxPSIyNSIgeDI9IjM1IiB5Mj0iMjUiLz48bGluZSB4MT0iMjAiIHkxPSIzOCIgeDI9IjciIHkyPSI1NiIvPjxsaW5lIHgxPSIyMCIgeTE9IjM4IiB4Mj0iMzMiIHkyPSI1NiIvPjwvZz48L3N2Zz4=", label: "Líder do grupo", pos: "b", w: 40, h: 60, constraint: "on" }
+  ADM@{ img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDQwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMi4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxjaXJjbGUgY3g9IjIwIiBjeT0iMTAiIHI9IjcuNSIgZmlsbD0iI2ZmZiIvPjxsaW5lIHgxPSIyMCIgeTE9IjE3LjUiIHgyPSIyMCIgeTI9IjM4Ii8+PGxpbmUgeDE9IjUiIHkxPSIyNSIgeDI9IjM1IiB5Mj0iMjUiLz48bGluZSB4MT0iMjAiIHkxPSIzOCIgeDI9IjciIHkyPSI1NiIvPjxsaW5lIHgxPSIyMCIgeTE9IjM4IiB4Mj0iMzMiIHkyPSI1NiIvPjwvZz48L3N2Zz4=", label: "Administrador", pos: "b", w: 40, h: 60, constraint: "on" }
+
+  PES -->|generalização| COL
+  LPJ -->|generalização| PES
+  LGR -->|generalização| LPJ
+
+  subgraph SIS["Sistema Orbytum"]
+    direction TB
+    subgraph PRJ["Projetos"]
+      UC13(["UC13 · Consultar projetos e participantes"])
+      UC14(["UC14 · Visualizar dashboard (sistema solar)"])
+      UC15(["UC15 · Marcar projeto como destaque"])
+      UC16(["UC16 · Manter projetos"])
+      UC17(["UC17 · Gerenciar participantes do projeto"])
+      UC18(["UC18 · Finalizar projeto"])
+    end
+    subgraph ATV["Atividades"]
+      UC19(["UC19 · Consultar atividades e atrasos"])
+      UC20(["UC20 · Criar atividade"])
+      UC21(["UC21 · Registrar impedimento<br/>(atividade filha)"])
+      UC22(["UC22 · Atualizar status da atividade"])
+      UC23(["UC23 · Aprovar / rejeitar atividade"])
+      UC24(["UC24 · Encerrar atividade"])
+    end
+    subgraph SOL["Solicitações"]
+      UC25(["UC25 · Consultar solicitações"])
+      UC26(["UC26 · Manter solicitação"])
+      UC27(["UC27 · Aprovar / rejeitar solicitação<br/>(1ª etapa)"])
+      UC28(["UC28 · Decidir solicitação<br/>(aprovação final)"])
+      UC29(["UC29 · Concluir / encerrar solicitação"])
+    end
+  end
+
+  COL --- UC13
+  COL --- UC14
+  COL --- UC19
+  COL --- UC25
+
+  PES --- UC15
+  PES --- UC20
+  PES --- UC22
+
+  LPJ --- UC23
+  LPJ --- UC24
+  LPJ --- UC26
+
+  LGR --- UC16
+  LGR --- UC17
+  LGR --- UC18
+  LGR --- UC27
+  LGR --- UC29
+
+  ADM --- UC28
+  ADM --- UC29
+
+  UC21 -. "«extend»<br/>atividade em andamento" .-> UC20
+  UC18 -. "«extend»<br/>última atividade do projeto" .-> UC24
+
+
+  classDef actor fill:none,stroke:none
+  class COL,PES,LPJ,LGR,ADM actor
+  style SIS fill:#fafbff,stroke:#4a5a85,stroke-width:2px
