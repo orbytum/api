@@ -1,0 +1,77 @@
+---
+config:
+  layout: elk
+---
+erDiagram
+  ATIVIDADE o|--o{ ATIVIDADE : "atividade_pai_id"
+  PROJETO o|--o{ ATIVIDADE : "projeto_id"
+  USUARIO o|--o{ ATIVIDADE : "responsavel_id"
+  GRUPO o|--o{ PROJETO : "grupo_id"
+  PROJETO o|--o{ PROJETOXUSUARIO : "projeto_id"
+  USUARIO o|--o{ PROJETOXUSUARIO : "usuario_id"
+  DOCUMENTO o|--o{ PUBLICACAO : "documento_id"
+  PROJETO o|--o{ PUBLICACAO : "projeto_id"
+  PROJETO {
+    bigint id PK
+    varchar assunto
+    timestamp dth_registro
+    boolean is_ativo
+    boolean is_favorito
+    boolean is_inicial
+    integer status
+    varchar titulo
+    bigint grupo_id FK
+  }
+  PROJETOXUSUARIO {
+    uuid id PK
+    boolean is_ativo
+    varchar nivel
+    bigint projeto_id FK
+    bigint usuario_id FK
+  }
+  ATIVIDADE {
+    bigint id PK
+    varchar descricao
+    timestamp dth_conclusao
+    timestamp dth_prazo
+    timestamp dth_registro
+    boolean is_ativo
+    varchar motivo_rejeicao
+    integer status
+    varchar titulo
+    bigint atividade_pai_id FK
+    bigint projeto_id FK
+    bigint responsavel_id FK
+  }
+  PUBLICACAO {
+    bigint id PK
+    date data_publicacao
+    varchar descricao
+    timestamp dth_registro
+    boolean is_ativo
+    varchar link
+    varchar storage_key
+    varchar storage_provider
+    varchar tipo
+    varchar titulo
+    varchar url
+    uuid uuid
+    bigint documento_id FK
+    bigint projeto_id FK
+  }
+  DOCUMENTO {
+    bigint id PK
+    varchar chave
+    varchar content_type
+    bytea documento
+    timestamp dth_criacao
+    varchar extensao
+    varchar nome
+    bigint tamanho
+  }
+  GRUPO {
+    bigint id PK
+  }
+  USUARIO {
+    bigint id PK
+  }

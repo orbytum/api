@@ -506,6 +506,21 @@
    ]
   },
   {
+   "nome": "grupo_palavra_chave",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "grupo_id",
+     "chave": "PK, FK"
+    },
+    {
+     "tipo": "varchar",
+     "nome": "palavra",
+     "chave": "PK"
+    }
+   ]
+  },
+  {
    "nome": "grupoxusuario",
    "colunas": [
     {
@@ -691,6 +706,26 @@
     {
      "tipo": "uuid",
      "nome": "usuario_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "text",
+     "nome": "descricao",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_aprovacao_lider",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "titulo",
+     "chave": ""
+    },
+    {
+     "tipo": "bigint",
+     "nome": "aprovador_lider_id",
      "chave": "FK"
     }
    ]
@@ -924,6 +959,11 @@
      "chave": "PK"
     },
     {
+     "tipo": "date",
+     "nome": "data_publicacao",
+     "chave": ""
+    },
+    {
      "tipo": "varchar",
      "nome": "descricao",
      "chave": ""
@@ -940,12 +980,22 @@
     },
     {
      "tipo": "varchar",
+     "nome": "link",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
      "nome": "storage_key",
      "chave": ""
     },
     {
      "tipo": "varchar",
      "nome": "storage_provider",
+     "chave": ""
+    },
+    {
+     "tipo": "varchar",
+     "nome": "tipo",
      "chave": ""
     },
     {
@@ -1179,6 +1229,12 @@
    "nulavel": true
   },
   {
+   "tabela": "grupo_palavra_chave",
+   "coluna": "grupo_id",
+   "referencia": "grupo",
+   "nulavel": false
+  },
+  {
    "tabela": "grupoxusuario",
    "coluna": "grupo_id",
    "referencia": "grupo",
@@ -1206,6 +1262,12 @@
    "tabela": "material_emprestimo",
    "coluna": "material_id",
    "referencia": "material",
+   "nulavel": true
+  },
+  {
+   "tabela": "material_emprestimo_solicitacao",
+   "coluna": "aprovador_lider_id",
+   "referencia": "usuario",
    "nulavel": true
   },
   {

@@ -1,0 +1,72 @@
+---
+config:
+  layout: elk
+---
+erDiagram
+  GRUPO o|--o{ MATERIAL_EMPRESTIMO : "grupo_id"
+  MATERIAL o|--o{ MATERIAL_EMPRESTIMO : "material_id"
+  USUARIO o|--o{ MATERIAL_EMPRESTIMO_SOLICITACAO : "aprovador_lider_id"
+  PROJETO o|--o{ MATERIAL_EMPRESTIMO_SOLICITACAO : "projeto_id"
+  GRUPOXUSUARIO o|--o{ MATERIAL_EMPRESTIMO_SOLICITACAO : "usuario_id"
+  MATERIAL o|--o{ MATERIAL_EMPRESTIMO_SOLICITACAO_ITEM : "material_id"
+  MATERIAL_EMPRESTIMO_SOLICITACAO_ITEM ||--o{ MATERIAL_EMPRESTIMO_SOLICITACAO_ITEMS : "items_id"
+  MATERIAL_EMPRESTIMO_SOLICITACAO ||--o{ MATERIAL_EMPRESTIMO_SOLICITACAO_ITEMS : "material_emprestimo_solicitacao_id"
+  MATERIAL {
+    bigint id PK
+    varchar categoria
+    varchar descricao
+    timestamp dth_compra
+    timestamp dth_registro
+    varchar identificador
+    boolean is_ativo
+    varchar localizacao
+    varchar nome
+    integer quantidade
+    integer status
+  }
+  MATERIAL_EMPRESTIMO {
+    bigint id PK
+    timestamp dth_fim
+    timestamp dth_inicio
+    boolean is_devolvido
+    integer quantidade
+    bigint grupo_id FK
+    bigint material_id FK
+  }
+  MATERIAL_EMPRESTIMO_SOLICITACAO {
+    bigint id PK
+    timestamp dth_resposta
+    timestamp dth_solicitacao
+    boolean is_aprovada
+    boolean is_interna
+    varchar justificativa
+    integer status
+    bigint projeto_id FK
+    uuid usuario_id FK
+    text descricao
+    timestamp dth_aprovacao_lider
+    varchar titulo
+    bigint aprovador_lider_id FK
+  }
+  MATERIAL_EMPRESTIMO_SOLICITACAO_ITEM {
+    bigint id PK
+    integer quantidade
+    numeric valor
+    bigint material_id FK
+  }
+  MATERIAL_EMPRESTIMO_SOLICITACAO_ITEMS {
+    bigint material_emprestimo_solicitacao_id FK
+    bigint items_id FK
+  }
+  GRUPO {
+    bigint id PK
+  }
+  GRUPOXUSUARIO {
+    uuid id PK
+  }
+  PROJETO {
+    bigint id PK
+  }
+  USUARIO {
+    bigint id PK
+  }
