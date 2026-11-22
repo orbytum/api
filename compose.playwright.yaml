@@ -1,0 +1,19 @@
+services:
+  postgres-playwright:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: orbytum
+      POSTGRES_PASSWORD: orbytum
+      POSTGRES_DB: orbytum_e2e
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orbytum -d orbytum_e2e"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - orbytum_e2e_pgdata:/var/lib/postgresql/data
+
+volumes:
+  orbytum_e2e_pgdata:
