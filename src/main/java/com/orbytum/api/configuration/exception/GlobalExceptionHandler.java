@@ -54,6 +54,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(erro);
     }
 
+    @ExceptionHandler(ConviteRestritoErro.class)
+    public ResponseEntity<ErroResponse> handleConviteRestrito(ConviteRestritoErro ex) {
+        ErroResponse erro = new ErroResponse(
+                HttpStatus.FORBIDDEN.value(),
+                ex.getMessage(),
+                System.currentTimeMillis()
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(erro);
+    }
+
+    @ExceptionHandler(ContaDesativadaErro.class)
+    public ResponseEntity<ErroResponse> handleContaDesativada(ContaDesativadaErro ex) {
+        ErroResponse erro = new ErroResponse(
+                HttpStatus.FORBIDDEN.value(),
+                "Sua conta está desativada. Procure o administrador do sistema.",
+                System.currentTimeMillis()
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(erro);
+    }
+
     @ExceptionHandler(com.orbytum.api.models.exceptions.EmailSendingException.class)
     public ResponseEntity<ErroResponse> handleEmailSendingException(com.orbytum.api.models.exceptions.EmailSendingException ex) {
         ErroResponse erro = new ErroResponse(

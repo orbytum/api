@@ -88,9 +88,8 @@ public class GrupoService {
         return grupoRepository.findAllByCriadorAndIsAtivoTrue(criador);
     }
 
+    /** Lista todos os grupos ativos: qualquer administrador gerencia todos os grupos de pesquisa. */
     public Page<Grupo> listarGrupos(CredenciaisLogin adminLogado, int page, int size, String nome, String usuario) {
-        Usuario criador = adminLogado.getUsuario();
-
         int pageIndex = Math.max(0, page - 1);
         int pageSize = size > 0 ? size : 10;
         Pageable pageable = PageRequest.of(pageIndex, pageSize, Sort.by(Sort.Direction.ASC, "id"));
@@ -98,7 +97,7 @@ public class GrupoService {
         String normalizedNome = (nome != null && !nome.isBlank()) ? nome.trim() : "";
         String normalizedUsuario = (usuario != null && !usuario.isBlank()) ? usuario.trim() : "";
 
-        return grupoRepository.filtrarGrupos(criador, normalizedNome, normalizedUsuario, pageable);
+        return grupoRepository.filtrarGrupos(normalizedNome, normalizedUsuario, pageable);
     }
 
     @Transactional
@@ -149,6 +148,8 @@ public class GrupoService {
             );
             convite.setNivel(NivelMembro.LIDER);
             convite.setLimiteUso(1);
+            // Nominal: só quem se cadastrar com este e-mail pode usar o convite de líder.
+            convite.setEmailConvidado(emailLider);
             conviteGrupoRepository.save(convite);
 
             enviarEmailConvite(emailLider, grupoSalvo.getNome(), url);
@@ -186,7 +187,7 @@ public class GrupoService {
         Grupo grupo = findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Grupo de pesquisa não encontrado com ID: " + id));
 
-        validarPermissaoAdminCriador(grupo);
+        validarPermissaoAdmin(grupo);
 
         if (!grupo.getNome().equalsIgnoreCase(request.nome()) && existsByNome(request.nome())) {
             throw new IllegalArgumentException("Já existe outro grupo de pesquisa cadastrado com este nome");
@@ -207,7 +208,7 @@ public class GrupoService {
         Grupo grupo = findById(grupoId)
                 .orElseThrow(() -> new IllegalArgumentException("Grupo de pesquisa não encontrado com ID: " + grupoId));
 
-        validarPermissaoAdminCriador(grupo);
+        validarPermissaoAdmin(grupo);
 
         if (credenciaisLoginService.existsByEmail(request.email())) {
             throw new IllegalArgumentException("Já existe um usuário cadastrado com este e-mail");
@@ -256,7 +257,7 @@ public class GrupoService {
         Grupo grupo = findById(grupoId)
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + grupoId));
 
-        validarPermissaoAdminCriador(grupo);
+        validarPermissaoAdmin(grupo);
 
         Usuario usuario = usuarioService.findById(usuarioId)
                 .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário não encontrado com ID: " + usuarioId));
@@ -309,7 +310,7 @@ public class GrupoService {
         Grupo grupo = findById(id)
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + id));
 
-        validarPermissaoAdminCriador(grupo);
+        validarPermissaoAdmin(grupo);
 
         return mapearParaGrupoResponse(grupo);
     }
@@ -319,7 +320,7 @@ public class GrupoService {
         Grupo grupo = findById(id)
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + id));
 
-        validarPermissaoAdminCriador(grupo);
+        validarPermissaoAdmin(grupo);
 
         List<ConviteGrupo> convites = conviteGrupoRepository.findByGrupo(grupo);
         if(!convites.isEmpty()) {
@@ -376,7 +377,7 @@ public class GrupoService {
         Grupo grupo = findById(grupoId)
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + grupoId));
 
-        validarPermissaoAdminCriador(grupo);
+        validarPermissaoAdmin(grupo);
 
         Usuario usuario = usuarioService.findById(usuarioId)
                 .orElseThrow(() -> new UsuarioNaoEncontradoErro("Usuário não encontrado com ID: " + usuarioId));
@@ -413,7 +414,7 @@ public class GrupoService {
         Grupo grupo = findById(grupoId)
                 .orElseThrow(() -> new GrupoNaoEncontradoErro("Grupo de pesquisa não encontrado com ID: " + grupoId));
 
-        validarPermissaoAdminCriador(grupo);
+        validarPermissaoAdmin(grupo);
 
         GrupoXUsuario vinculo = grupoXUsuarioRepository.findByGrupoIdAndUsuarioIdAndIsAtivoTrue(grupoId, usuarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Este usuário não está vinculado a este grupo de pesquisa"));
@@ -498,20 +499,14 @@ public class GrupoService {
         );
     }
 
-    private void validarPermissaoAdminCriador(Grupo grupo) {
+    /** Qualquer administrador pode gerenciar qualquer grupo de pesquisa, independentemente de quem o criou. */
+    private void validarPermissaoAdmin(Grupo grupo) {
         String emailAdminLogado = SecurityContextHolder.getContext().getAuthentication().getName();
         CredenciaisLogin adminLogado = credenciaisLoginService.findByEmail(emailAdminLogado)
                 .orElseThrow(() -> new AccessDeniedException("Administrador não autenticado"));
 
         if (adminLogado.getAccessLevel() != AccessLevel.ADMIN) {
-            throw new AccessDeniedException("Apenas o administrador que criou o grupo possui permissão para esta operação");
-        }
-
-        boolean isAdminCriador = grupo.getCriador() != null
-                && grupo.getCriador().getEmail().equalsIgnoreCase(emailAdminLogado);
-
-        if (!isAdminCriador) {
-            throw new AccessDeniedException("Apenas o administrador que criou o grupo possui permissão para esta operação");
+            throw new AccessDeniedException("Apenas administradores possuem permissão para esta operação");
         }
     }
 }

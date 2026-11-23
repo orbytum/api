@@ -1,6 +1,6 @@
 # Documento de Requisitos — Orbytum
 
-**Data:** 30/06/2026 — **Revisado em:** 16/11/2026  
+**Data:** 30/06/2026 — **Revisado em:** 23/11/2026  
 **Fontes:** `specs_requisitos.md` (primária), `specs_requisitos_antigos.md` (secundária), `artigo/` (terciária)
 
 ---
@@ -11,7 +11,7 @@
 | :-- | :-------- | :------------ | :--------------------------- |
 | REQ-001 | Se não houver administradores ao subir o sistema, criar um administrador inicial automaticamente | Não Funcional | Organização — depende da existência de admin para criar organizações |
 | REQ-002 | O admin inicial deve ser usado apenas para criar o primeiro administrador e depois ser excluído | Funcional | Organização — fluxo de criação da primeira organização |
-| REQ-003 | Administrador pode criar grupos de pesquisa, editar dados criados por ele e cadastrar líderes | Funcional | Organização, Grupos de Pesquisa — permissão de criação interfere diretamente nestes recursos |
+| REQ-003 | Administrador pode criar grupos de pesquisa, editar os dados de qualquer grupo e cadastrar líderes | Funcional | Organização, Grupos de Pesquisa — permissão de criação interfere diretamente nestes recursos |
 | REQ-004 | O Administrador adiciona membros (pesquisadores e colaboradores) aos grupos de pesquisa, por convite ou autocadastro via link | Funcional | Grupos de Pesquisa — define quem pode ingressar no grupo |
 | REQ-006 | Colaborador possui acesso somente leitura, restrito aos projetos em que foi incluído; Pesquisador possui o menor nível de permissões de escrita | Não Funcional | Todos os recursos — restrições de acesso baseadas no papel |
 | REQ-007 | Todo usuário deve conter um campo indicando quem permitiu seu cadastro | Não Funcional | Grupos de Pesquisa — rastreabilidade de ingresso |
@@ -25,7 +25,7 @@
 | Nº | Descrição | Classificação | Recursos Afetados / Impactos |
 | :-- | :-------- | :------------ | :--------------------------- |
 | REQ-010 | Administrador pode criar novos administradores e permitir o cadastro de líderes nos grupos de pesquisa | Funcional | Grupos de Pesquisa, Autenticação — organizações são o contêiner dos grupos |
-| REQ-011 | Administrador só pode realizar operações de CRUD nos grupos de pesquisa criados por ele | Não Funcional | Grupos de Pesquisa — isolamento de dados entre administradores |
+| REQ-011 | Todo administrador pode realizar operações de CRUD em todos os grupos de pesquisa, independentemente de quem os criou | Não Funcional | Grupos de Pesquisa — administração compartilhada entre administradores |
 
 ---
 

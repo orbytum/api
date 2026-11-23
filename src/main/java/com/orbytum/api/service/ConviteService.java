@@ -70,6 +70,12 @@ public class ConviteService {
             throw new UsuarioJaNoGrupoErro("O usuário convidado já pertence a este grupo");
         }
 
+        // Recusa já no envio, sem esperar o aceite, quando o grupo já tem um líder ativo.
+        if (nivel == NivelMembro.LIDER
+                && grupoXUsuarioRepository.existsByGrupoIdAndNivelAndIsAtivoTrue(grupoId, NivelMembro.LIDER)) {
+            throw new GrupoJaPossuiLiderErro("Este grupo de pesquisa já possui um líder ativo");
+        }
+
         List<Projeto> projetos = validarProjetos(grupoId, projetoIds);
 
         Role role = resolverRole(nivel, idRole);
@@ -127,12 +133,15 @@ public class ConviteService {
 
         Role role = resolverRole(request.nivel(), request.idRole());
 
+        // Um link pode ser repassado a qualquer pessoa; o perfil Líder só é concedido por convite nominal.
+        if (request.nivel() == NivelMembro.LIDER || role.isLider()) {
+            throw new IllegalArgumentException(
+                    "Não é permitido gerar convite por link para o perfil Líder. Envie o convite por e-mail.");
+        }
+
         Integer limiteUso = request.limiteUso();
         if (limiteUso == null || limiteUso <= 0) {
             limiteUso = 5;
-        }
-        if (request.nivel() == NivelMembro.LIDER) {
-            limiteUso = 1;
         }
 
         String token = UUID.randomUUID().toString();
@@ -306,6 +315,7 @@ public class ConviteService {
     @Transactional
     public ConviteGrupoEnviadoResponse aceitarConviteGrupo(String token, Usuario usuarioLogado) {
         ConviteGrupo conviteGrupo = carregarConviteValido(token);
+        validarDestinatario(conviteGrupo, usuarioLogado.getEmail());
 
         Grupo grupo = conviteGrupo.getGrupo();
         if (grupoXUsuarioService.isUsuarioNoGrupo(grupo.getId(), usuarioLogado.getId())) {
@@ -411,6 +421,34 @@ public class ConviteService {
             conviteGrupo.setAtivo(false);
         }
         conviteGrupoRepository.save(conviteGrupo);
+    }
+
+    /**
+     * Convites nominais (com e-mail convidado) só podem ser vistos e aceitos pela conta desse e-mail,
+     * com sessão iniciada. Convites por link, sem e-mail, seguem abertos a quem tiver o link.
+     */
+    private void validarDestinatario(ConviteGrupo conviteGrupo, String emailLogado) {
+        String emailConvidado = conviteGrupo.getEmailConvidado();
+        if (emailConvidado == null || emailConvidado.isBlank()) {
+            return;
+        }
+        if (emailLogado == null || emailLogado.isBlank()) {
+            throw new ConviteRestritoErro(
+                    "Este convite é pessoal. Entre com a conta do e-mail convidado para visualizá-lo.");
+        }
+        if (!emailConvidado.trim().equalsIgnoreCase(emailLogado.trim())) {
+            throw new ConviteRestritoErro("Este convite foi enviado para " + mascararEmail(emailConvidado)
+                    + ". Entre com essa conta para visualizá-lo e aceitá-lo.");
+        }
+    }
+
+    /** Ex.: pesq.fabio@orbytum.test -> p*********@orbytum.test */
+    private static String mascararEmail(String email) {
+        int arroba = email.indexOf('@');
+        if (arroba <= 1) {
+            return "***" + (arroba >= 0 ? email.substring(arroba) : "");
+        }
+        return email.charAt(0) + "*".repeat(arroba - 1) + email.substring(arroba);
     }
 
     private void validarLiderDisponivel(ConviteGrupo conviteGrupo) {
@@ -558,9 +596,12 @@ public class ConviteService {
         revogarConviteCadastro(id, solicitante);
     }
 
-    public ConviteGrupoDetalheResponse buscarConviteGrupoPorToken(String token) {
+    public ConviteGrupoDetalheResponse buscarConviteGrupoPorToken(String token, String emailLogado) {
         ConviteGrupo conviteGrupo = conviteGrupoRepository.findByTokenAndIsAtivoTrue(token)
                 .orElseThrow(() -> new ConviteInvalidoOuExpiradoErro("Convite por link inválido ou inativo"));
+
+        // Antes de qualquer outra verificação, para não revelar nada do convite a quem não é o convidado.
+        validarDestinatario(conviteGrupo, emailLogado);
 
         if (conviteGrupo.getDthExpiracao().isBefore(LocalDateTime.now())) {
             throw new ConviteInvalidoOuExpiradoErro("Este convite por link já expirou");
