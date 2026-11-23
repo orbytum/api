@@ -30,7 +30,6 @@ public interface GrupoRepository extends JpaRepository<Grupo, Long> {
             LEFT JOIN gxu.usuario u
             LEFT JOIN g.criador c
             WHERE g.isAtivo = true
-              AND g.criador = :criador
               AND (CAST(:nome AS string) IS NULL OR CAST(:nome AS string) = '' OR LOWER(g.nome) LIKE LOWER(CONCAT('%', CAST(:nome AS string), '%')))
               AND (
                 CAST(:usuario AS string) IS NULL OR CAST(:usuario AS string) = '' OR
@@ -44,7 +43,6 @@ public interface GrupoRepository extends JpaRepository<Grupo, Long> {
             LEFT JOIN gxu.usuario u
             LEFT JOIN g.criador c
             WHERE g.isAtivo = true
-              AND g.criador = :criador
               AND (CAST(:nome AS string) IS NULL OR CAST(:nome AS string) = '' OR LOWER(g.nome) LIKE LOWER(CONCAT('%', CAST(:nome AS string), '%')))
               AND (
                 CAST(:usuario AS string) IS NULL OR CAST(:usuario AS string) = '' OR
@@ -53,7 +51,6 @@ public interface GrupoRepository extends JpaRepository<Grupo, Long> {
               )
             """)
     Page<Grupo> filtrarGrupos(
-            @Param("criador") Usuario criador,
             @Param("nome") String nome,
             @Param("usuario") String usuario,
             Pageable pageable

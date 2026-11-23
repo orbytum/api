@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -50,9 +51,16 @@ public class ConviteController {
 
     @GetMapping({"/aceitar/grupo/{token}", "/grupo/{token}"})
     public ResponseEntity<ConviteGrupoDetalheResponse> buscarConviteGrupo(
-            @PathVariable String token
+            @PathVariable String token,
+            Authentication authentication
     ) {
-        ConviteGrupoDetalheResponse response = conviteService.buscarConviteGrupoPorToken(token);
+        // A rota é pública (convites por link); a sessão, quando existe, identifica o convidado.
+        String emailLogado = authentication != null
+                && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken)
+                ? authentication.getName()
+                : null;
+        ConviteGrupoDetalheResponse response = conviteService.buscarConviteGrupoPorToken(token, emailLogado);
         return ResponseEntity.ok(response);
     }
 

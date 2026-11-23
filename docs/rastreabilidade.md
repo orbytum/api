@@ -39,14 +39,14 @@
 | :-- | :-: | :-- |
 | REQ-001 | ✅ | `AdminInicialInitializer` cria o administrador inicial quando não há administradores |
 | REQ-002 | ✅ | `AuthService.registerAdmin` exclui o administrador inicial após criar o definitivo |
-| REQ-003 | ✅ | Administrador cria grupos, edita os que criou e cadastra líderes (`GrupoService`) |
+| REQ-003 | ✅ | Administrador cria grupos, edita qualquer grupo e cadastra líderes (`GrupoService`) |
 | REQ-004 | ✅ | `ConviteService.validarPermissaoConviteGrupo`: só o administrador gera e envia convites de grupo |
 | REQ-006 | ✅ | `GrupoAcessoService.validarPodeEscreverNoProjeto` e checagens de colaborador em atividades, solicitações, presença e favoritos |
 | REQ-007 | ✅ | `credenciais_login.criador_id` |
 | REQ-008 | ✅ | `Argon2PasswordEncoder` em `SecurityConfig` |
 | REQ-009 | ✅ | `JwtUtil.generateToken`: claims `username`, `role` e `iat` (mais `accessLevel` e `permissoes`) |
 | REQ-010 | ✅ | Administrador cria administradores (`/auth/register-admin`) e líderes |
-| REQ-011 | ✅ | `GrupoService.validarPermissaoAdminCriador` e listagem filtrada pelo criador |
+| REQ-011 | ✅ | `GrupoService.validarPermissaoAdmin` (qualquer administrador) e listagem de todos os grupos |
 | REQ-012 | ✅ | `GrupoController` (CRUD) |
 | REQ-013 | ✅ | `CreateGroupRequest.emailLider` obrigatório |
 | REQ-014 | ✅ | Implantação por instância (`compose.yaml`); `Grupo` é a entidade de mais alto nível |
