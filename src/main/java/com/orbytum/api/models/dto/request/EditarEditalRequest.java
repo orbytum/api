@@ -1,5 +1,6 @@
 package com.orbytum.api.models.dto.request;
 
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -13,6 +14,7 @@ public record EditarEditalRequest(
         String organizador,
 
         @NotBlank(message = "A descrição do edital é obrigatória.")
+        @Size(max = 1000, message = "A descrição deve ter no máximo 1000 caracteres.")
         String descricao,
 
         BigDecimal valor,

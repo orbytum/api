@@ -22,6 +22,7 @@ public class CredenciaisLogin {
 
     @Nonnull
     @Getter
+    @Setter
     private String email;
 
     @Nonnull

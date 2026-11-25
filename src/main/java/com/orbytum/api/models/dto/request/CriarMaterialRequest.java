@@ -1,5 +1,6 @@
 package com.orbytum.api.models.dto.request;
 
+import jakarta.validation.constraints.Size;
 import com.orbytum.api.models.enums.MaterialStatus;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -12,6 +13,7 @@ public record CriarMaterialRequest(
         String nome,
 
         @NotBlank(message = "A descrição é obrigatória.")
+        @Size(max = 1000, message = "A descrição deve ter no máximo 1000 caracteres.")
         String descricao,
 
         @NotBlank(message = "A categoria é obrigatória.")

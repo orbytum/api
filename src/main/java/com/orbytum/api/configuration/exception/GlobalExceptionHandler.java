@@ -2,12 +2,26 @@ package com.orbytum.api.configuration.exception;
 
 import com.orbytum.api.models.dto.generico.ErroResponse;
 import com.orbytum.api.models.exceptions.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.validation.BindException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.stream.Collectors;
+
+/*
+ * Toda exceção precisa ser tratada aqui: sem handler, o Spring encaminha o erro para /error,
+ * rota que a configuração de segurança bloqueia, e o cliente recebe um 403 vazio no lugar do erro real.
+ */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -152,5 +166,52 @@ public class GlobalExceptionHandler {
                 System.currentTimeMillis()
         );
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(erro);
+    }
+
+    /** Falha de validação dos DTOs (@NotBlank, @Size…), em JSON (@RequestBody) ou multipart (@ModelAttribute). */
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<ErroResponse> handleValidacao(BindException ex) {
+        String mensagem = ex.getBindingResult().getFieldErrors().stream()
+                .map(FieldError::getDefaultMessage)
+                .distinct()
+                .collect(Collectors.joining(" "));
+        if (mensagem.isBlank()) {
+            mensagem = "Dados inválidos. Verifique os campos informados.";
+        }
+        return ResponseEntity.badRequest()
+                .body(new ErroResponse(HttpStatus.BAD_REQUEST.value(), mensagem, System.currentTimeMillis()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErroResponse> handleCorpoInvalido(HttpMessageNotReadableException ex) {
+        return ResponseEntity.badRequest().body(new ErroResponse(HttpStatus.BAD_REQUEST.value(),
+                "Não foi possível ler os dados enviados. Verifique os campos informados.", System.currentTimeMillis()));
+    }
+
+    /** Restrições do banco (tamanho de coluna, unicidade, chave estrangeira…) que escaparam da validação. */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErroResponse> handleIntegridade(DataIntegrityViolationException ex) {
+        log.warn("Violação de integridade: {}", ex.getMostSpecificCause().getMessage());
+        String causa = String.valueOf(ex.getMostSpecificCause().getMessage()).toLowerCase();
+        String mensagem = causa.contains("too long")
+                ? "Um dos campos excede o tamanho máximo permitido."
+                : "Não foi possível salvar: os dados violam uma restrição do sistema.";
+        return ResponseEntity.badRequest()
+                .body(new ErroResponse(HttpStatus.BAD_REQUEST.value(), mensagem, System.currentTimeMillis()));
+    }
+
+    /** Último recurso: erros do Spring mantêm o status próprio (404, 405…); o resto vira 500. */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErroResponse> handleInesperado(Exception ex) {
+        if (ex instanceof ErrorResponse respostaSpring) {
+            HttpStatusCode status = respostaSpring.getStatusCode();
+            String detalhe = respostaSpring.getBody().getDetail();
+            return ResponseEntity.status(status).body(new ErroResponse(status.value(),
+                    detalhe != null ? detalhe : "Não foi possível processar a requisição.", System.currentTimeMillis()));
+        }
+        log.error("Erro inesperado ao processar a requisição", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ErroResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Ocorreu um erro inesperado. Tente novamente.", System.currentTimeMillis()));
     }
 }

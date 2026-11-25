@@ -33,6 +33,7 @@ public class Usuario {
 
     @Nonnull
     @Getter
+    @Setter
     private String email;
 
     @Nonnull
@@ -51,6 +52,7 @@ public class Usuario {
 
     @Nonnull
     @Getter
+    @Setter
     private boolean isAtivo;
 
     @Nonnull

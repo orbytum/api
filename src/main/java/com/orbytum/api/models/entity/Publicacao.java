@@ -27,6 +27,7 @@ public class Publicacao {
     @Nonnull
     private String titulo;
 
+    @Column(length = 1000)
     @Nonnull
     private String descricao;
 
