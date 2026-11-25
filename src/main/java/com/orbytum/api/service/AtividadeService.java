@@ -10,6 +10,7 @@ import com.orbytum.api.models.entity.Projeto;
 import com.orbytum.api.models.entity.Usuario;
 import com.orbytum.api.models.enums.AccessLevel;
 import com.orbytum.api.models.enums.AtividadeStatus;
+import com.orbytum.api.models.enums.ProjetoStatus;
 import com.orbytum.api.models.exceptions.AtividadeNaoEncontradaErro;
 import com.orbytum.api.models.exceptions.AtividadeNaoPertenceAoProjetoErro;
 import com.orbytum.api.models.exceptions.ProjetoNaoEncontradoErro;
@@ -89,8 +90,15 @@ public class AtividadeService {
                 request.descricao(),
                 request.dthPrazo());
         atividade.setStatus(statusInicial);
+        Atividade salva = atividadeRepository.save(atividade);
 
-        return toResponse(atividadeRepository.save(atividade), solicitante);
+        // Um projeto planejado passa a "Em Andamento" assim que recebe a sua primeira atividade.
+        if (projeto.getStatus() == ProjetoStatus.PLANEJADO) {
+            projeto.setStatus(ProjetoStatus.EM_ANDAMENTO);
+            projetoService.save(projeto);
+        }
+
+        return toResponse(salva, solicitante);
     }
 
     @Transactional

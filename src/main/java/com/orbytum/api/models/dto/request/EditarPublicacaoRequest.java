@@ -9,9 +9,11 @@ import java.time.LocalDate;
 
 public record EditarPublicacaoRequest(
         @NotBlank(message = "O título da publicação é obrigatório.")
+        @Size(max = 100, message = "O título deve ter no máximo 100 caracteres.")
         String titulo,
 
         @NotBlank(message = "A descrição da publicação é obrigatória.")
+        @Size(max = 1000, message = "A descrição deve ter no máximo 1000 caracteres.")
         String descricao,
 
         Long projetoId,

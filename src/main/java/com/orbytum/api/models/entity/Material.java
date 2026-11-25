@@ -24,6 +24,7 @@ public class Material {
     @Nonnull
     private String nome;
 
+    @Column(length = 1000)
     @Nonnull
     private String descricao;
 

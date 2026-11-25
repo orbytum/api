@@ -61,6 +61,7 @@ public interface AtividadeRepository extends JpaRepository<Atividade, Long> {
             LEFT JOIN FETCH a.responsavel
             WHERE p.grupo.id = :grupoId
               AND a.isAtivo = true
+              AND p.isAtivo = true
             ORDER BY a.dthPrazo ASC, a.id ASC
             """)
     List<Atividade> findAllAtivasPorGrupo(@Param("grupoId") Long grupoId);
