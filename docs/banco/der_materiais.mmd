@@ -35,18 +35,18 @@ erDiagram
   }
   MATERIAL_EMPRESTIMO_SOLICITACAO {
     bigint id PK
+    text descricao
+    timestamp dth_aprovacao_lider
     timestamp dth_resposta
     timestamp dth_solicitacao
     boolean is_aprovada
     boolean is_interna
     varchar justificativa
     integer status
-    bigint projeto_id FK
-    uuid usuario_id FK
-    text descricao
-    timestamp dth_aprovacao_lider
     varchar titulo
     bigint aprovador_lider_id FK
+    bigint projeto_id FK
+    uuid usuario_id FK
   }
   MATERIAL_EMPRESTIMO_SOLICITACAO_ITEM {
     bigint id PK

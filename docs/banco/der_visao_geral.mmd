@@ -80,9 +80,9 @@ erDiagram
   }
   MATERIAL_EMPRESTIMO_SOLICITACAO {
     bigint id PK
+    bigint aprovador_lider_id FK
     bigint projeto_id FK
     uuid usuario_id FK
-    bigint aprovador_lider_id FK
   }
   PUBLICACAO {
     bigint id PK

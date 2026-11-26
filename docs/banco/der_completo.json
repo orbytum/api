@@ -306,6 +306,26 @@
    ]
   },
   {
+   "nome": "edital_x_documento",
+   "colunas": [
+    {
+     "tipo": "bigint",
+     "nome": "id",
+     "chave": "PK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "documento_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "edital_id",
+     "chave": "FK"
+    }
+   ]
+  },
+  {
    "nome": "edital_x_grupo",
    "colunas": [
     {
@@ -669,6 +689,16 @@
      "chave": "PK"
     },
     {
+     "tipo": "text",
+     "nome": "descricao",
+     "chave": ""
+    },
+    {
+     "tipo": "timestamp",
+     "nome": "dth_aprovacao_lider",
+     "chave": ""
+    },
+    {
      "tipo": "timestamp",
      "nome": "dth_resposta",
      "chave": ""
@@ -699,26 +729,6 @@
      "chave": ""
     },
     {
-     "tipo": "bigint",
-     "nome": "projeto_id",
-     "chave": "FK"
-    },
-    {
-     "tipo": "uuid",
-     "nome": "usuario_id",
-     "chave": "FK"
-    },
-    {
-     "tipo": "text",
-     "nome": "descricao",
-     "chave": ""
-    },
-    {
-     "tipo": "timestamp",
-     "nome": "dth_aprovacao_lider",
-     "chave": ""
-    },
-    {
      "tipo": "varchar",
      "nome": "titulo",
      "chave": ""
@@ -726,6 +736,16 @@
     {
      "tipo": "bigint",
      "nome": "aprovador_lider_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "bigint",
+     "nome": "projeto_id",
+     "chave": "FK"
+    },
+    {
+     "tipo": "uuid",
+     "nome": "usuario_id",
      "chave": "FK"
     }
    ]
@@ -1161,6 +1181,18 @@
    "coluna": "criador_id",
    "referencia": "usuario",
    "nulavel": true
+  },
+  {
+   "tabela": "edital_x_documento",
+   "coluna": "documento_id",
+   "referencia": "documento",
+   "nulavel": false
+  },
+  {
+   "tabela": "edital_x_documento",
+   "coluna": "edital_id",
+   "referencia": "edital",
+   "nulavel": false
   },
   {
    "tabela": "edital_x_grupo",

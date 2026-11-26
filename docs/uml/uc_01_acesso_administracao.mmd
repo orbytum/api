@@ -18,15 +18,17 @@ flowchart LR
       UC01(["UC01 · Fazer login"])
       UC02(["UC02 · Cadastrar-se por convite"])
       UC03(["UC03 · Aceitar convite de grupo"])
-      UC04(["UC04 · Consultar meus grupos"])
+      UC04(["UC04 · Consultar meus grupos<br/>e trocar o grupo atual"])
+      UC47(["UC47 · Sair do sistema"])
+      UC49(["UC49 · Alternar tema claro / escuro"])
     end
     subgraph ADMN["Administração"]
       UC05(["UC05 · Cadastrar administrador"])
       UC06(["UC06 · Gerar / revogar convite de cadastro"])
       UC07(["UC07 · Manter grupos de pesquisa"])
-      UC08(["UC08 · Cadastrar líder do grupo"])
+      UC08(["UC08 · Convidar líder do grupo"])
       UC09(["UC09 · Gerar projeto inicial"])
-      UC10(["UC10 · Convidar membros para o grupo<br/>(e-mail ou link)"])
+      UC10(["UC10 · Convidar membros para o grupo<br/>(e-mail ou link, exceto Líder)"])
       UC11(["UC11 · Editar / remover pesquisadores"])
       UC12(["UC12 · Manter materiais"])
     end
@@ -37,11 +39,14 @@ flowchart LR
   VIS --- UC03
   COL --- UC03
   COL --- UC04
+  COL --- UC47
+  COL --- UC49
 
   ADI --- UC05
   ADM --- UC05
   ADM --- UC06
   ADM --- UC07
+  ADM --- UC08
   ADM --- UC10
   ADM --- UC11
   ADM --- UC12

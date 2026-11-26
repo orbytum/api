@@ -143,6 +143,9 @@ classDiagram
   class EditalXGrupo {
     -Long id
   }
+  class EditalXDocumento {
+    -Long id
+  }
 
   %% ======================= Agenda =======================
   class Evento {
@@ -328,6 +331,8 @@ classDiagram
   Edital "1" *-- "0..*" EditalXGrupo : grupos
   EditalXGrupo "0..*" --> "1" Grupo
   Edital "0..*" --> "0..*" Projeto : projetos
+  Edital "1" *-- "0..*" EditalXDocumento : documentos
+  EditalXDocumento "0..*" --> "1" Documento
 
   Evento "0..*" --> "1" Grupo
   Evento "0..*" --> "1" Usuario : criador
