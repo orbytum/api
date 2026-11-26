@@ -22,7 +22,7 @@ flowchart LR
     direction TB
     subgraph PRJ["Projetos"]
       UC13(["UC13 · Consultar projetos e participantes"])
-      UC14(["UC14 · Visualizar dashboard (sistema solar)"])
+      UC14(["UC14 · Visualizar dashboard<br/>(resumo e sistema solar)"])
       UC15(["UC15 · Marcar projeto como destaque"])
       UC16(["UC16 · Manter projetos"])
       UC17(["UC17 · Gerenciar participantes do projeto"])
@@ -30,7 +30,7 @@ flowchart LR
     end
     subgraph ATV["Atividades"]
       UC19(["UC19 · Consultar atividades e atrasos"])
-      UC20(["UC20 · Criar atividade"])
+      UC20(["UC20 · Criar atividade<br/>(projeto planejado passa a em andamento)"])
       UC21(["UC21 · Registrar impedimento<br/>(atividade filha)"])
       UC22(["UC22 · Atualizar status da atividade"])
       UC23(["UC23 · Aprovar / rejeitar atividade"])
@@ -42,6 +42,7 @@ flowchart LR
       UC27(["UC27 · Aprovar / rejeitar solicitação<br/>(1ª etapa)"])
       UC28(["UC28 · Decidir solicitação<br/>(aprovação final)"])
       UC29(["UC29 · Concluir / encerrar solicitação"])
+      UC48(["UC48 · Consultar recursos financeiros"])
     end
   end
 
@@ -66,6 +67,7 @@ flowchart LR
 
   ADM --- UC28
   ADM --- UC29
+  ADM --- UC48
 
   UC21 -. "«extend»<br/>atividade em andamento" .-> UC20
   UC18 -. "«extend»<br/>última atividade do projeto" .-> UC24

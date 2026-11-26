@@ -3,6 +3,8 @@ config:
   layout: elk
 ---
 erDiagram
+  DOCUMENTO ||--o{ EDITAL_X_DOCUMENTO : "documento_id"
+  EDITAL ||--o{ EDITAL_X_DOCUMENTO : "edital_id"
   EDITAL ||--o{ EDITAL_X_GRUPO : "edital_id"
   GRUPO ||--o{ EDITAL_X_GRUPO : "grupo_id"
   EDITAL ||--o{ EDITAL_X_PROJETO : "edital_id"
@@ -51,6 +53,14 @@ erDiagram
   EDITAL_X_PROJETO {
     bigint edital_id PK, FK
     bigint projeto_id PK, FK
+  }
+  EDITAL_X_DOCUMENTO {
+    bigint id PK
+    bigint documento_id FK
+    bigint edital_id FK
+  }
+  DOCUMENTO {
+    bigint id PK
   }
   GRUPO {
     bigint id PK
